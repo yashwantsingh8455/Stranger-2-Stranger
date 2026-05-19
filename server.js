@@ -21,6 +21,7 @@ const {
 // ══════════════════════════════════════════════════════════════
 const MONGO_URI    = process.env.MONGO_URI    || "mongodb+srv://yashwantsingh2046_db_user:Yashu2046@db.avouoxu.mongodb.net/?appName=db";
 const CLIENT_ID    = process.env.CLIENT_ID    || "1478767384398528573";
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN || "";
 
 // Discord Channel IDs (same as your original setup)
 const CONTROL_CHANNEL_ID   = process.env.CONTROL_CHANNEL_ID   || "1485501424891727952";
@@ -803,7 +804,12 @@ io.on("connection", (socket) => {
 // 🌐 REST API
 // ══════════════════════════════════════════════════════════════
 app.use(express.json({ limit: "10mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+// Purane express.static ko isse replace karein
+app.use(express.static(path.join(__dirname, "public"), { extensions: ["html", "htm"] }));
+// ── CLEAN URL ROUTE FOR CHATROOM ──────────────────────────────────────────
+app.get("/Group-Chatroom", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "Group-Chatroom.html"));
+});
 
 // Report via HTTP (fallback when socket not connected)
 app.post("/api/report", async (req, res) => {
