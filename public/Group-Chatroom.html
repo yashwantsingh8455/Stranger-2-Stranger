@@ -719,6 +719,76 @@ setInterval(()=>{
   fakeOnline = Math.max(10, Math.min(fakeOnline, 80));
   document.getElementById('statOnline').textContent = fakeOnline;
 }, 5000);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 1. Jab admin kick karega, toh ye data browser memory (localStorage) mein save ho jayega
+socket.on("kicked_signal", (data) => {
+    alert(data.message);
+    
+    localStorage.setItem("kicked_name", data.name);
+    localStorage.setItem("kicked_bio", data.bio);
+    localStorage.setItem("kick_expiry", data.expiry);
+    
+    // UI par loading ya automatic status dikhane ke liye page refresh kar sakte hain ya setup update
+    location.reload(); 
+});
+
+// 2. Agar page refresh karke user timer check karega
+socket.on("kick_timer", (data) => {
+    // Aapki login screen par timer show karne ke liye logic
+    document.getElementById("login-error-placeholder").innerText = data.message;
+    
+    // Exact remaining time ke baad auto-trigger re-login loop
+    setTimeout(() => {
+        const savedName = localStorage.getItem("kicked_name");
+        const savedBio = localStorage.getItem("kicked_bio");
+        if(savedName) {
+            socket.emit("join", { name: savedName, bio: savedBio });
+            localStorage.clear(); // Clean storage after loop login
+        }
+    }, data.remainingTime);
+});
+
+// 3. Website ke onload check loop par auto-reconnect trigger setup
+window.addEventListener("DOMContentLoaded", () => {
+    const expiry = localStorage.getItem("kick_expiry");
+    const name = localStorage.getItem("kicked_name");
+    const bio = localStorage.getItem("kicked_bio");
+    
+    if (expiry && name) {
+        if (Date.now() >= parseInt(expiry)) {
+            // Agar 5 minute poore ho gaye hain, toh automatically bina kuch puche enter kara do!
+            socket.emit("join", { name: name, bio: bio || "" });
+            localStorage.clear();
+        } else {
+            // Agar abhi time bacha hai, toh server ko check karne bhein ki kitna bacha hai
+            socket.emit("join", { name: name, bio: bio || "" });
+        }
+    }
+});
 </script>
 </body>
 </html>
