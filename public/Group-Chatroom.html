@@ -789,6 +789,21 @@ window.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
+
+
+
+
+socket.on("joined", (userData) => {
+    // Yahan par "Joining..." wale button ko normal karo
+    // Aur user ko chatroom wale page/screen par bhej do
+    console.log("Successfully joined as", userData.name);
+    window.location.href = "/Group-Chatroom"; // Ya jo bhi aapka logic hai
+});
+
+// Aur agar error aaye toh:
+socket.on("duplicate", (msg) => {
+    alert(msg); // Loading button ko reset karke error dikhao
+});
 </script>
 </body>
 </html>
