@@ -1,6 +1,6 @@
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   StrangerToStranger — HeyyYuki Powered Server v3.2         ║
-// ║   📞 Calling System Fully Integrated                        ║
+// ║   StrangerToStranger — HeyyYuki Powered Server v3.2 LIVE     ║
+// ║   📞 Calling System + 🧹 Chat Wipe Engine Full Sync         ║
 // ╚══════════════════════════════════════════════════════════════╝
 require("dotenv").config();
 const express  = require("express");
@@ -23,7 +23,7 @@ const MONGO_URI     = process.env.MONGO_URI     || "mongodb+srv://yashwantsingh2
 const CLIENT_ID     = process.env.CLIENT_ID     || "1478767384398528573";
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || "";
 
-const CONTROL_CHANNEL_IDS = ["1485501424891727952", "1506573109728247848"];
+const CONTROL_CHANNEL_IDS = ["1485501424891727952", "1506942938545127485"];
 
 const STATUS_CHANNEL_ID     = process.env.STATUS_CHANNEL_ID     || "1503654154457845900";
 const CHAT_CHANNEL_ID       = process.env.CHAT_CHANNEL_ID       || "1503653808105062480";
@@ -145,7 +145,7 @@ function saveVips() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🤖 DISCORD BOT
+// 🤖 DISCORD BOT & SLASH REGISTRATION
 // ══════════════════════════════════════════════════════════════
 const discordClient = new Client({
   intents: [
@@ -181,6 +181,8 @@ const commands = [
   new SlashCommandBuilder().setName("remove-currentannouncement").setDescription("Remove running website announcement"),
   // 📞 CALLING SYSTEM
   new SlashCommandBuilder().setName("callrooms").setDescription("Show all active call rooms and participants"),
+  // 🧹 CHAT WIPE ENGINE COMMAND
+  new SlashCommandBuilder().setName("clear-all-chats").setDescription("🚨 CRITICAL: Wipe entire website chat messages from MongoDB")
 ].map(c => c.toJSON());
 
 if (DISCORD_TOKEN) {
@@ -226,6 +228,51 @@ discordClient.on("interactionCreate", async (interaction) => {
 
   const { commandName, options } = interaction;
 
+  // 🧹 FIXED EXECUTION ENGINE: /clear-all-chats (Crash-Proof Patch)
+  if (commandName === "clear-all-chats") {
+    await interaction.deferReply();
+    try {
+      const deleteResult = await Message.deleteMany({});
+      
+      // Sockets pipe update distribution
+      io.emit("chat_cleared_global", { message: "🧹 Total chat logs have been wiped by an Administrator." });
+      
+      // Seed flag node generation inside DB loop to shield incoming user handshakes from crashes
+      const freshSystemMsg = new Message({
+        room: "global",
+        senderId: "system_core",
+        senderName: "System",
+        senderAvatar: "",
+        senderColor: "#ff3c5f",
+        text: "🚨 Entire chat history has been cleared by the Administrator. Safe chatting!",
+        type: "system",
+        isVip: true,
+        createdAt: new Date()
+      });
+      await freshSystemMsg.save();
+
+      io.to("global").emit("chat message", {
+        id: "sys_" + Date.now(),
+        sender: "System",
+        message: "🚨 Entire chat history has been cleared by the Administrator.",
+        type: "system",
+        room: "global",
+        createdAt: new Date(),
+      });
+
+      sendEmbed(MOD_LOG_CHANNEL_ID, {
+        color: 0xff3c5f,
+        title: "🔥 Database Wipe Event",
+        description: `Poori website ki chats clear kar di gayi hain!\n• **Deleted Logs:** \`${deleteResult.deletedCount}\` items.\n• **Triggered By:** <@${interaction.user.id}>\n• **Status:** Clean boot sequence stabilized.`
+      });
+
+      return interaction.editReply(`🗑️ **Success!** Website ki saari chat history successfully clear kar di gayi hai (Total Logs: \`${deleteResult.deletedCount}\`).`);
+    } catch (err) {
+      console.error("Wipe processor fault:", err);
+      return interaction.editReply("❌ **Error:** Database clear karne mein dikkat aayi.");
+    }
+  }
+
   if (commandName === "announce") {
     await interaction.deferReply();
     const durationInMinutes = options.getInteger("duration");
@@ -264,10 +311,10 @@ discordClient.on("interactionCreate", async (interaction) => {
       const u = activeUsers[sid];
       const expiry = Date.now() + 5 * 60 * 1000;
       tempBannedIPs.set(u.ip, { expiry, reservedName: u.name });
-      io.to(sid).emit("kicked_signal", { message: "👢 You have been kicked for 5 minutes.", name: u.name, expiry });
+      io.to(sid).emit("kicked_signal", { message: "替 You have been kicked for 5 minutes.", name: u.name, expiry });
       io.sockets.sockets.get(sid)?.disconnect();
       setTimeout(() => tempBannedIPs.delete(u.ip), 5 * 60 * 1000);
-      sendEmbed(MOD_LOG_CHANNEL_ID, { color: 0xe67e22, title: "👢 User Kicked", fields: [{ name: "User", value: u.name, inline: true }, { name: "IP", value: u.ip, inline: true }] });
+      sendEmbed(MOD_LOG_CHANNEL_ID, { color: 0xe67e22, title: "替 User Kicked", fields: [{ name: "User", value: u.name, inline: true }, { name: "IP", value: u.ip, inline: true }] });
       return interaction.reply(`✅ **${u.name}** kicked for 5 minutes.`);
     }
     return interaction.reply("❌ User not found online.");
@@ -822,13 +869,23 @@ io.on("connection", (socket) => {
 });
 
 // ══════════════════════════════════════════════════════════════
-// 🌐 REST API
+// 🌐 REST API & RE-ROUTING PIE INTERCEPTORS
 // ══════════════════════════════════════════════════════════════
 app.use(express.json({ limit: "10mb" }));
+
+// 🛡️ RE-ROUTING SECURITY WALL (Bypasses manual raw file queries safely)
+app.use((req, res, next) => {
+    const url = req.url.toLowerCase();
+    if (url === '/iframe-groupchatroom.html' || url === '/iframe-groupchatroom') {
+        return res.redirect(301, '/');
+    }
+    next();
+});
+
+// Serve core static repository folder layouts
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html", "htm"] }));
 
 app.get("/",                    (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.get("/iframe-groupchatroom",(req, res) => res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html")));
 app.get("/chat",                (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 // 📞 CALL ROUTES
@@ -894,7 +951,7 @@ app.get("/manifest.json",(req, res) => res.sendFile(path.resolve(__dirname, "pub
 app.use("/.well-known", express.static(path.join(__dirname, ".well-known"), { dotfiles: "allow" }));
 
 // ══════════════════════════════════════════════════════════════
-// 🚀 START
+// 🚀 START ENGINE
 // ══════════════════════════════════════════════════════════════
 http.listen(PORT, () => {
   console.log(`🚀 StrangerToStranger running on http://localhost:${PORT}`);
