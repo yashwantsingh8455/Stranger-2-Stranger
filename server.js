@@ -1,6 +1,5 @@
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   StrangerToStranger — HeyyYuki Powered Server v3.2 LIVE     ║
-// ║   📞 Calling System + 🧹 Chat Wipe Engine Full Sync         ║
+// ║   StrangerToStranger — HeyyYuki Powered Server v3.1 FIXED   ║
 // ╚══════════════════════════════════════════════════════════════╝
 require("dotenv").config();
 const express  = require("express");
@@ -23,7 +22,8 @@ const MONGO_URI     = process.env.MONGO_URI     || "mongodb+srv://yashwantsingh2
 const CLIENT_ID     = process.env.CLIENT_ID     || "1478767384398528573";
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || "";
 
-const CONTROL_CHANNEL_IDS = ["1485501424891727952", "1506942938545127485"];
+// 🎯 MULTIPLE CHANNELS LIST (Yahan comma lagakar jitni chaho utni admin channel IDs dalo)
+const CONTROL_CHANNEL_IDS = ["1485501424891727952", "1506573109728247848"];
 
 const STATUS_CHANNEL_ID     = process.env.STATUS_CHANNEL_ID     || "1503654154457845900";
 const CHAT_CHANNEL_ID       = process.env.CHAT_CHANNEL_ID       || "1503653808105062480";
@@ -102,12 +102,13 @@ const ReportSchema = new mongoose.Schema({
 });
 const Report = mongoose.model("Report", ReportSchema);
 
+// 📢 DYNAMIC ANNOUNCEMENT SCHEMA FOR WEB
 const announcementSchema = new mongoose.Schema({
   text: String,
   expiresAt: Date,
   createdAt: { type: Date, default: Date.now }
 });
-const Announcement = mongoose.models.Announcement || mongoose.model("Announcement", announcementSchema);
+const Announcement = mongoose.models.Announcement || mongoose.model('Announcement', announcementSchema);
 
 const BanSchema = new mongoose.Schema({ username: { type: String, unique: true } });
 const VipSchema = new mongoose.Schema({ username: { type: String, unique: true } });
@@ -133,6 +134,7 @@ if (fs.existsSync(VIPS_FILE)) {
 function saveBanned() {
   fs.writeFileSync(BANNED_FILE, JSON.stringify([...bannedUsernames]));
   Banned.deleteMany({}).then(() => {
+    // ✅ Array.from use karne se square brackets aur '...' ka jhanjhat hi khatam!
     Array.from(bannedUsernames).forEach(u => new Banned({ username: u }).save().catch(() => {}));
   }).catch(() => {});
 }
@@ -140,12 +142,13 @@ function saveBanned() {
 function saveVips() {
   fs.writeFileSync(VIPS_FILE, JSON.stringify([...vips]));
   Vip.deleteMany({}).then(() => {
+    // ✅ Yahan bhi ekdum safe aur clean tarika apply kar diya
     Array.from(vips).forEach(u => new Vip({ username: u }).save().catch(() => {}));
   }).catch(() => {});
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🤖 DISCORD BOT & SLASH REGISTRATION
+// 🤖 DISCORD BOT
 // ══════════════════════════════════════════════════════════════
 const discordClient = new Client({
   intents: [
@@ -157,6 +160,7 @@ const discordClient = new Client({
 
 let discordReady = false;
 
+// ⚡ ANNOUNCEMENT SLASH COMMANDS ARE NOW EMBEDDED IN SYSTEM Array
 const commands = [
   new SlashCommandBuilder().setName("ann").setDescription("Send global announcement")
     .addStringOption(o => o.setName("message").setDescription("Announcement text").setRequired(true)),
@@ -174,15 +178,13 @@ const commands = [
   new SlashCommandBuilder().setName("cleargroup").setDescription("Clear group messages")
     .addStringOption(o => o.setName("groupname").setDescription("Group name").setRequired(true)),
   new SlashCommandBuilder().setName("stats").setDescription("Show server statistics"),
+  
+  // 📢 NEW LIVE WEB ANNOUNCEMENT COMMANDS REGISTERED HERE!
   new SlashCommandBuilder().setName("announce").setDescription("Set website live timed announcement")
     .addIntegerOption(o => o.setName("duration").setDescription("Duration in minutes").setRequired(true))
     .addStringOption(o => o.setName("message").setDescription("Announcement text paragraph").setRequired(true)),
   new SlashCommandBuilder().setName("active-announcements").setDescription("Check active website announcements"),
-  new SlashCommandBuilder().setName("remove-currentannouncement").setDescription("Remove running website announcement"),
-  // 📞 CALLING SYSTEM
-  new SlashCommandBuilder().setName("callrooms").setDescription("Show all active call rooms and participants"),
-  // 🧹 CHAT WIPE ENGINE COMMAND
-  new SlashCommandBuilder().setName("clear-all-chats").setDescription("🚨 CRITICAL: Wipe entire website chat messages from MongoDB")
+  new SlashCommandBuilder().setName("remove-currentannouncement").setDescription("Remove running website announcement")
 ].map(c => c.toJSON());
 
 if (DISCORD_TOKEN) {
@@ -221,77 +223,43 @@ discordClient.on("messageCreate", (msg) => {
 
 discordClient.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-
+  
+  // 🔄 MULTIPLE CHANNELS LISTENER SECURITY CHECK
   if (!CONTROL_CHANNEL_IDS.includes(interaction.channelId)) {
     return interaction.reply({ content: `❌ Please use permitted administrator control channels.`, ephemeral: true });
   }
 
   const { commandName, options } = interaction;
 
-  // 🧹 FIXED EXECUTION ENGINE: /clear-all-chats (Crash-Proof Patch)
-  if (commandName === "clear-all-chats") {
-    await interaction.deferReply();
-    try {
-      const deleteResult = await Message.deleteMany({});
-      
-      // Sockets pipe update distribution
-      io.emit("chat_cleared_global", { message: "🧹 Total chat logs have been wiped by an Administrator." });
-      
-      // Seed flag node generation inside DB loop to shield incoming user handshakes from crashes
-      const freshSystemMsg = new Message({
-        room: "global",
-        senderId: "system_core",
-        senderName: "System",
-        senderAvatar: "",
-        senderColor: "#ff3c5f",
-        text: "🚨 Entire chat history has been cleared by the Administrator. Safe chatting!",
-        type: "system",
-        isVip: true,
-        createdAt: new Date()
-      });
-      await freshSystemMsg.save();
-
-      io.to("global").emit("chat message", {
-        id: "sys_" + Date.now(),
-        sender: "System",
-        message: "🚨 Entire chat history has been cleared by the Administrator.",
-        type: "system",
-        room: "global",
-        createdAt: new Date(),
-      });
-
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color: 0xff3c5f,
-        title: "🔥 Database Wipe Event",
-        description: `Poori website ki chats clear kar di gayi hain!\n• **Deleted Logs:** \`${deleteResult.deletedCount}\` items.\n• **Triggered By:** <@${interaction.user.id}>\n• **Status:** Clean boot sequence stabilized.`
-      });
-
-      return interaction.editReply(`🗑️ **Success!** Website ki saari chat history successfully clear kar di gayi hai (Total Logs: \`${deleteResult.deletedCount}\`).`);
-    } catch (err) {
-      console.error("Wipe processor fault:", err);
-      return interaction.editReply("❌ **Error:** Database clear karne mein dikkat aayi.");
-    }
-  }
-
+  // 📢 NEW: /announce Command Logic
   if (commandName === "announce") {
     await interaction.deferReply();
     const durationInMinutes = options.getInteger("duration");
     const messageText = options.getString("message");
+
     await Announcement.deleteMany({});
     const expiryDate = new Date(Date.now() + durationInMinutes * 60 * 1000);
+
     const newAnnounce = new Announcement({ text: messageText, expiresAt: expiryDate });
     await newAnnounce.save();
+
     return interaction.editReply(`✅ Website par announcement chalu! Ye **${durationInMinutes} minutes** tak dikhegi.`);
   }
 
+  // 📋 NEW: /active-announcements Command Logic
   if (commandName === "active-announcements") {
     await interaction.deferReply();
     const current = await Announcement.findOne({ expiresAt: { $gt: new Date() } });
-    if (!current) return interaction.editReply("❌ No announcements is active now.");
+
+    if (!current) {
+      return interaction.editReply("❌ No announcements is active now.");
+    }
+
     const timeLeft = Math.round((current.expiresAt - Date.now()) / 1000 / 60);
     return interaction.editReply(`📢 **Active Announcement:**\n"${current.text}"\n\n⏰ Yeh **${timeLeft} minutes** baad automatic hat jayegi.`);
   }
 
+  // 🗑️ NEW: /remove-currentannouncement Command Logic
   if (commandName === "remove-currentannouncement") {
     await interaction.deferReply();
     await Announcement.deleteMany({});
@@ -311,10 +279,10 @@ discordClient.on("interactionCreate", async (interaction) => {
       const u = activeUsers[sid];
       const expiry = Date.now() + 5 * 60 * 1000;
       tempBannedIPs.set(u.ip, { expiry, reservedName: u.name });
-      io.to(sid).emit("kicked_signal", { message: "替 You have been kicked for 5 minutes.", name: u.name, expiry });
+      io.to(sid).emit("kicked_signal", { message: "👢 You have been kicked for 5 minutes.", name: u.name, expiry });
       io.sockets.sockets.get(sid)?.disconnect();
       setTimeout(() => tempBannedIPs.delete(u.ip), 5 * 60 * 1000);
-      sendEmbed(MOD_LOG_CHANNEL_ID, { color: 0xe67e22, title: "替 User Kicked", fields: [{ name: "User", value: u.name, inline: true }, { name: "IP", value: u.ip, inline: true }] });
+      sendEmbed(MOD_LOG_CHANNEL_ID, { color: 0xe67e22, title: "👢 User Kicked", fields: [{ name: "User", value: u.name, inline: true }, { name: "IP", value: u.ip, inline: true }] });
       return interaction.reply(`✅ **${u.name}** kicked for 5 minutes.`);
     }
     return interaction.reply("❌ User not found online.");
@@ -391,23 +359,6 @@ discordClient.on("interactionCreate", async (interaction) => {
       `• VIPs: \`${vips.size}\``
     );
   }
-
-  // 📞 CALLING SYSTEM — Discord command
-  if (commandName === "callrooms") {
-    const rooms = {};
-    Object.values(activeUsers).forEach(u => {
-      if (u.callRoom) {
-        if (!rooms[u.callRoom]) rooms[u.callRoom] = [];
-        rooms[u.callRoom].push(u.name + (u.isVip ? " 🔹" : ""));
-      }
-    });
-    const lines = Object.entries(rooms).map(([r, members]) =>
-      `📞 **${r}** — ${members.join(", ")} (${members.length} people)`
-    );
-    return interaction.reply(lines.length
-      ? `**Active Call Rooms:**\n${lines.join("\n")}`
-      : "No active call rooms right now.");
-  }
 });
 
 if (DISCORD_TOKEN) {
@@ -430,7 +381,6 @@ function buildUserList() {
     avatar:   u.avatar,
     color:    u.color,
     isVip:    u.isVip,
-    callRoom: u.callRoom || null,
   }));
 }
 
@@ -482,8 +432,6 @@ function getDMChannelId(nameA, nameB) {
   return [nameA.toLowerCase(), nameB.toLowerCase()].sort().join("__dm__");
 }
 
-function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
-
 // ══════════════════════════════════════════════════════════════
 // 🧠 IN-MEMORY STATE
 // ══════════════════════════════════════════════════════════════
@@ -499,7 +447,6 @@ io.on("connection", (socket) => {
   const userIP = getIP(socket);
   let currentUser = null;
 
-  // ── JOIN ──
   socket.on("join", async (data) => {
     try {
       const name      = (data.name || "").trim();
@@ -543,7 +490,6 @@ io.on("connection", (socket) => {
         socketId: socket.id,
         name, bio, avatar, color, ip: userIP,
         isVip, isAdmin, room: "global",
-        callRoom: null,
       };
 
       activeUsers[socket.id] = currentUser;
@@ -596,7 +542,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ── CHAT MESSAGE ──
   socket.on("chat message", async (data) => {
     if (!currentUser) return;
     try {
@@ -618,8 +563,7 @@ io.on("connection", (socket) => {
       const msgDoc = new Message({
         room, senderId: socket.id, senderName: currentUser.name,
         senderAvatar: currentUser.avatar, senderColor: currentUser.color,
-        text: data.message || "", type: data.type || "text",
-        mediaUrl: data.mediaUrl || "", isVip: currentUser.isVip,
+        text: data.message || "", type: data.type || "text", mediaUrl: data.mediaUrl || "", isVip: currentUser.isVip,
       });
       await msgDoc.save();
       payload._id = msgDoc._id.toString();
@@ -637,19 +581,16 @@ io.on("connection", (socket) => {
     } catch(err) {}
   });
 
-  // ── DELETE MESSAGE ──
   socket.on("delete message", async (id) => {
     try { await Message.findByIdAndDelete(id); io.emit("delete message", id); } catch(e) {}
   });
 
-  // ── TYPING ──
   socket.on("typing", (data) => {
     if (!currentUser) return;
     const room = (data && data.room) ? data.room : (currentUser.room || "global");
     socket.to(room).emit("typing", { user: currentUser.name });
   });
 
-  // ── PRIVATE MESSAGE ──
   socket.on("private message", async (data) => {
     if (!currentUser) return;
     try {
@@ -670,7 +611,6 @@ io.on("connection", (socket) => {
     } catch(err) {}
   });
 
-  // ── DM HISTORY ──
   socket.on("dm_history", async ({ withUser }) => {
     if (!currentUser) return;
     try {
@@ -681,14 +621,12 @@ io.on("connection", (socket) => {
     } catch(err) {}
   });
 
-  // ── DM TYPING ──
   socket.on("dm_typing", ({ toUser, isTyping }) => {
     if (!currentUser) return;
     const target = Object.values(activeUsers).find(u => u.name.toLowerCase() === toUser?.toLowerCase());
     if (target) io.to(target.socketId).emit("dm_typing_update", { fromUser: currentUser.name, isTyping });
   });
 
-  // ── JOIN GROUP ──
   socket.on("join_group", async ({ groupId, password }) => {
     try {
       const group = await Group.findById(groupId);
@@ -708,7 +646,6 @@ io.on("connection", (socket) => {
     } catch(err) {}
   });
 
-  // ── CREATE GROUP ──
   socket.on("create_group", async ({ name, description, password, icon }) => {
     if (!currentUser) return;
     try {
@@ -720,19 +657,15 @@ io.on("connection", (socket) => {
     } catch(err) {}
   });
 
-  // ── GET GROUPS ──
   socket.on("get_groups", async () => {
-    try {
-      const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
-      socket.emit("groups_list", groups.map(g => ({ ...g, hasPassword: !!g.password })));
-    } catch(err) {}
+    try { const groups = await Group.find({}).sort({ createdAt: -1 }).lean(); socket.emit("groups_list", groups.map(g => ({ ...g, hasPassword: !!g.password }))); } catch(err) {}
   });
 
-  // ── REPORT USER ──
   socket.on("report user", async (data) => {
     try {
       const device = /Mobi|Android/i.test(socket.handshake.headers["user-agent"] || "") ? "📱 Mobile" : "🖥️ Desktop";
       await new Report({ reportedUser: data.reportedUser, reporterUser: data.reportedBy || data.reporterUser || currentUser?.name, reporterEmail: data.email, category: data.reason, reason: data.description || data.reason, device }).save();
+
       if (discordReady) {
         const embed = new EmbedBuilder().setColor(0xff3c5f).setTitle("🚨 New User Report")
           .addFields({ name: "🎯 Reported", value: `\`${data.reportedUser}\``, inline: true }, { name: "👤 Reporter", value: `\`${data.reportedBy || "—"}\``, inline: true }, { name: "📱 Device", value: device, inline: true }, { name: "📂 Category", value: `\`${data.reason || "—"}\``, inline: false }, { name: "📝 Details", value: (data.description || "—").substring(0, 1000), inline: false }).setTimestamp().setFooter({ text: "StrangerToStranger 2026" });
@@ -743,7 +676,6 @@ io.on("connection", (socket) => {
     } catch(err) { socket.emit("report_error", "Failed to submit report."); }
   });
 
-  // ── UPDATE PROFILE ──
   const handleProfileUpdate = ({ bio, avatar, color, name }) => {
     if (!currentUser) return;
     if (bio    !== undefined) currentUser.bio    = bio;
@@ -761,105 +693,8 @@ io.on("connection", (socket) => {
   socket.on("update_profile", handleProfileUpdate);
   socket.on("update profile",  handleProfileUpdate);
 
-  // ══════════════════════════════════════════════════════════════
-  // 📞 CALLING SYSTEM SOCKET EVENTS
-  // ══════════════════════════════════════════════════════════════
-
-  // User joins a call room
-  socket.on("call_join_room", ({ callRoom }) => {
-    if (!currentUser || !callRoom) return;
-    currentUser.callRoom = callRoom;
-    activeUsers[socket.id] = currentUser;
-
-    socket.join("call_" + callRoom);
-
-    // Notify existing members someone joined
-    io.to("call_" + callRoom).emit("call_user_joined", {
-      name:     currentUser.name,
-      avatar:   currentUser.avatar,
-      color:    currentUser.color,
-      isVip:    currentUser.isVip,
-      socketId: socket.id,
-    });
-
-    // Send current members list to the new joiner
-    const existing = Object.values(activeUsers)
-      .filter(u => u.callRoom === callRoom && u.socketId !== socket.id)
-      .map(u => ({ name: u.name, avatar: u.avatar, color: u.color, isVip: u.isVip, socketId: u.socketId }));
-    socket.emit("call_room_members", { callRoom, members: existing });
-
-    io.emit("user list", buildUserList());
-
-    sendEmbed(JOIN_LEAVE_CHANNEL_ID, {
-      color: 0x0095ff, title: "📞 Call Room Joined",
-      fields: [
-        { name: "User", value: currentUser.name, inline: true },
-        { name: "Room", value: callRoom,          inline: true },
-      ],
-    });
-  });
-
-  // User leaves call room
-  socket.on("call_leave_room", ({ callRoom }) => {
-    if (!currentUser) return;
-    const room = callRoom || currentUser.callRoom;
-    if (!room) return;
-
-    currentUser.callRoom = null;
-    activeUsers[socket.id] = currentUser;
-
-    socket.leave("call_" + room);
-    io.to("call_" + room).emit("call_user_left", {
-      name: currentUser.name, socketId: socket.id,
-    });
-    io.emit("user list", buildUserList());
-  });
-
-  // In-call emoji reaction (floats for everyone in room)
-  socket.on("call_reaction", ({ callRoom, emoji }) => {
-    if (!currentUser || !callRoom) return;
-    io.to("call_" + callRoom).emit("call_reaction", {
-      sender: currentUser.name, emoji,
-    });
-  });
-
-  // In-call chat (only seen inside the call screen)
-  socket.on("call_chat", ({ callRoom, message }) => {
-    if (!currentUser || !callRoom || !message) return;
-    io.to("call_" + callRoom).emit("call_chat", {
-      sender:      currentUser.name,
-      senderColor: currentUser.color,
-      isVip:       currentUser.isVip,
-      message,
-      createdAt:   new Date(),
-    });
-  });
-
-  // Invite an online user to a call
-  socket.on("call_invite", ({ toUser, callRoom }) => {
-    if (!currentUser || !callRoom) return;
-    const target = Object.values(activeUsers).find(u => u.name.toLowerCase() === toUser?.toLowerCase());
-    if (!target) return socket.emit("error_msg", `${toUser} is not online.`);
-    io.to(target.socketId).emit("call_invite_received", {
-      fromUser:   currentUser.name,
-      fromAvatar: currentUser.avatar,
-      fromColor:  currentUser.color,
-      callRoom,
-      callUrl:    `/call.html?room=${encodeURIComponent(callRoom)}`,
-    });
-  });
-
-  // ── DISCONNECT ──
   socket.on("disconnect", () => {
     if (!currentUser) return;
-
-    // Clean up call room on disconnect
-    if (currentUser.callRoom) {
-      io.to("call_" + currentUser.callRoom).emit("call_user_left", {
-        name: currentUser.name, socketId: socket.id,
-      });
-    }
-
     io.emit("chat message", { id: "sys_" + Date.now(), sender: "System", message: `${currentUser.name} left the chat`, type: "system", room: currentUser.room || "global", createdAt: new Date() });
     sendEmbed(JOIN_LEAVE_CHANNEL_ID, { color: 0xff3c5f, title: "📤 User Left", fields: [{ name: "Username", value: currentUser.name, inline: true }, { name: "IP", value: currentUser.ip, inline: true }] });
     delete activeUsers[socket.id];
@@ -868,47 +703,25 @@ io.on("connection", (socket) => {
   });
 });
 
+function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
 // ══════════════════════════════════════════════════════════════
-// 🌐 REST API & RE-ROUTING PIE INTERCEPTORS
+// 🌐 REST API
 // ══════════════════════════════════════════════════════════════
 app.use(express.json({ limit: "10mb" }));
-
-// 🛡️ RE-ROUTING SECURITY WALL (Bypasses manual raw file queries safely)
-app.use((req, res, next) => {
-    const url = req.url.toLowerCase();
-    if (url === '/iframe-groupchatroom.html' || url === '/iframe-groupchatroom') {
-        return res.redirect(301, '/');
-    }
-    next();
-});
-
-// Serve core static repository folder layouts
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html", "htm"] }));
 
-app.get("/",                    (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.get("/chat",                (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "public", "index.html")); });
+app.get("/iframe-groupchatroom", (req, res) => { res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html")); });
+app.get("/chat", (req, res) => { res.sendFile(path.join(__dirname, "public", "index.html")); });
 
-// 📞 CALL ROUTES
-app.get("/call",      (req, res) => res.sendFile(path.join(__dirname, "public", "call.html")));
-app.get("/call.html", (req, res) => res.sendFile(path.join(__dirname, "public", "call.html")));
-
-// Active call rooms list (for lobby widget)
-app.get("/api/call-rooms", (req, res) => {
-  const rooms = {};
-  Object.values(activeUsers).forEach(u => {
-    if (u.callRoom) {
-      if (!rooms[u.callRoom]) rooms[u.callRoom] = { name: u.callRoom, participants: [] };
-      rooms[u.callRoom].participants.push({ name: u.name, isVip: u.isVip });
-    }
-  });
-  res.json({ rooms: Object.values(rooms) });
-});
-
-// Live announcement endpoint
-app.get("/api/live-announcement", async (req, res) => {
+// 📋 LIVE WEB ANNOUNCEMENT ENDPOINT (Bina client error ke chalu!)
+app.get('/api/live-announcement', async (req, res) => {
   try {
     const current = await Announcement.findOne({ expiresAt: { $gt: new Date() } });
-    if (!current) return res.json({ active: false, text: "📢 Share this link with friends to grow our chat room!" });
+    if (!current) {
+      return res.json({ active: false, text: "📢 Share this link with friends to grow our chat room!" });
+    }
     res.json({ active: true, text: current.text });
   } catch (err) {
     res.json({ active: false, text: "Error loading announcement" });
@@ -921,14 +734,7 @@ app.post("/api/report", async (req, res) => {
     const data = { ...req.body, device };
     await new Report(data).save();
     if (discordReady) {
-      const embed = new EmbedBuilder().setColor(0xff3c5f).setTitle("🚨 Report (HTTP)")
-        .addFields(
-          { name: "🎯 Reported", value: `\`${data.reportedUser || "—"}\``,   inline: true },
-          { name: "👤 Reporter", value: `\`${data.reporterUser || "—"}\``,   inline: true },
-          { name: "📱 Device",   value: device,                               inline: true },
-          { name: "📧 Email",    value: data.reporterEmail || "Not provided", inline: false },
-          { name: "📝 Reason",   value: (data.reason || "—").substring(0, 1000), inline: false }
-        ).setTimestamp().setFooter({ text: "HeyyYuki Report System" });
+      const embed = new EmbedBuilder().setColor(0xff3c5f).setTitle("🚨 Report (HTTP)").addFields({ name: "🎯 Reported", value: `\`${data.reportedUser || "—"}\``, inline: true }, { name: "👤 Reporter", value: `\`${data.reporterUser || "—"}\``, inline: true }, { name: "📱 Device", value: device, inline: true }, { name: "📧 Email", value: data.reporterEmail || "Not provided", inline: false }, { name: "📝 Reason", value: (data.reason || "—").substring(0, 1000), inline: false }).setTimestamp().setFooter({ text: "HeyyYuki Report System" });
       const ch = discordClient.channels.cache.get(REPORT_CHANNEL_ID) || discordClient.channels.cache.get(MOD_LOG_CHANNEL_ID);
       if (ch) ch.send({ embeds: [embed] });
     }
@@ -937,21 +743,15 @@ app.post("/api/report", async (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  res.json({
-    status:  "ok",
-    online:  Object.keys(activeUsers).length,
-    discord: discordReady,
-    mongo:   mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-    calls:   Object.values(activeUsers).filter(u => u.callRoom).length,
-  });
+  res.json({ status: "ok", online: Object.keys(activeUsers).length, discord: discordReady, mongo: mongoose.connection.readyState === 1 ? "connected" : "disconnected" });
 });
 
-app.get("/sw.js",        (req, res) => res.sendFile(path.resolve(__dirname, "public/sw.js")));
+app.get("/sw.js",         (req, res) => res.sendFile(path.resolve(__dirname, "public/sw.js")));
 app.get("/manifest.json",(req, res) => res.sendFile(path.resolve(__dirname, "public/manifest.json")));
-app.use("/.well-known", express.static(path.join(__dirname, ".well-known"), { dotfiles: "allow" }));
+app.use("/.well-known",  express.static(path.join(__dirname, ".well-known"), { dotfiles: "allow" }));
 
 // ══════════════════════════════════════════════════════════════
-// 🚀 START ENGINE
+// 🚀 START
 // ══════════════════════════════════════════════════════════════
 http.listen(PORT, () => {
   console.log(`🚀 StrangerToStranger running on http://localhost:${PORT}`);
