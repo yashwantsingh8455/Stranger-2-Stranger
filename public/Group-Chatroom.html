@@ -54,19 +54,21 @@
       height: 100dvh;
     }
 
-/* ══════════════════════════════════════════
+    /* ══════════════════════════════════════════
        COMPLETE LOGIN SYSTEM STYLE SHEET
        ══════════════════════════════════════════ */
-    
+
     #loginOverlay {
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background: #0a0c14; /* Pure static dark overlay */
+      background: #0a0c14;
+      /* Pure static dark overlay */
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px; /* Layout guard for low height/width systems */
+      padding: 16px;
+      /* Layout guard for low height/width systems */
       box-sizing: border-box;
     }
 
@@ -76,13 +78,14 @@
       border-radius: 16px;
       padding: 36px 32px;
       width: 100%;
-      max-width: 360px; /* Standard balanced box frame size */
+      max-width: 360px;
+      /* Standard balanced box frame size */
       text-align: center;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
       box-sizing: border-box;
     }
 
-.login-logo {
+    .login-logo {
       font-family: 'Syne', sans-serif;
       font-size: 17px;
       font-weight: 800;
@@ -94,13 +97,16 @@
       display: block;
       text-align: center;
       letter-spacing: -0.5px;
-      
+
       /* ── Strict Single Line Fit Controls ── */
       width: 100%;
       box-sizing: border-box;
-      white-space: nowrap;       /* Kisi bhi keemat par text ko second line me tootne nahi dega */
-      overflow: hidden;          /* Bounded frame safety filter */
-      text-overflow: ellipsis;   /* Agar logo limit se zyada bada hua to automatic dot (...) laga dega, line nahi todega */
+      white-space: nowrap;
+      /* Kisi bhi keemat par text ko second line me tootne nahi dega */
+      overflow: hidden;
+      /* Bounded frame safety filter */
+      text-overflow: ellipsis;
+      /* Agar logo limit se zyada bada hua to automatic dot (...) laga dega, line nahi todega */
     }
 
     .login-sub {
@@ -143,7 +149,8 @@
     }
 
     .form-group input:focus {
-      border-color: var(--accent); /* Dashboard primary panel border matching focus status */
+      border-color: var(--accent);
+      /* Dashboard primary panel border matching focus status */
     }
 
     .form-group input::placeholder {
@@ -176,7 +183,8 @@
     }
 
     .join-btn:active {
-      transform: scale(0.99); /* Gentle physics tap feel response without elastic glitching */
+      transform: scale(0.99);
+      /* Gentle physics tap feel response without elastic glitching */
     }
 
     /* Active Login Validation Errors Container */
@@ -220,6 +228,7 @@
     .form-group input::placeholder {
       color: var(--muted);
     }
+
     /* ── App ─────────────────────────────────────────── */
     #app {
       display: none;
@@ -860,11 +869,13 @@
     }
 
     /* ── Emoji Picker ─────────────────────────────────── */
+    /* ── Emoji Picker Layout (Desktop Right Alignment) ─────────────────── */
     #emojiPicker {
       display: none;
       position: absolute;
       bottom: 72px;
-      left: 16px;
+      right: 16px;
+      /* Left ke bajay ab Right par lock rahega */
       width: 320px;
       background: var(--panel);
       border: 1px solid var(--border);
@@ -1879,10 +1890,19 @@
         padding: 10px 12px;
       }
 
-      #emojiPicker,
+      /* Mobile constraints rules for picker alignment */
       #gifPicker {
         left: 0;
         right: 0;
+        width: auto;
+        border-radius: 16px 16px 0 0;
+        bottom: 56px;
+      }
+
+      #emojiPicker {
+        left: 0;
+        right: 0;
+        /* Mobile par full expand mode */
         width: auto;
         border-radius: 16px 16px 0 0;
         bottom: 56px;
@@ -1946,6 +1966,95 @@
       .dm-chat-area.hidden {
         display: none;
       }
+    }
+
+
+
+
+    /* Full-Width Mention Popup - Responsive Logic */
+    /* Base style for Mention Popup (Works for Desktop/General) */
+    /* Universal Full-Width Mention Popup (Web & Mobile) */
+    /* Chat window aur Input ke beech ka area */
+    #mentionPopup {
+      display: none;
+      width: 100%;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      z-index: 500;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 5px;
+      /* Input se thoda gap */
+      border-radius: 8px;
+    }
+
+    .mention-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+      transition: background 0.2s;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mention-item:last-child {
+      border-bottom: none;
+    }
+
+    .mention-item:hover {
+      background: var(--input);
+      color: var(--accent);
+    }
+
+    /* Scrollbar consistent for both */
+    #mentionPopup::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #mentionPopup::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 4px;
+    }
+
+    /* Mobile Media Query (Screens <= 768px) */
+    @media (max-width: 768px) {
+      #mentionPopup {
+        /* Mobile par thoda chhota aur touch-friendly */
+        max-height: 180px;
+        padding: 2px 0;
+      }
+
+      .mention-item {
+        padding: 14px 16px;
+        /* Mobile par tap area bada kiya */
+        font-size: 15px;
+        /* Mobile par thoda bada font */
+      }
+    }
+
+    /* Desktop Media Query (Screens > 768px) */
+    @media (min-width: 769px) {
+      #mentionPopup {
+        /* Desktop par agar bahut bada screen hai toh width limit kar sakte hain */
+        max-width: 400px;
+        border-radius: 12px;
+        /* Poora rounded */
+        bottom: calc(100% + 5px);
+        /* Input ke thoda upar gap */
+      }
+    }
+
+    /* Scrollbar Styling */
+    #mentionPopup::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #mentionPopup::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -2226,6 +2335,7 @@
           <div class="input-row">
             <div class="input-box">
               <textarea id="msgInput" placeholder="Type a message…" rows="1"></textarea>
+              <div id="mentionPopup"></div>
               <div class="input-icons">
                 <button class="input-icon-btn" id="emojiToggleBtn" title="Emoji"><i
                     class="fa-regular fa-face-smile"></i></button>
@@ -2303,6 +2413,54 @@
     </div>
   </div>
 
+
+
+  <div class="modal-overlay" id="gifPreviewModal">
+    <div class="modal">
+      <h3>🖼️ Preview & Send GIF</h3>
+      <p>Verify your dynamic asset selection and add an optional text caption.</p>
+      <div class="modal-preview" id="gifModalPreviewContainer"></div>
+
+      <div id="gifModalQuickEmojis" style="display: flex; justify-content: center; gap: 14px; margin-bottom: 14px;">
+        <span onclick="appendEmojiToGifCaption('❤️')"
+          style="font-size: 24px; cursor: pointer; transition: transform 0.1s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">❤️</span>
+        <span onclick="appendEmojiToGifCaption('😂')"
+          style="font-size: 24px; cursor: pointer; transition: transform 0.1s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">😂</span>
+        <span onclick="appendEmojiToGifCaption('😮')"
+          style="font-size: 24px; cursor: pointer; transition: transform 0.1s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">😮</span>
+        <span onclick="appendEmojiToGifCaption('😢')"
+          style="font-size: 24px; cursor: pointer; transition: transform 0.1s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">😢</span>
+        <span onclick="appendEmojiToGifCaption('🔥')"
+          style="font-size: 24px; cursor: pointer; transition: transform 0.1s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🔥</span>
+      </div>
+
+      <div class="form-field"
+        style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; text-align: left;">
+        <label
+          style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px;">Add
+          Message / Caption</label>
+        <input type="text" id="gifCaptionInput" placeholder="Type a message to send with this GIF..." autocomplete="off"
+          style="background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 14px; font-size: 14px; outline: none; width: 100%; box-sizing: border-box;" />
+      </div>
+
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeGifPreviewModal()"><i class="fa-solid fa-trash"
+            style="margin-right:5px;"></i>Discard</button>
+        <button class="modal-btn send" id="confirmSendGifBtn"><i class="fa-solid fa-paper-plane"
+            style="margin-right:5px;"></i>Send GIF</button>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
   <div class="modal-overlay" id="voiceModal">
     <div class="modal">
       <h3>🎤 Voice Message Preview</h3>
@@ -2359,6 +2517,23 @@
     let pendingMediaData = null;
     let typingTimer;
     const ADMIN = 'Yashwant';
+    // ── Global Chat Persistent Storage Engine ──
+    let groupChatHistory = [];
+    try {
+      const savedGroupChat = localStorage.getItem('groupChatHistoryPersistent');
+      if (savedGroupChat) groupChatHistory = JSON.parse(savedGroupChat);
+    } catch (e) { }
+
+    function saveToGroupHistory(data) {
+      groupChatHistory.push(data);
+      // Memory full na ho isliye max 150 messages save rakhega
+      if (groupChatHistory.length > 150) groupChatHistory.shift();
+      localStorage.setItem('groupChatHistoryPersistent', JSON.stringify(groupChatHistory));
+    }
+
+
+
+
 
     // ── DM State ───────────────────────────────────────────────────────────────────
     let allUsers = [];          // full user list from server
@@ -2376,6 +2551,7 @@
     const loginError = document.getElementById('loginError');
     const chatWindow = document.getElementById('chatWindow');
     const msgInput = document.getElementById('msgInput');
+    const mentionPopup = document.getElementById('mentionPopup');
     const sendBtn = document.getElementById('sendBtn');
     const usersList = document.getElementById('usersList');
     const onlineCount = document.getElementById('onlineCount');
@@ -2401,7 +2577,13 @@
     function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
     function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function scrollToBottom() { chatWindow.scrollTop = chatWindow.scrollHeight; }
-    function playNotif() { try { const s = document.getElementById('notifSound'); s.currentTime = 0; s.play().catch(() => { }); } catch { } }
+    // ── Legacy Notification Override (Directly Connected to Audio Engine) ───
+    function playNotif() {
+      // Agar baki code me kahi purana playNotif call ho rha hoga, toh ye automatic group sound play krdega
+      if (typeof playAppSound === 'function') {
+        playAppSound('receive_group');
+      }
+    }
     function fmtTime(d) { const dt = d ? new Date(d) : new Date(); return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 
     const AVATAR_COLORS = [
@@ -2419,29 +2601,70 @@
       gifPicker.style.display = 'none';
     }
 
-// ── Auto-login (Updated with Loading UI Trigger) ──────────────────────────────────
+
+
+
+
+
+
+
+
+
+// site message clear star from here to line no 2633
+
+    let totalMessages = groupChatHistory.length; // Pehle se load history se count lein
+
+    // Message bhejne ya receive karne par count badhayein
+    function incrementMessageCount() {
+      totalMessages++;
+      if (totalMessages === 100) {
+        sendDiscordNotification("📢 Limit Alert: Site par 100 messages ho chuke hain!");
+      }
+    }
+
+    // Discord Webhook Function
+    function sendDiscordNotification(content) {
+      const WEBHOOK_URL = "https://discord.com/api/webhooks/1507358235282116628/fi6RFVT1M_2ylvB-BntCmb87boqaVhibd3tEySoqPQoQoweSKl03GNl37b8xO9topw-i"; 
+      fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+      });
+    }
+
+
+
+
+
+
+
+
+
+
+
+    // ── Auto-login logic update ──────────────────────────────────
     const savedUser = localStorage.getItem('chatUsername');
     const savedBio = localStorage.getItem('chatBio') || '';
-    
+
     if (savedUser) {
-      currentUser = savedUser; 
+      currentUser = savedUser;
       currentBio = savedBio;
-      
-      // Form fields ko chhupao aur "Already Logged In" wala spinner dikhao
+
       const formFields = document.getElementById('loginFormFields');
       const loadingState = document.getElementById('loginLoadingState');
       if (formFields) formFields.style.display = 'none';
       if (loadingState) loadingState.style.display = 'block';
-      
-      socket.emit('join', { name: savedUser, bio: savedBio });
+
+      // Yahan 'rejoined' true bhej rahe hain
+      socket.emit('join', { name: savedUser, bio: savedBio, isRejoining: true });
     }
 
     // ── Duplicate Session Handler (Agar auto-login fail ho jaye to wapas form dikhao) ──
     socket.on('duplicate', msg => {
       loginError.textContent = '⚠️ ' + msg;
-      joinBtn.disabled = false; 
+      joinBtn.disabled = false;
       joinBtn.innerHTML = '<i class="fa-solid fa-bolt"></i>Join Chat';
-      
+
       // Auto-login error ke case me loading chhupa kar wapas normal input form display karein
       const formFields = document.getElementById('loginFormFields');
       const loadingState = document.getElementById('loginLoadingState');
@@ -2454,11 +2677,28 @@
     usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') bioInput.focus(); });
     bioInput.addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
 
+    // ── Upgraded Join Function with Expiry Validation ───────────────────────────────
     function doJoin() {
       const name = usernameInput.value.trim();
       const bio = bioInput.value.trim() || 'No bio';
+
       if (!name) { loginError.textContent = 'Please enter a username.'; return; }
       if (name.length < 2) { loginError.textContent = 'Username must be at least 2 characters.'; return; }
+
+      // 1. Local Blacklist Check (Kyunki user ne isi browser se logout kiya hai)
+      let expiredList = [];
+      try {
+        expiredList = JSON.parse(localStorage.getItem('expiredUsernames')) || [];
+      } catch (e) {
+        expiredList = [];
+      }
+
+      // Agar enter kiya gaya name expired list me match hota hai to login block hoga
+      if (expiredList.includes(name.toLowerCase())) {
+        loginError.textContent = '⚠️ This username has expired. Please choose a different one';
+        return;
+      }
+
       currentUser = name; currentBio = bio;
       joinBtn.disabled = true; joinBtn.textContent = 'Joining…';
       socket.emit('join', { name, bio });
@@ -2467,15 +2707,25 @@
     socket.on('joined', () => {
       localStorage.setItem('chatUsername', currentUser);
       localStorage.setItem('chatBio', currentBio);
+      sessionStorage.setItem('isRejoining', 'true');
       loginOverlay.style.display = 'none';
       app.classList.add('visible');
       document.getElementById('updateName').value = currentUser;
       document.getElementById('updateBio').value = currentBio;
-    });
 
-    socket.on('duplicate', msg => {
-      loginError.textContent = '⚠️ ' + msg;
-      joinBtn.disabled = false; joinBtn.innerHTML = '<i class="fa-solid fa-bolt" style="margin-right:8px;"></i>Join Chat';
+      // ── LOAD SAVED GROUP CHAT HISTORY ──
+      chatWindow.innerHTML = '';
+      groupChatHistory.forEach(data => {
+        if (data.type === 'system') {
+          const wrap = document.createElement('div');
+          wrap.style.cssText = 'display:flex;justify-content:center;margin:6px 0; width: 100%;';
+          wrap.innerHTML = `<span class="sys-msg" style="word-break: break-word; text-align: center;">${escapeHtml(data.message)}</span>`;
+          chatWindow.appendChild(wrap);
+        } else {
+          appendMessage(data, data.sender === currentUser, true);
+        }
+      });
+      scrollToBottom();
     });
 
     // ── System Messages ─────────────────────────────────────────────────────────────
@@ -2485,27 +2735,60 @@
       wrap.innerHTML = `<span class="sys-msg">${escapeHtml(text)}</span>`;
       chatWindow.appendChild(wrap);
       scrollToBottom();
+      saveToGroupHistory({ type: 'system', message: text });
     });
 
-    // ── Incoming Chat ───────────────────────────────────────────────────────────────
-    // ── Incoming Chat (Catches fake System bubbles) ───────────────────────────────
+    // ── Incoming Chat (Permanent Memory Render) ───────────────
+// ── Incoming Chat (Rejoined Logic & Permanent Memory) ───────────────
     socket.on('chat message', (data) => {
-      // 1. Agar message ka sender 'System' hai ya text me log hai, toh bubble nahi banne denge
-      if (data.sender === 'System' || (data.message && data.message.toLowerCase().includes('joined the chat')) || (data.message && data.message.toLowerCase().includes('left the chat'))) {
-        showCenterSystemToast(data.message);
-        return; // Bubble block yahi break ho jayega
+      // 1. System/Join/Leave check
+      if (data.sender === 'System' || (data.message && data.message.toLowerCase().includes('join')) || (data.message && data.message.toLowerCase().includes('left'))) {
+        
+        let messageText = data.message;
+        let icon = 'ℹ️ ';
+
+        // ── REJOINED LOGIC ──
+        // Check: Kya user pehle se logged in tha? (Agar session storage flag true hai)
+        if (sessionStorage.getItem('isRejoining') === 'true' && messageText.toLowerCase().includes(currentUser.toLowerCase()) && messageText.toLowerCase().includes('joined')) {
+            messageText = messageText.replace(/joined/gi, 'rejoined');
+        }
+
+        if (messageText.toLowerCase().includes('join')) icon = '👋 ';
+        if (messageText.toLowerCase().includes('left') || messageText.toLowerCase().includes('leave') || messageText.toLowerCase().includes('disconnect')) icon = '🚪 ';
+
+        const finalMsg = `${icon} ${messageText}`;
+        
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;justify-content:center;margin:6px 0; width: 100%;';
+        wrap.innerHTML = `<span class="sys-msg" style="word-break: break-word; text-align: center;">${escapeHtml(finalMsg)}</span>`;
+        chatWindow.appendChild(wrap);
+        scrollToBottom();
+
+        saveToGroupHistory({ type: 'system', message: finalMsg });
+        return;
       }
 
-      // 2. Normal user ke messages pehle ki tarah chalenge
+      // 2. Normal message logic
       if (data.sender !== currentUser) {
         appendMessage(data, false);
-        playNotif();
-        scrollToBottom();
-        if (document.hidden) {
-          document.title = '🔔 New message! — StrangersToStrangers';
-          setTimeout(() => document.title = 'StrangersToStrangers — Group Chat', 3000);
-        }
+        // ... (rest of your logic)
       }
+    });
+
+      socket.on('clear_all_chats', () => {
+      groupChatHistory = [];
+      localStorage.setItem('groupChatHistoryPersistent', '[]');
+      chatWindow.innerHTML = '';
+      totalMessages = 0;
+    });
+
+    // ── Delete ──────────────────────────────────────────────────────────────────────
+    socket.on('delete message', (id) => {
+      const el = document.querySelector(`[data-msgid="${id}"]`);
+      if (el) { el.style.opacity = '0'; el.style.transition = '.3s'; setTimeout(() => el.remove(), 300); }
+      // Storage se bhi clean karein taaki refresh karne par wapas na aa jaye
+      groupChatHistory = groupChatHistory.filter(msg => msg.id !== id);
+      localStorage.setItem('groupChatHistoryPersistent', JSON.stringify(groupChatHistory));
     });
 
     // ── Function to Show Pure Text Center Notification (Vertical List & 8s Hold) ──
@@ -2552,40 +2835,90 @@
     });
 
     // ── Users ───────────────────────────────────────────────────────────────────────
+    // ── Real-time User Status Tracker ──
     socket.on('user list', (users) => {
       allUsers = users;
+      // Update sidebar counts
       onlineCount.textContent = users.length;
       sidebarCount.textContent = users.length;
+
+      // Sidebar (Public) Render
       usersList.innerHTML = '';
       users.forEach(u => {
         const name = typeof u === 'object' ? u.name : u;
-        const bio = (u && u.bio) ? u.bio : 'No bio';
-        const isVip = u && u.isVip;
-        const col = avatarColor(name);
+        const isOnline = true; // Socket list me hai to online hi hoga
         const item = document.createElement('div');
         item.className = 'user-item';
-        item.title = bio;
         item.innerHTML = `
-      <div class="user-avatar" style="background:${col.bg};color:${col.fg};">${escapeHtml(name.charAt(0).toUpperCase())}</div>
-      <div class="user-info">
-        <div class="user-name">${escapeHtml(name)}${isVip ? '<span class="vip-badge">💎</span>' : ''}</div>
-        <div class="user-bio">${escapeHtml(bio)}</div>
-      </div>
-      <span class="mention-hint">@mention</span>`;
-        item.onclick = () => { insertMention(name); closeSidebar(); };
+          <div class="user-avatar" style="background:${avatarColor(name).bg}; position:relative;">
+            ${name.charAt(0).toUpperCase()}
+            <div style="position:absolute; bottom:0; right:0; width:8px; height:8px; background:var(--green); border-radius:50%; border:2px solid var(--sidebar);"></div>
+          </div>
+          <div class="user-name">${escapeHtml(name)}</div>
+        `;
+        item.onclick = () => openDMWithUser(name);
         usersList.appendChild(item);
       });
-      // Refresh DM list if open
+
+      // DM Panel Refresh
       if (dmPanelOpen) renderDMUserList();
     });
 
-    // ── Typing ──────────────────────────────────────────────────────────────────────
-    msgInput.addEventListener('input', () => { autoGrow(); socket.emit('typing', { user: currentUser }); });
-    socket.on('typing', (data) => {
-      typingEl.textContent = `${data.user} is typing…`;
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => typingEl.textContent = '', 2000);
+    // ── Typing & Mention System (Combined Logic) ──────────────────────────────────
+    msgInput.addEventListener('input', (e) => {
+      autoGrow();
+      socket.emit('typing', { user: currentUser });
+
+      const val = msgInput.value;
+      const cursor = msgInput.selectionStart;
+      const textBeforeCursor = val.substring(0, cursor);
+
+      // DEBUG: Check karein ki console me kya aa raha hai
+      console.log("Input detected, last char:", textBeforeCursor.slice(-1));
+
+      if (textBeforeCursor.endsWith('@')) {
+        showMentionPopup();
+      } else {
+        // Agar '@' nahi hai ya cursor hata diya, toh hide karo
+        if (mentionPopup.style.display !== 'none') {
+          mentionPopup.style.display = 'none';
+        }
+      }
     });
+
+    function showMentionPopup() {
+      // Input box ke position ke hisaab se popup set karein
+      const rect = msgInput.getBoundingClientRect();
+      mentionPopup.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+      mentionPopup.style.left = rect.left + 'px';
+
+      mentionPopup.innerHTML = '';
+      allUsers.forEach(u => {
+        const name = typeof u === 'object' ? u.name : u;
+        if (name === currentUser) return; // Khud ko mention na karein
+
+        const item = document.createElement('div');
+        item.className = 'mention-item';
+        item.innerHTML = `
+           <div style="display:flex; align-items:center; gap:8px;">
+             <div style="width:20px; height:20px; background:${avatarColor(name).bg}; border-radius:4px; font-size:10px; display:flex; align-items:center; justify-content:center;">
+               ${name.charAt(0).toUpperCase()}
+             </div>
+             ${escapeHtml(name)}
+           </div>
+        `;
+        item.onclick = () => {
+          // Input mein se last '@' hata kar user ka naam daalo
+          const val = msgInput.value;
+          const lastAtIndex = val.lastIndexOf('@');
+          msgInput.value = val.substring(0, lastAtIndex) + '@' + name + ' ';
+          mentionPopup.style.display = 'none';
+          msgInput.focus();
+        };
+        mentionPopup.appendChild(item);
+      });
+      mentionPopup.style.display = 'block';
+    }
 
     // ── Announcement ─────────────────────────────────────────────────────────────────
     socket.on('announcement', msg => {
@@ -2611,19 +2944,65 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextMessage(); }
     });
 
-    function sendTextMessage() {
+function sendTextMessage() {
       const msg = msgInput.value.trim();
       if (!msg) return;
+
+      // 1. COMMAND HANDLER: /clearsitemessages
+      if (msg.toLowerCase() === '/clearsitemessages') {
+        if (currentUser === ADMIN) { // Sirf Admin (Yashwant) ke liye
+          // Local storage clear
+          groupChatHistory = [];
+          localStorage.setItem('groupChatHistoryPersistent', '[]');
+          
+          // Chat window clear
+          chatWindow.innerHTML = '';
+          
+          // Notification bhej dein ki clear ho gaya
+          const sysData = { id: genId(), sender: 'System', message: 'Chat history cleared by admin.', type: 'system', createdAt: new Date() };
+          appendMessage(sysData, false);
+          
+          msgInput.value = '';
+          return; // Message emit nahi hoga
+        } else {
+          alert("Only Admin can use this command.");
+        }
+      }
+
+      // 2. NORMAL MESSAGE EMISSION
       const payload = { id: genId(), sender: currentUser, message: msg, type: 'text', replyTo: replyData };
       socket.emit('chat message', payload);
       appendMessage(payload, true);
+      
+      // Count check for Discord Notification
+      incrementMessageCount(); 
+      
       msgInput.value = ''; autoGrow(); cancelReply(); scrollToBottom();
     }
 
+
+
+
+    // index.html ki script mein add karein:
+socket.on('clear_all_chats', () => {
+  chatWindow.innerHTML = '';
+  groupChatHistory = [];
+  localStorage.setItem('groupChatHistoryPersistent', '[]');
+});
+
+
+
+
+
+
     // ── Append Message (Group Chat) ─────────────────────────────────────────────────
     function appendMessage(data, isMe, isHistory) {
+      // Naya message aane par use database history mein save karo
+      if (!isHistory) saveToGroupHistory(data);
+
       const row = document.createElement('div');
       row.className = `msg-row ${isMe ? 'me' : 'other'}`;
+      // ... (baki ka poora function same rahega)
       row.setAttribute('data-msgid', data.id || '');
 
       const col = avatarColor(data.sender || '?');
@@ -2656,7 +3035,6 @@
       replyActionBtn.onclick = () => setReply(data.sender, data.type === 'text' ? data.message : `sent a ${data.type}`);
       actions.appendChild(replyActionBtn);
 
-      // DM button on other's messages
       if (!isMe) {
         const dmActionBtn = document.createElement('button');
         dmActionBtn.className = 'msg-action-btn';
@@ -2690,7 +3068,17 @@
       } else if (data.type === 'audio') {
         const aud = document.createElement('audio'); aud.src = data.message; aud.controls = true; content.appendChild(aud);
       } else if (data.type === 'gif') {
-        const img = document.createElement('img'); img.src = data.message; img.className = 'gif-img'; img.loading = 'lazy'; img.alt = 'GIF'; img.oncontextmenu = e => e.preventDefault(); content.appendChild(img);
+        // ── TARGET INTEGRATION: Render GIF + Attached Text In Single Frame ──
+        const img = document.createElement('img'); img.src = data.message; img.className = 'gif-img'; img.loading = 'lazy'; img.alt = 'GIF'; img.oncontextmenu = e => e.preventDefault();
+        content.appendChild(img);
+
+        // Agar user ne caption likha h toh isi bubble ke niche text link banega
+        if (data.caption) {
+          const captionDiv = document.createElement('div');
+          captionDiv.style.cssText = 'margin-top: 8px; color: var(--text); font-size: 14px; line-height: 1.4; word-break: break-word; text-align: left;';
+          captionDiv.innerHTML = escapeHtml(data.caption).replace(/@([^@:\s]+):/g, (_, n) => `<span style="color:var(--accent);font-weight:700;cursor:pointer;" onclick="insertMention('${n}')">@${n}:</span>`);
+          content.appendChild(captionDiv);
+        }
       } else {
         const textEl = document.createElement('div');
         const formatted = escapeHtml(data.message || '').replace(/@([^@:\s]+):/g, (_, n) => `<span style="color:var(--accent);font-weight:700;cursor:pointer;" onclick="insertMention('${n}')">@${n}:</span>`);
@@ -2711,15 +3099,24 @@
     }
 
     // ══════════════════════════════════════════════════════
-    //  PRIVATE MESSAGING SYSTEM
+    //  PRIVATE MESSAGING SYSTEM (PERSISTENT STORAGE UPGRADE)
     // ══════════════════════════════════════════════════════
+
+    // App load hote hi sabse pehle localStorage se purane saved DM messages restore karein
+    try {
+      const savedDMs = localStorage.getItem('dmConversationsPersistent');
+      if (savedDMs) {
+        dmConversations = JSON.parse(savedDMs);
+      }
+    } catch (e) {
+      console.error("Error loading saved DMs from history storage", e);
+    }
 
     // Open DM panel
     function openDMPanel() {
       dmPanelOpen = true;
       dmPanel.classList.add('open');
       renderDMUserList();
-      // Reset unread for currently open DM
       updateDMBadge();
     }
 
@@ -2727,12 +3124,11 @@
       dmPanelOpen = false;
       dmPanel.classList.remove('open');
       closeDMChat();
-      // Switch back to chat tab on mobile
       document.querySelectorAll('.mob-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('mobChatBtn').classList.add('active');
     }
 
-    // Open DM with specific user (from group chat DM button)
+    // Open DM with specific user
     function openDMWithUser(username) {
       openDMPanel();
       setTimeout(() => openDMChat(username), 50);
@@ -2741,38 +3137,24 @@
     // Render user list in DM sidebar
     function renderDMUserList() {
       const container = document.getElementById('dmUserList');
-      const search = (document.getElementById('dmSearchInput').value || '').toLowerCase();
       container.innerHTML = '';
 
-      const filtered = allUsers.filter(u => {
+      allUsers.forEach(u => {
         const name = typeof u === 'object' ? u.name : u;
-        return name !== currentUser && (!search || name.toLowerCase().includes(search));
-      });
+        if (name === currentUser) return;
 
-      if (!filtered.length) {
-        container.innerHTML = '<div class="dm-empty"><i class="fa-solid fa-user-slash" style="font-size:24px;margin-bottom:6px;opacity:.3;display:block;"></i>No users found</div>';
-        return;
-      }
-
-      filtered.forEach(u => {
-        const name = typeof u === 'object' ? u.name : u;
-        const bio = (u && u.bio) ? u.bio : 'No bio';
-        const isVip = u && u.isVip;
-        const col = avatarColor(name);
-        const unread = dmUnread[name] || 0;
-        const lastMsg = dmConversations[name] ? dmConversations[name][dmConversations[name].length - 1] : null;
+        // Check if user is in our 'allUsers' array (Online status)
+        const isOnline = allUsers.some(user => (typeof user === 'object' ? user.name : user) === name);
 
         const item = document.createElement('div');
-        item.className = `dm-user-item${activeDMUser === name ? ' active' : ''}${unread > 0 ? ' has-unread' : ''}`;
+        item.className = 'dm-user-item';
         item.innerHTML = `
-      <div class="dm-user-avatar" style="background:${col.bg};color:${col.fg};width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;">
-        ${escapeHtml(name.charAt(0).toUpperCase())}
-      </div>
-      <div class="dm-user-info">
-        <div class="dm-user-name">${escapeHtml(name)}${isVip ? '<span class="vip-badge">💎</span>' : ''}</div>
-        <div class="dm-user-preview">${lastMsg ? escapeHtml((lastMsg.sender === currentUser ? 'You: ' : '') + lastMsg.message.substring(0, 30)) : escapeHtml(bio)}</div>
-      </div>
-      <div class="unread-dot"></div>`;
+          <div style="position:relative;">
+            <div class="dm-user-avatar" style="background:${avatarColor(name).bg};">${name.charAt(0).toUpperCase()}</div>
+            <div style="position:absolute; bottom:0; right:0; width:10px; height:10px; background:${isOnline ? 'var(--green)' : '#666'}; border-radius:50%; border:2px solid var(--sidebar);"></div>
+          </div>
+          <div class="dm-user-name">${escapeHtml(name)}</div>
+        `;
         item.onclick = () => openDMChat(name);
         container.appendChild(item);
       });
@@ -2784,17 +3166,14 @@
       dmUnread[username] = 0;
       updateDMBadge();
 
-      // Mobile: show chat area, hide sidebar
       dmSidebar.classList.add('dm-chat-open');
       dmChatArea.classList.remove('hidden');
 
-      // Update header
       const col = avatarColor(username);
       document.getElementById('dmChatAvatar').textContent = username.charAt(0).toUpperCase();
       document.getElementById('dmChatAvatar').style.cssText = `background:${col.bg};color:${col.fg};width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;`;
       document.getElementById('dmChatName').textContent = username;
 
-      // Render messages
       renderDMMessages();
       renderDMUserList();
       dmMsgInput.focus();
@@ -2826,6 +3205,17 @@
       });
     }
 
+
+
+    // GIFS previw model emojies bar
+    function appendEmojiToGifCaption(emoji) {
+      const captionInput = document.getElementById('gifCaptionInput');
+      if (captionInput) {
+        captionInput.value += emoji; // Input field me click kiya gaya emoji jodd dega
+        captionInput.focus();       // Focus wapas input text channel par lock rakhega
+      }
+    }
+
     // Append single DM message bubble
     function appendDMMessage(data, isMe) {
       const row = document.createElement('div');
@@ -2840,7 +3230,6 @@
       const body = document.createElement('div');
       body.className = 'msg-body';
 
-      // Show sender name for received DMs
       if (!isMe) {
         const senderEl = document.createElement('div');
         senderEl.className = 'msg-sender';
@@ -2850,9 +3239,30 @@
 
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble';
-      const textEl = document.createElement('div');
-      textEl.textContent = data.message;
-      bubble.appendChild(textEl);
+
+      const content = document.createElement('div');
+      if (data.type === 'gif') {
+        const img = document.createElement('img');
+        img.src = data.message;
+        img.className = 'gif-img';
+        img.loading = 'lazy';
+        img.alt = 'GIF';
+        img.oncontextmenu = e => e.preventDefault();
+        content.appendChild(img);
+
+        // DM Frame single structure attachment loop
+        if (data.caption) {
+          const captionDiv = document.createElement('div');
+          captionDiv.style.cssText = 'margin-top: 6px; color: var(--text); font-size: 14px; line-height: 1.4; word-break: break-word; text-align: left;';
+          captionDiv.textContent = data.caption;
+          content.appendChild(captionDiv);
+        }
+      } else {
+        const textEl = document.createElement('div');
+        textEl.textContent = data.message;
+        content.appendChild(textEl);
+      }
+      bubble.appendChild(content);
 
       const timeEl = document.createElement('div');
       timeEl.className = 'msg-time';
@@ -2869,6 +3279,7 @@
     }
 
     // Send DM message
+    // Send DM Message (Ensure persistent save)
     function sendDMMessage() {
       const msg = dmMsgInput.value.trim();
       if (!msg || !activeDMUser) return;
@@ -2878,6 +3289,7 @@
         sender: currentUser,
         receiver: activeDMUser,
         message: msg,
+        type: 'text', // Caption default empty
         createdAt: new Date()
       };
 
@@ -2886,10 +3298,11 @@
       if (!dmConversations[activeDMUser]) dmConversations[activeDMUser] = [];
       dmConversations[activeDMUser].push(data);
 
+      // HAR MSG KE BAAD SYNC
+      localStorage.setItem('dmConversationsPersistent', JSON.stringify(dmConversations));
+
       appendDMMessage(data, true);
-      renderDMUserList();
       dmMsgInput.value = '';
-      dmMsgInput.style.height = 'auto';
     }
 
     // DM send on Enter
@@ -2907,12 +3320,13 @@
       if (!dmConversations[other]) dmConversations[other] = [];
       dmConversations[other].push(data);
 
-      // If this DM is currently open, append it live
+      // Incoming streams par database memory sync update chalayein
+      localStorage.setItem('dmConversationsPersistent', JSON.stringify(dmConversations));
+
       if (data.sender !== currentUser && activeDMUser === data.sender && dmPanelOpen) {
         appendDMMessage(data, false);
         dmUnread[data.sender] = 0;
       } else if (data.sender !== currentUser) {
-        // Increment unread
         dmUnread[data.sender] = (dmUnread[data.sender] || 0) + 1;
         playNotif();
         if (document.hidden) {
@@ -2986,41 +3400,209 @@
       msgInput.focus(); autoGrow();
     }
 
-    // ── GIF ────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // ══════════════════════════════════════════════════════
+    //  FIXED GIF PREVIEW MODAL SYSTEM (CHAT ASSETS INTEGRATED)
+    // ══════════════════════════════════════════════════════
+    gifOpen = false;
+    let pendingGifData = null;
+
+    // ── PREMIUM CHATTING GIFS GALLERY LINKS ──
+    const RECON_GIFS_GALLERY = [
+      // 1. Greetings & Hellos
+      "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWtoZnd5Ym9wYmFidXFpY3E0bWZtc3R5M3R4bnd6am9wOHV4cXp6OCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/VbnUQirduEGcM/giphy.gif", // Anime Wave Hello
+      "https://media.giphy.com/media/drXGoW1iudhKw/giphy.gif", // Minion Wave
+      "https://media.giphy.com/media/l0FF56cexcW2JAXCJ9/giphy.gif", // Rick Greeting
+
+      // 2. Laugh, Troll & Roast
+      "https://media.giphy.com/media/3ntq5Fx59H23S/giphy.gif", // Dynamic Dancing Cat
+      "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZnaXZ1bWoxN2o5YTN3ZXo1Z3V3MG00ZHdzcTh1bTFxcmVxeWJ6OCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Of35X575BJlle/giphy.gif", // Meme Laughing Kid
+      "https://media.giphy.com/media/10yXFkBJ0Mw9VY/giphy.gif", // Shrek Swag Dance
+
+      // 3. Shocked, Confused & Eyebrow Raise (Best for Strangers Chat)
+      "https://media.giphy.com/media/26AHPxxnLk1hfg41O/giphy.gif", // What? Confusion Face
+      "https://media.giphy.com/media/PUBxelwT57jsQ/giphy.gif", // Cat Shocked Eyes Wide
+      "https://media.giphy.com/media/l3q2K1wp6azGv5WSk/giphy.gif", // Blinking Guy Meme
+
+      // 4. Vibing, Atttitude & Cool Reactions
+      "https://media.giphy.com/media/tsXUtXXMoRJvO/giphy.gif", // Sunglasses Cool Nod
+      "https://media.giphy.com/media/t3sAx45vnoFq0/giphy.gif", // Headbang Vibing Gamer
+      "https://media.giphy.com/media/l41Ycp0mPhS4ESwGQ/giphy.gif" // Popcorn Eating Watch Drama
+    ];
+
+    // 1. Fixed Toggle Button (Dono pickers ko aapas me clean handle karega)
     document.getElementById('gifToggleBtn').onclick = (e) => {
       e.stopPropagation();
-      emojiPicker.style.display = 'none'; emojiOpen = false;
+      const targetEmojiPicker = document.getElementById('emojiPicker');
+      if (targetEmojiPicker) targetEmojiPicker.style.display = 'none';
+
       gifOpen = !gifOpen;
-      gifPicker.style.display = gifOpen ? 'block' : 'none';
-      if (gifOpen && gifGrid.children.length <= 1) fetchGifs('trending');
+      const targetPicker = document.getElementById('gifPicker');
+      if (targetPicker) {
+        targetPicker.style.display = gifOpen ? 'block' : 'none';
+        if (gifOpen) loadStaticGifsGallery();
+      }
     };
-    document.getElementById('gifSearchBtn').onclick = () => fetchGifs(gifSearchInput.value.trim() || 'trending');
-    gifSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchGifs(gifSearchInput.value.trim() || 'trending'); });
 
-    async function fetchGifs(query) {
-      gifGrid.innerHTML = '<div class="gif-loading">Loading…</div>';
-      const key = 'AIzaSyAyimkuYQYF_FXVALexPZHerc7CMoFpjPc';
-      try {
-        const url = query === 'trending'
-          ? `https://tenor.googleapis.com/v2/featured?key=${key}&limit=16&media_filter=gif`
-          : `https://tenor.googleapis.com/v2/search?key=${key}&q=${encodeURIComponent(query)}&limit=16&media_filter=gif`;
-        const res = await fetch(url); const data = await res.json();
-        gifGrid.innerHTML = '';
-        (data.results || []).forEach(item => {
-          const gifUrl = item.media_formats?.gif?.url || item.media_formats?.tinygif?.url;
-          if (!gifUrl) return;
-          const img = document.createElement('img'); img.src = gifUrl; img.loading = 'lazy'; img.alt = item.content_description || 'gif';
-          img.onclick = () => sendGif(gifUrl); gifGrid.appendChild(img);
-        });
-        if (!gifGrid.children.length) gifGrid.innerHTML = '<div class="gif-loading">No results found.</div>';
-      } catch { gifGrid.innerHTML = '<div class="gif-loading">Failed to load GIFs.</div>'; }
+    // 2. Fixed Load Gallery (Click event bubbles crash bypass)
+    function loadStaticGifsGallery() {
+      const targetGrid = document.getElementById('gifGrid');
+      if (!targetGrid) return;
+      targetGrid.innerHTML = '';
+
+      RECON_GIFS_GALLERY.forEach(url => {
+        const isVideoFormat = url.toLowerCase().includes('.mp4') || url.toLowerCase().includes('.webm');
+        let mediaElement;
+
+        if (isVideoFormat) {
+          mediaElement = document.createElement('video');
+          mediaElement.src = url;
+          mediaElement.autoplay = true;
+          mediaElement.loop = true;
+          mediaElement.muted = true;
+          mediaElement.playsInline = true;
+          mediaElement.setAttribute('muted', '');
+          mediaElement.setAttribute('playsinline', '');
+          mediaElement.style.objectFit = 'cover';
+        } else {
+          mediaElement = document.createElement('img');
+          mediaElement.src = url;
+          mediaElement.loading = 'lazy';
+        }
+
+        mediaElement.style.cursor = 'pointer';
+        mediaElement.alt = 'Gallery Asset';
+
+        // Dynamic event bubbles protection guard applied on elements click loops
+        mediaElement.onclick = (e) => {
+          e.stopPropagation();
+          sendGif(url);
+        };
+
+        targetGrid.appendChild(mediaElement);
+      });
     }
 
+    // 3. Main Trigger: Bhejne se pehle loop preview aur modal open window sequence
     function sendGif(url) {
-      const payload = { id: genId(), sender: currentUser, message: url, type: 'gif', replyTo: replyData };
-      socket.emit('chat message', payload); appendMessage(payload, true);
-      gifPicker.style.display = 'none'; gifOpen = false; cancelReply(); scrollToBottom();
+      pendingGifData = url;
+
+      const modal = document.getElementById('gifPreviewModal');
+      const container = document.getElementById('gifModalPreviewContainer');
+      const captionInput = document.getElementById('gifCaptionInput');
+
+      if (modal && container && captionInput) {
+        captionInput.value = ''; // Input area clean karein
+        container.innerHTML = ''; // Purana preview reset karein
+
+        const isVideo = url.toLowerCase().includes('.mp4') || url.toLowerCase().includes('.webm');
+        let previewElement;
+
+        if (isVideo) {
+          previewElement = document.createElement('video');
+          previewElement.src = url;
+          previewElement.autoplay = true;
+          previewElement.loop = true;
+          previewElement.muted = true;
+          previewElement.playsInline = true;
+          previewElement.setAttribute('muted', '');
+          previewElement.setAttribute('playsinline', '');
+        } else {
+          previewElement = document.createElement('img');
+          previewElement.src = url;
+        }
+
+        previewElement.style.maxWidth = '100%';
+        previewElement.style.borderRadius = '8px';
+        previewElement.style.maxHeight = '220px';
+
+        container.appendChild(previewElement);
+
+        // Sabse pehle GIF Picker box background se chhupao
+        const targetPicker = document.getElementById('gifPicker');
+        if (targetPicker) targetPicker.style.display = 'none';
+        gifOpen = false;
+
+        // Ab real Preview Modal ko display active 'open' class trigger do
+        modal.classList.add('open');
+
+        // Submit click ko final handler se bind karo
+        document.getElementById('confirmSendGifBtn').onclick = executeFinalGifEmission;
+      }
     }
+
+    function closeGifPreviewModal() {
+      const modal = document.getElementById('gifPreviewModal');
+      if (modal) modal.classList.remove('open');
+      pendingGifData = null;
+    }
+
+    // 4. Final Emission Protocol (Bundle caption text + images nodes logic)
+    function executeFinalGifEmission() {
+      if (!pendingGifData) return;
+
+      const captionInput = document.getElementById('gifCaptionInput');
+      const captionText = captionInput ? captionInput.value.trim() : '';
+
+      if (typeof dmPanelOpen !== 'undefined' && dmPanelOpen && activeDMUser) {
+        // ── 1. PRIVATE DM MODE PIPELINE ──
+        const dmData = {
+          id: genId(),
+          sender: currentUser,
+          receiver: activeDMUser,
+          message: pendingGifData,
+          type: 'gif',
+          caption: captionText, // Caption ko direct object ke andar bundle kar diya
+          createdAt: new Date()
+        };
+
+        socket.emit('private message', dmData);
+        if (!dmConversations[activeDMUser]) dmConversations[activeDMUser] = [];
+        dmConversations[activeDMUser].push(dmData);
+
+        localStorage.setItem('dmConversationsPersistent', JSON.stringify(dmConversations));
+        if (typeof appendDMMessage === 'function') appendDMMessage(dmData, true);
+        if (typeof renderDMUserList === 'function') renderDMUserList();
+
+      } else {
+        // ── 2. PUBLIC GROUP CHAT PIPELINE ──
+        const payload = {
+          id: genId(),
+          sender: currentUser,
+          message: pendingGifData,
+          type: 'gif',
+          caption: captionText, // Combined unified asset parameters
+          replyTo: replyData
+        };
+
+        socket.emit('chat message', payload);
+        appendMessage(payload, true);
+        cancelReply();
+        scrollToBottom();
+      }
+
+      if (typeof playAppSound === 'function') playAppSound('send');
+      closeGifPreviewModal();
+    }
+
+
+
+
 
     // ── File Upload ────────────────────────────────────────────────────────────────
     document.getElementById('fileBtn').onclick = () => fileInput.click();
@@ -3098,20 +3680,37 @@
     function closeSidebar() { document.getElementById('sidebar').classList.remove('mobile-open'); document.getElementById('sidebarBackdrop').classList.remove('open'); }
 
     // ── Custom Logout System ────────────────────────────────────────────────────────
+    // ── Custom Logout System (Updated to Blacklist Username on Confirm) ───────────────
     function logout() {
-      // Browser popup ke bajay hum humare custom HTML overlay ko open karenge
+      // Custom HTML overlay modal open karein
       const modal = document.getElementById('customLogoutModal');
       if (modal) modal.classList.add('open');
     }
 
     function closeLogoutModal() {
-      // Cancel dabane par bina kisi action ke modal close ho jayega
+      // Cancel dabane par bina kisi reload action ke modal close hoga
       const modal = document.getElementById('customLogoutModal');
       if (modal) modal.classList.remove('open');
     }
 
     function confirmCustomLogout() {
-      // Jab user confirm 'Logout' dbaega tabhi storage clear hogi aur reload hoga
+      // 1. Reload hone se pehle current login username ko database list me ban karein
+      if (currentUser) {
+        try {
+          let expiredList = JSON.parse(localStorage.getItem('expiredUsernames')) || [];
+
+          // Case-insensitive double check mapping
+          if (!expiredList.includes(currentUser.toLowerCase())) {
+            expiredList.push(currentUser.toLowerCase());
+          }
+
+          localStorage.setItem('expiredUsernames', JSON.stringify(expiredList));
+        } catch (e) {
+          console.error("Error updating expired list", e);
+        }
+      }
+
+      // 2. Clear clean parameters sessions
       localStorage.removeItem('chatUsername');
       localStorage.removeItem('chatBio');
       location.reload();
