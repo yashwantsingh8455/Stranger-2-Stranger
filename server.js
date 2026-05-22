@@ -272,14 +272,35 @@ const commands = [
     .setDescription("Remove running website announcement"),
 ].map((c) => c.toJSON());
 
+// server.js mein yahan update karein:
 if (DISCORD_TOKEN) {
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
   (async () => {
     try {
       await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
       console.log("✅ Slash commands registered");
+
+      // 📢 Yahan se registration ka message bhejenge
+      // Discord bot ready hone ka wait karein
+// 📢 Registration Confirmation
+      setTimeout(async () => {
+        try {
+          const channel = discordClient.channels.cache.get(CONTROL_CHANNEL_IDS[0]);
+          if (channel) {
+            await channel.send("✅ **Bot Update:** Slash Commands registered!");
+          } else {
+            console.log("⚠️ Bot registered commands, but channel not found (Check Channel ID or Permissions)");
+          }
+        } catch (err) {
+          console.error("❌ Could not send confirmation message:", err.message);
+        }
+      }, 5000);
+
     } catch (e) {
       console.error("❌ Slash command error:", e.message);
+      // Agar error aaye toh wo bhi dikhayein
+      const ch = discordClient.channels.cache.get(CONTROL_CHANNEL_IDS[0]);
+      if (ch) ch.send("❌ Slash command error: " + e.message);
     }
   })();
 }
@@ -748,6 +769,29 @@ io.on("connection", (socket) => {
         room,
         createdAt: new Date(),
       };
+
+
+
+
+
+
+
+
+
+      // 🧹 ADMIN COMMAND: /clearsitemessages
+if (data.message.trim() === "/clearsitemessages" && currentUser.isAdmin) {
+  await Message.deleteMany({}); // MongoDB se saare messages delete
+  io.emit("clear_all_chats");    // Saare users ke browser ko clear ka signal
+  console.log(`🧹 Chat cleared by Admin: ${currentUser.name}`);
+  return; // Aage message processing nahi hogi
+}
+
+
+
+
+
+
+
 
       const msgDoc = new Message({
         room,
