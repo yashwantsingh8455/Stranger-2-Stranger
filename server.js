@@ -1459,78 +1459,63 @@ app.use(express.json());
 app.use(express.json());
 
 // 🔴 THE ULTIMATE IP BAN & LIVE KICK API
+// 🔴 THE BULLETPROOF IP BAN & LIVE KICK API
 app.post('/api/action-ban', async (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.json({ success: false, message: "Username zaroori hai!" });
 
     const db = mongoose.connection.db;
-    
-    // 1. Pata karo is user ka IP address kya hai
-    let targetIp = null;
+    let targetIp = "No IP Logged";
 
-    // Pehle activeUsers memory object mein dhoondho
+    // 1. IP Fetch Logic
     if (typeof activeUsers !== 'undefined') {
       for (let socketId in activeUsers) {
         if (activeUsers[socketId] && activeUsers[socketId].username === username) {
-          targetIp = activeUsers[socketId].ip || activeUsers[socketId].ipAddress;
+          targetIp = activeUsers[socketId].ip || activeUsers[socketId].ipAddress || targetIp;
           break;
         }
       }
     }
-
-    // Agar live memory mein nahi mila, toh pichle messages se uthao
-    if (!targetIp) {
+    if (targetIp === "No IP Logged") {
       const lastMsg = await db.collection('messages').findOne({ username: username });
-      if (lastMsg) targetIp = lastMsg.ip || lastMsg.ipAddress;
+      if (lastMsg) targetIp = lastMsg.ip || lastMsg.ipAddress || targetIp;
     }
 
-    // Agar ab bhi IP nahi mila, toh username ko temporary identifier banakar ban list mein dalo
-    const secureIp = targetIp || "IP_NOT_FOUND_YET";
-
-    // 2. Database mein IP aur Username dono ko permanently lock karo
+    // 2. Database Ban Entry
     const existing = await db.collection('banneds').findOne({ username: username });
     if (!existing) {
       await db.collection('banneds').insertOne({
-        username: username,
-        ip: secureIp,
-        reason: "Banned via Moderator Dashboard Control",
-        createdAt: new Date(),
-        systemRole: "Banned",
-        dbStatus: "Banned"
+        username: username, ip: targetIp, reason: "Banned via Moderator Dashboard",
+        createdAt: new Date(), systemRole: "Banned", dbStatus: "Banned"
       });
-    } else if (secureIp !== "IP_NOT_FOUND_YET") {
-      // Agar entry pehle se thi par IP ab mila, toh update kar do
-      await db.collection('banneds').updateOne({ username: username }, { $set: { ip: secureIp } });
+    } else if (targetIp !== "No IP Logged") {
+      await db.collection('banneds').updateOne({ username: username }, { $set: { ip: targetIp } });
     }
 
-    // 3. 💣 REALTIME SOCKET NUKE: Connection dhoondh kar block karna
+    // 3. 💣 GLOBAL NUKE BROADCAST
     if (typeof io !== 'undefined') {
-      const allSockets = await io.fetchSockets();
-      
-      for (const socket of allSockets) {
-        const socketUser = (activeUsers && activeUsers[socket.id] && activeUsers[socket.id].username) || socket.username;
-        const socketIp = socket.handshake.address || (activeUsers && activeUsers[socket.id] && activeUsers[socket.id].ip);
+      // Ye sabko jayega, par sirf target user ka browser react karega
+      io.emit('GLOBAL_BAN_CHECK', { 
+        bannedUsername: username,
+        bannedIp: targetIp
+      });
 
-        // Agar USERNAME match ho ya IP ADDRESS match ho, toh direct target karo
-        if (socketUser === username || (secureIp !== "IP_NOT_FOUND_YET" && socketIp === secureIp)) {
-          
-          // CRITICAL SIGNAL: Frontend ko bolenge ki window tab hi block kar de
-          socket.emit('PERMANENT_FIREWALL_KICK', { 
-            message: "Aapka account aur IP Address permanently block kar diya gaya hai." 
-          });
-
-          // Sockets ko disconnect karna
-          socket.disconnect(true);
-          
-          if (typeof activeUsers !== 'undefined' && activeUsers[socket.id]) {
-            delete activeUsers[socket.id];
+      // Backend se physical socket disconnect karne ke liye 1.5 second ka delay
+      // Taaki pehle browser tak KICK signal aaram se pahunch jaye
+      setTimeout(async () => {
+        const allSockets = await io.fetchSockets();
+        for (const socket of allSockets) {
+          const socketUser = (typeof activeUsers !== 'undefined' && activeUsers[socket.id] && activeUsers[socket.id].username) || socket.username;
+          if (socketUser === username) {
+            socket.disconnect(true);
+            if (typeof activeUsers !== 'undefined' && activeUsers[socket.id]) delete activeUsers[socket.id];
           }
         }
-      }
+      }, 1500);
     }
 
-    res.json({ success: true, message: `✅ ${username} (IP: ${secureIp}) successfully ban aur logout ho chuka hai.` });
+    res.json({ success: true, message: `✅ ${username} successfully ban aur nuke ho gaya hai.` });
   } catch (error) {
     res.json({ success: false, message: "Error: " + error.message });
   }
