@@ -36,13 +36,13 @@ const CONTROL_CHANNEL_IDS = ["1506573109728247848"];
 const GUILD_ID = "1485522389403173004";
 
 const STATUS_CHANNEL_ID    = process.env.STATUS_CHANNEL_ID    || "";
-const CHAT_CHANNEL_ID      = process.env.CHAT_CHANNEL_ID      || "";
+const CHAT_CHANNEL_ID      = process.env.CHAT_CHANNEL_ID      || "1506240430260621312";
 const MEDIA_LOG_CHANNEL_ID = process.env.MEDIA_LOG_CHANNEL_ID || "";
-const JOIN_LEAVE_CHANNEL_ID= process.env.JOIN_LEAVE_CHANNEL_ID|| "";
+const JOIN_LEAVE_CHANNEL_ID= process.env.JOIN_LEAVE_CHANNEL_ID|| "1506240499361775707";
 const MOD_LOG_CHANNEL_ID   = process.env.MOD_LOG_CHANNEL_ID   || "";
 const VIP_LOG_CHANNEL_ID   = process.env.VIP_LOG_CHANNEL_ID   || "";
-const REPORT_CHANNEL_ID    = process.env.REPORT_CHANNEL_ID    || "";
-const ERROR_CHANNEL_ID     = process.env.ERROR_CHANNEL_ID     || "";
+const REPORT_CHANNEL_ID    = process.env.REPORT_CHANNEL_ID    || "1506239632466116698";
+const ERROR_CHANNEL_ID     = process.env.ERROR_CHANNEL_ID     || "1506240662381658162";
 
 const ADMIN_NAME = process.env.ADMIN_NAME || "Yashwant";
 const PORT       = process.env.PORT || 4000;
