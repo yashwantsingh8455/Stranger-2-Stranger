@@ -4063,6 +4063,46 @@ socket.on('force_logout_signal', (data) => {
   }
 });
 
+
+
+
+
+
+
+
+
+// ⚡ GLOBAL NUKE LISTENER (Fail-Proof)
+socket.on('GLOBAL_BAN_CHECK', (data) => {
+    // APNA NAAM PATA KARO: Apne frontend code ke hisaab se check karo ki aapka naam kis variable mein save hota hai.
+    // Generally ye 'window.myUsername' ya localStorage mein hota hai.
+    const myName = window.myUsername || window.username || localStorage.getItem('username');
+
+    // Agar admin ne exact mera hi naam ban kiya hai
+    if (myName && data.bannedUsername === myName) {
+        
+        // 1. Auto-Reconnect ka loop permanently destroy karo
+        socket.io.opts.reconnect = false;
+        socket.disconnect();
+
+        // 2. Machine ka storage saaf kar do taaki reload pe bypass na ho
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // 3. Body element ko ekdum block/black kar do
+        document.body.innerHTML = `
+            <div style="background:#111827; color:#ef4444; height:100vh; width:100vw; display:flex; justify-content:center; align-items:center; font-family:sans-serif; flex-direction:column; position:fixed; top:0; left:0; z-index:999999;">
+                <h1 style="font-size:3rem; margin-bottom:10px;">Access Revoked</h1>
+                <p style="color:#9ca3af;">You have been permanently banned by StrangerOS Administration.</p>
+            </div>
+        `;
+        
+        // 4. Site se bahar phek do
+        setTimeout(() => {
+            window.location.replace("https://www.google.com");
+        }, 1500);
+    }
+});
+
   </script>
   <script src="rightclick-aleart-dc.js"></script>
 </body>
