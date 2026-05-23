@@ -2676,6 +2676,63 @@
       if (loadingState) loadingState.style.display = 'none';
     });
 
+
+
+    // --- AUTO-DESTROY LISTENER ---
+// Ye signal specifically sirf usi user ko aayega jo ban hua hai
+socket.on('you_are_banned_now', (data) => {
+  alert("🚫 SECURITY SYSTEM: You have been permanently banned from the server!");
+  
+  // Connection todna
+  socket.disconnect();
+  
+  // Tab ko refresh ya redirect karna (Google par bhej dena)
+  window.location.replace("https://www.google.com");
+});
+
+// Broadcast listener (Backup check)
+socket.on('force_logout_signal', (data) => {
+  // Apna khud ka naam DOM se ya variable se uthana
+  // Note: Agar aapka username HTML mein kisi element mein hai, toh document.getElementById ka use karein.
+  // Example: const myName = document.getElementById('my-username-element').innerText;
+  const myName = window.myUsername || localStorage.getItem('username'); 
+  
+  if (myName && data.targetUsername === myName) {
+    alert("🚫 SECURITY SYSTEM: You have been permanently banned!");
+    socket.disconnect();
+    window.location.replace("https://www.google.com");
+  }
+});
+
+
+
+
+// Jab backend se direct kick signal aaye
+socket.on('PERMANENT_FIREWALL_KICK', (data) => {
+    // 1. Socket reconnection hamesha ke liye deactivate karo
+    socket.io.opts.reconnect = false;
+    socket.disconnect();
+
+    // 2. Clear state/session variables
+    localStorage.clear();
+    sessionStorage.clear();
+
+    alert("🚫 Security Warning: You have been permanently banned by the administration.");
+
+    // 3. Poori Window content badal do taaki page rejoin event fire na kar sake (Hard Crash)
+    document.body.innerHTML = `
+        <div style="background:#111827; color:#ef4444; height:100vh; width:100vw; display:flex; justify-content:center; align-items:center; font-family:sans-serif; flex-direction:column; position:fixed; top:0; left:0; z-index:999999;">
+            <h1 style="font-size:3rem; margin-bottom:10px;">Access Revoked</h1>
+            <p style="color:#9ca3af;">This session is closed and your machine configuration has been locked.</p>
+        </div>
+    `;
+    
+    // 4. Forceful redirect 
+    setTimeout(() => {
+        window.location.replace("https://www.google.com");
+    }, 1000);
+});
+
     // ── Join ───────────────────────────────────────────────────────────────────────
     joinBtn.onclick = doJoin;
     usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') bioInput.focus(); });
@@ -3960,6 +4017,49 @@ socket.on("messages_cleared", (data) => {
       `;
       chatBox.appendChild(wrap);
     }
+  }
+});
+
+
+
+
+// Frontend: Live Kick / Logout Listener
+socket.on('system_ban_signal', (data) => {
+  // Yahan 'myUsername' us variable ka naam hai jisme user ka naam save hota hai
+  if (data.bannedUser === myUsername) {
+    alert("🚨 YOU HAVE BEEN BANNED FROM THE SERVER!");
+    
+    // User ko forcefully kisi doosri site ya error page par bhej dena
+    socket.disconnect();
+    window.location.href = "https://www.google.com"; // Ya phir window.location.reload();
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+// --- AUTO-LOGOUT LISTENER ---
+socket.on('force_logout_signal', (data) => {
+  // Check karna ki kya ye wahi user hai jo ban hua hai
+  // NOTE: Yahan 'myUsername' us variable ka naam hona chahiye jisme aapka frontend username save rakhta hai.
+  // Agar aap username ko localStorage mein save rakhte ho, toh aise check karo:
+  const currentUsername = localStorage.getItem('username') || myUsername; 
+
+  if (data.targetUsername === currentUsername) {
+    alert("🚫 SECURITY ALERT: You have been permanently banned by a Moderator.");
+    
+    // Connection poori tarah band karna
+    socket.disconnect();
+    
+    // User ko forcefully Google ya kisi error page par phek dena
+    window.location.replace("https://www.google.com"); 
   }
 });
 
