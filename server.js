@@ -749,20 +749,27 @@ discordClient.on("interactionCreate", async (interaction) => {
     // 🧹 /clearmessages — Poora global chat clear karo
     // ──────────────────────────────────────────────────────
     else if (commandName === "clearmessages") {
-      await interaction.deferReply({ flags: 64 });
-      const result = await Message.deleteMany({ room: "global" });
-      io.to("global").emit("messages_cleared", { room: "global" });
+  await interaction.deferReply({ flags: 64 });
 
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color:  0xff3c5f,
-        title:  "🧹 Global Chat Cleared",
-        fields: [
-          { name: "Messages Deleted", value: `${result.deletedCount}`, inline: true },
-        ],
-      });
-      return interaction.editReply(
-        `✅ Global chat ke **${result.deletedCount}** messages delete ho gaye.`
-      );
+  // DB se delete karo
+  const result = await Message.deleteMany({ room: "global" });
+
+  // ⚡ io.emit() use karo — saare connected sockets ko milega
+  // io.to("global") sirf us room mein joined ko bhejta hai
+  // lekin io.emit() ALL connected clients ko bhejta hai
+  io.emit("messages_cleared", { room: "global" });
+
+  sendEmbed(MOD_LOG_CHANNEL_ID, {
+    color:  0xff3c5f,
+    title:  "🧹 Global Chat Cleared",
+    fields: [
+      { name: "Messages Deleted", value: `${result.deletedCount}`, inline: true },
+    ],
+  });
+
+  return interaction.editReply(
+    `✅ Global chat ke **${result.deletedCount}** messages delete ho gaye.`
+  );
     }
 
     // ──────────────────────────────────────────────────────
