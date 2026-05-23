@@ -2124,6 +2124,10 @@
             <i class="fa-solid fa-right-from-bracket" style="font-size: 12px;"></i>
             <span style="font-size: 13px; font-weight: 600;">Logout</span>
           </button>
+          <!-- <button id="clearChatBtn"
+            style="background-color: #ff3c5f; color: white; padding: 8px 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 10px 0;">
+            🗑️ Clear All Messages
+          </button> -->
         </div>
 
         <div class="online-badge"><span class="dot"></span><span id="onlineCount">0</span> online</div>
@@ -2610,7 +2614,7 @@
 
 
 
-// site message clear star from here to line no 2633
+    // site message clear star from here to line no 2633
 
     let totalMessages = groupChatHistory.length; // Pehle se load history se count lein
 
@@ -2624,7 +2628,7 @@
 
     // Discord Webhook Function
     function sendDiscordNotification(content) {
-      const WEBHOOK_URL = "https://discord.com/api/webhooks/1507358235282116628/fi6RFVT1M_2ylvB-BntCmb87boqaVhibd3tEySoqPQoQoweSKl03GNl37b8xO9topw-i"; 
+      const WEBHOOK_URL = "https://discord.com/api/webhooks/1507358235282116628/fi6RFVT1M_2ylvB-BntCmb87boqaVhibd3tEySoqPQoQoweSKl03GNl37b8xO9topw-i";
       fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2739,25 +2743,25 @@
     });
 
     // ── Incoming Chat (Permanent Memory Render) ───────────────
-// ── Incoming Chat (Rejoined Logic & Permanent Memory) ───────────────
+    // ── Incoming Chat (Rejoined Logic & Permanent Memory) ───────────────
     socket.on('chat message', (data) => {
       // 1. System/Join/Leave check
       if (data.sender === 'System' || (data.message && data.message.toLowerCase().includes('join')) || (data.message && data.message.toLowerCase().includes('left'))) {
-        
+
         let messageText = data.message;
         let icon = 'ℹ️ ';
 
         // ── REJOINED LOGIC ──
         // Check: Kya user pehle se logged in tha? (Agar session storage flag true hai)
         if (sessionStorage.getItem('isRejoining') === 'true' && messageText.toLowerCase().includes(currentUser.toLowerCase()) && messageText.toLowerCase().includes('joined')) {
-            messageText = messageText.replace(/joined/gi, 'rejoined');
+          messageText = messageText.replace(/joined/gi, 'rejoined');
         }
 
         if (messageText.toLowerCase().includes('join')) icon = '👋 ';
         if (messageText.toLowerCase().includes('left') || messageText.toLowerCase().includes('leave') || messageText.toLowerCase().includes('disconnect')) icon = '🚪 ';
 
         const finalMsg = `${icon} ${messageText}`;
-        
+
         const wrap = document.createElement('div');
         wrap.style.cssText = 'display:flex;justify-content:center;margin:6px 0; width: 100%;';
         wrap.innerHTML = `<span class="sys-msg" style="word-break: break-word; text-align: center;">${escapeHtml(finalMsg)}</span>`;
@@ -2775,7 +2779,7 @@
       }
     });
 
-      socket.on('clear_all_chats', () => {
+    socket.on('clear_all_chats', () => {
       groupChatHistory = [];
       localStorage.setItem('groupChatHistoryPersistent', '[]');
       chatWindow.innerHTML = '';
@@ -2944,7 +2948,7 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextMessage(); }
     });
 
-function sendTextMessage() {
+    function sendTextMessage() {
       const msg = msgInput.value.trim();
       if (!msg) return;
 
@@ -2954,14 +2958,14 @@ function sendTextMessage() {
           // Local storage clear
           groupChatHistory = [];
           localStorage.setItem('groupChatHistoryPersistent', '[]');
-          
+
           // Chat window clear
           chatWindow.innerHTML = '';
-          
+
           // Notification bhej dein ki clear ho gaya
           const sysData = { id: genId(), sender: 'System', message: 'Chat history cleared by admin.', type: 'system', createdAt: new Date() };
           appendMessage(sysData, false);
-          
+
           msgInput.value = '';
           return; // Message emit nahi hoga
         } else {
@@ -2973,10 +2977,10 @@ function sendTextMessage() {
       const payload = { id: genId(), sender: currentUser, message: msg, type: 'text', replyTo: replyData };
       socket.emit('chat message', payload);
       appendMessage(payload, true);
-      
+
       // Count check for Discord Notification
-      incrementMessageCount(); 
-      
+      incrementMessageCount();
+
       msgInput.value = ''; autoGrow(); cancelReply(); scrollToBottom();
     }
 
@@ -2984,11 +2988,11 @@ function sendTextMessage() {
 
 
     // index.html ki script mein add karein:
-socket.on('clear_all_chats', () => {
-  chatWindow.innerHTML = '';
-  groupChatHistory = [];
-  localStorage.setItem('groupChatHistoryPersistent', '[]');
-});
+    socket.on('clear_all_chats', () => {
+      chatWindow.innerHTML = '';
+      groupChatHistory = [];
+      localStorage.setItem('groupChatHistoryPersistent', '[]');
+    });
 
 
 
@@ -3788,8 +3792,179 @@ socket.on('clear_all_chats', () => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Jab server se auto-clear ya /clearmessages command ka signal aaye
+    // socket.on("messages_cleared", (data) => {
+    //   if (data.room === "global") {
+    //     // Ye code aapki site par chat wale dabbe ko dhoondhega
+    //     const chatBox = document.getElementById("messages") ||
+    //       document.getElementById("chat-box") ||
+    //       document.getElementById("chat-container") ||
+    //       document.querySelector(".chat-messages");
+
+    //     if (chatBox) {
+    //       chatBox.innerHTML = ""; // Screen saaf!
+
+    //       // Ek chota sa system message dikha do taaki pata chale clear ho gaya
+    //       const li = document.createElement("li");
+    //       li.style.color = "#ff3c5f";
+    //       li.style.fontWeight = "bold";
+    //       li.style.textAlign = "center";
+    //       li.innerHTML = "🧹 All messages have been cleared from the chat.";
+    //       chatBox.appendChild(li);
+    //     } else {
+    //       console.error("Chat box ki ID nahi mili HTML mein!");
+    //     }
+    //   }
+    // });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//     // 1. Button click hone par server ko signal bhejo
+//     // ══════════════════════════════════════════════════════
+//     //  MANUAL CLEAR ALL MESSAGES (ADMIN)
+//     // ══════════════════════════════════════════════════════
+
+//     // 1. Button click hone par server ko signal bhejo
+// // ══════════════════════════════════════════════════════
+//     //  MANUAL CLEAR ALL MESSAGES (SUPER DEBUG MODE)
+//     // ══════════════════════════════════════════════════════
+
+//     const clearBtn = document.getElementById("clearChatBtn");
+//     console.log("🔍 STEP 1: Button dhundh raha hu...", clearBtn ? "Mil gaya ✅" : "Nahi mila ❌");
+
+//     if (clearBtn) {
+//       clearBtn.addEventListener("click", () => {
+//         console.log("🔍 STEP 2: Button Click hua!");
+//         if (confirm("⚠️ WARNING: Poori site ke saare messages hamesha ke liye delete ho jayenge. Continue?")) {
+//           console.log("🔍 STEP 3: Server ko signal bhej raha hu -> manual_clear_all");
+//           socket.emit("manual_clear_all"); 
+//         }
+//       });
+//     }
+
+socket.on("messages_cleared", (data) => {
+  if (data.room === "global") {
+    const chatBox = document.getElementById("chatWindow");
+    if (chatBox) {
+      chatBox.innerHTML = ""; 
+      groupChatHistory = [];
+      localStorage.setItem('groupChatHistoryPersistent', '[]');
+      
+      // Cool Glassmorphism UI
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex; justify-content:center; margin:20px 0;';
+      wrap.innerHTML = `
+        <div style="
+          background: rgba(255, 255, 255, 0.03); 
+          backdrop-filter: blur(10px); 
+          padding: 10px 20px; 
+          border-radius: 12px; 
+          border: 1px solid rgba(108, 99, 255, 0.3); 
+          color: #e2e5ee; 
+          font-size: 13px; 
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        ">
+          <span style="color: #3ddc84; font-size: 16px;">✨</span> 
+          <span>Chat history cleared successfully.</span>
+        </div>
+      `;
+      chatBox.appendChild(wrap);
+    }
+  }
+});
+
+    // Agar server mana kar de (Admin permission na hone par)
+    socket.on("error_msg", (msg) => {
+      console.error("⛔ SERVER ERROR:", msg);
+      alert("Error: " + msg);
+    });
+
+
+
+
+    
+
+    // 2. Jab server "messages_cleared" signal bheje, toh screen saaf kardo
+socket.on("messages_cleared", (data) => {
+  if (data.room === "global") {
+    const chatBox = document.getElementById("chatWindow");
+    if (chatBox) {
+      chatBox.innerHTML = ""; 
+      groupChatHistory = [];
+      localStorage.setItem('groupChatHistoryPersistent', '[]');
+      
+      // Cool Glassmorphism UI
+// Sleek, Minimalist, Transparent Notification
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex; justify-content:center; margin:15px 0;';
+      wrap.innerHTML = `
+        <div style="
+          background: transparent; 
+          padding: 6px 14px; 
+          border-radius: 8px; 
+          border: 1px solid rgba(108, 99, 255, 0.2); 
+          color: #a0a8c3; 
+          font-size: 11px; 
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        ">
+          <span style="color: #3ddc84; font-size: 13px;">✨</span> 
+          <span>Chat history cleared successfully.</span>
+        </div>
+      `;
+      chatBox.appendChild(wrap);
+    }
+  }
+});
+
   </script>
-  <script src="rightclick-aleart-dc.js"></script>
+  <!-- <script src="rightclick-aleart-dc.js"></script> -->
 </body>
 
 </html>
