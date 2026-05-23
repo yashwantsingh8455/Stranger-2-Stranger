@@ -36,13 +36,13 @@ const CONTROL_CHANNEL_IDS = ["1506573109728247848"];
 const GUILD_ID = "1485522389403173004";
 
 const STATUS_CHANNEL_ID    = process.env.STATUS_CHANNEL_ID    || "";
-const CHAT_CHANNEL_ID      = process.env.CHAT_CHANNEL_ID      || "1506240430260621312";
+const CHAT_CHANNEL_ID      = process.env.CHAT_CHANNEL_ID      || "";
 const MEDIA_LOG_CHANNEL_ID = process.env.MEDIA_LOG_CHANNEL_ID || "";
-const JOIN_LEAVE_CHANNEL_ID= process.env.JOIN_LEAVE_CHANNEL_ID|| "1506240499361775707";
-const MOD_LOG_CHANNEL_ID   = process.env.MOD_LOG_CHANNEL_ID   || "1506240662381658162";
+const JOIN_LEAVE_CHANNEL_ID= process.env.JOIN_LEAVE_CHANNEL_ID|| "";
+const MOD_LOG_CHANNEL_ID   = process.env.MOD_LOG_CHANNEL_ID   || "";
 const VIP_LOG_CHANNEL_ID   = process.env.VIP_LOG_CHANNEL_ID   || "";
-const REPORT_CHANNEL_ID    = process.env.REPORT_CHANNEL_ID    || "1506239632466116698";
-const ERROR_CHANNEL_ID     = process.env.ERROR_CHANNEL_ID     || "1506240662381658162";
+const REPORT_CHANNEL_ID    = process.env.REPORT_CHANNEL_ID    || "";
+const ERROR_CHANNEL_ID     = process.env.ERROR_CHANNEL_ID     || "";
 
 const ADMIN_NAME = process.env.ADMIN_NAME || "Yashwant";
 const PORT       = process.env.PORT || 4000;
@@ -745,31 +745,41 @@ discordClient.on("interactionCreate", async (interaction) => {
       return safeReply(`⚠️ **${target}** ka Admin status hata diya gaya.`);
     }
 
-    // ──────────────────────────────────────────────────────
+
+
+
+    
+
+// ──────────────────────────────────────────────────────
     // 🧹 /clearmessages — Poora global chat clear karo
     // ──────────────────────────────────────────────────────
-    else if (commandName === "clearmessages") {
-  await interaction.deferReply({ flags: 64 });
+    if (commandName === "clearmessages") {
+      try {
+        // Database se delete karo
+        const result = await Message.deleteMany({ room: "global" });
+        
+        // Website ko signal bhejo
+        io.emit("messages_cleared", { room: "global" });
 
-  // DB se delete karo
-  const result = await Message.deleteMany({ room: "global" });
+        // Mod logs
+        sendEmbed(MOD_LOG_CHANNEL_ID, {
+          color: 0xff3c5f,
+          title: "🧹 Global Chat Cleared",
+          fields: [
+            { name: "Messages Deleted", value: `${result.deletedCount}`, inline: true },
+          ],
+        });
 
-  // ⚡ io.emit() use karo — saare connected sockets ko milega
-  // io.to("global") sirf us room mein joined ko bhejta hai
-  // lekin io.emit() ALL connected clients ko bhejta hai
-  io.emit("messages_cleared", { room: "global" });
+        // Reply
+        return await interaction.reply({ 
+          content: `✅ Global chat ke **${result.deletedCount}** messages delete ho gaye aur website ki screen saaf ho gayi!`, 
+          flags: 64 
+        });
 
-  sendEmbed(MOD_LOG_CHANNEL_ID, {
-    color:  0xff3c5f,
-    title:  "🧹 Global Chat Cleared",
-    fields: [
-      { name: "Messages Deleted", value: `${result.deletedCount}`, inline: true },
-    ],
-  });
-
-  return interaction.editReply(
-    `✅ Global chat ke **${result.deletedCount}** messages delete ho gaye.`
-  );
+      } catch (err) {
+        console.error("❌ COMMAND ERROR [clearmessages]:", err);
+        return await interaction.reply({ content: "❌ Error occurred.", flags: 64 });
+      }
     }
 
     // ──────────────────────────────────────────────────────
@@ -1389,8 +1399,11 @@ app.get("/", (req, res) => {
 app.get("/iframe-groupchatroom", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html"));
 });
-app.get("/chat", (req, res) => {
+app.get("/S2s", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+app.get("/General-Chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html"));
 });
 
 // 📢 Live announcement endpoint
