@@ -4103,6 +4103,102 @@ socket.on('GLOBAL_BAN_CHECK', (data) => {
     }
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 🚨 Live Profanity Warning on Site
+socket.on("profanity_warning", function(data) {
+    // Tarika 1: Simple Browser Alert
+    alert(data.message);
+    
+    // Tarika 2: Agar aapke paas koi custom chat-box alert div hai toh wahan print kar sakte ho:
+    const chatContainer = document.getElementById("messages"); // Apne chat container ki ID check kar lena
+    if (chatContainer) {
+        const warningDiv = document.createElement("div");
+        warningDiv.style.color = "#ff3c5f";
+        warningDiv.style.backgroundColor = "rgba(255, 60, 95, 0.1)";
+        warningDiv.style.padding = "10px";
+        warningDiv.style.margin = "5px 0";
+        warningDiv.style.borderRadius = "5px";
+        warningDiv.style.fontWeight = "bold";
+        warningDiv.style.borderLeft = "4px solid #ff3c5f";
+        warningDiv.innerText = data.message;
+        
+        chatContainer.appendChild(warningDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight; // Auto scroll down
+    }
+});
+
+
+
+
+// 🚨 Frontend par bina refresh kiye instant logout aur alert
+socket.on("duplicate", function(msg) {
+    // 1. Ek badhiya sa alert dikhao
+    alert(msg);
+    
+    // 2. Bina refresh kiye screen badlo (Login/Join Screen par le jao)
+    // Maan lo aapke login screen ki id 'login-screen' hai aur chat ki id 'chat-screen' hai:
+    const loginScreen = document.getElementById("login-screen");
+    const chatScreen = document.getElementById("chat-screen");
+    
+    if (loginScreen && chatScreen) {
+        chatScreen.style.display = "none";  // Chat room gayab
+        loginScreen.style.display = "block"; // Login window samne
+    } else {
+        // Agar single page application nahi hai, toh seedha home page par redirect kar do
+        window.location.href = "/"; 
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+// 🚨 Bina refresh kiye instant kickout aur login screen par redirect
+socket.on("force_logout", function(alertMessage) {
+    // 1. Screen par turant ban ka alert popup dikhao
+    alert(alertMessage);
+    
+    // 2. Browser ki local memory agar kuch save ho toh saaf karo
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // 3. Bina refresh kiye screen badlo ya page redirect karo
+    // Agar chat ka alag UI div hai toh use hidden kar do:
+    const chatUI = document.getElementById("chat-screen"); // Apne div ki id dekh lena
+    const loginUI = document.getElementById("login-screen");
+    
+    if (chatUI && loginUI) {
+        chatUI.style.display = "none";
+        loginUI.style.display = "block";
+    } else {
+        // Agar single page nahi hai, toh seedha home link par patak do user ko
+        window.location.reload(); 
+    }
+});
+
+
+
   </script>
   <script src="rightclick-aleart-dc.js"></script>
 </body>
