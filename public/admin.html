@@ -1,61 +1,1260 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>StrangertoStranger | Fast Admin ⚡</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #050A30; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .admin-card { background: white; color: #333; padding: 30px; border-radius: 15px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h2 { text-align: center; color: #3f51b5; margin-top:0; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; color: white; transition: 0.3s; }
-        .ban-btn { background: #f44336; }
-        .ban-btn:hover { background: #d32f2f; }
-        #status { margin-top: 15px; font-weight: bold; text-align: center; font-size: 14px; min-height: 20px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HeyyYuki Admin Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #080b10;
+  --surface:  #0d1117;
+  --card:     #111820;
+  --border:   #1e2d3d;
+  --accent:   #00f5a0;
+  --accent2:  #00b8ff;
+  --danger:   #ff3c5f;
+  --warn:     #ffd60a;
+  --purple:   #a855f7;
+  --text:     #c9d1d9;
+  --muted:    #4a5568;
+  --font-mono:"Share Tech Mono", monospace;
+  --font-ui:  "Rajdhani", sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100vh;overflow-x:hidden;}
+
+/* SCAN LINE EFFECT */
+body::after{content:"";position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,245,160,.012) 2px,rgba(0,245,160,.012) 4px);z-index:9999;}
+
+/* LOGIN SCREEN */
+#loginScreen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;flex-direction:column;gap:20px;}
+.login-box{background:var(--card);border:1px solid var(--accent);border-radius:4px;padding:40px;width:360px;text-align:center;}
+.login-box h1{font-size:1.6rem;color:var(--accent);font-family:var(--font-mono);letter-spacing:2px;margin-bottom:6px;}
+.login-box p{color:var(--muted);font-size:.85rem;margin-bottom:24px;}
+.login-box input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:4px;font-family:var(--font-mono);font-size:.9rem;outline:none;margin-bottom:12px;}
+.login-box input:focus{border-color:var(--accent);}
+.login-box button{width:100%;background:var(--accent);color:#000;font-family:var(--font-ui);font-weight:700;font-size:1rem;padding:12px;border:none;border-radius:4px;cursor:pointer;letter-spacing:1px;transition:.2s;}
+.login-box button:hover{background:#00c87a;}
+.login-error{color:var(--danger);font-size:.85rem;display:none;}
+
+/* LAYOUT */
+#app{display:none;flex-direction:column;height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.logo{font-family:var(--font-mono);color:var(--accent);font-size:1.1rem;letter-spacing:2px;}
+.logo span{color:var(--muted);font-size:.75rem;display:block;letter-spacing:1px;}
+.status-pills{display:flex;gap:8px;}
+.pill{padding:3px 10px;border-radius:2px;font-size:.7rem;font-family:var(--font-mono);border:1px solid;letter-spacing:.5px;}
+.pill.green{color:var(--accent);border-color:var(--accent);background:rgba(0,245,160,.08);}
+.pill.blue{color:var(--accent2);border-color:var(--accent2);background:rgba(0,184,255,.08);}
+.pill.red{color:var(--danger);border-color:var(--danger);background:rgba(255,60,95,.08);}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.online-count{font-family:var(--font-mono);color:var(--accent);font-size:.9rem;}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:4px;cursor:pointer;font-size:.75rem;font-family:var(--font-ui);transition:.2s;}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:14px 20px;cursor:pointer;color:var(--muted);font-size:.9rem;font-weight:600;letter-spacing:.5px;transition:.15s;border-left:3px solid transparent;position:relative;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,245,160,.05);}
+.nav-item .icon{font-size:1.1rem;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:.65rem;padding:2px 6px;border-radius:10px;font-family:var(--font-mono);}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:24px;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-track{background:transparent;}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+.page{display:none;}
+.page.active{display:block;}
+
+/* SECTION HEADER */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.section-title{font-size:1.3rem;font-weight:700;letter-spacing:1px;color:var(--text);}
+.section-title span{color:var(--accent);}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:16px 18px;position:relative;overflow:hidden;}
+.stat-card::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent-color,var(--accent));}
+.stat-label{font-size:.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:6px;}
+.stat-value{font-size:2rem;font-family:var(--font-mono);color:var(--accent-color,var(--accent));font-weight:400;line-height:1;}
+.stat-sub{font-size:.7rem;color:var(--muted);margin-top:4px;}
+
+/* TABLES */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+.table-header{padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.table-header h3{font-size:.85rem;letter-spacing:1px;color:var(--muted);text-transform:uppercase;}
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 14px;text-align:left;font-size:.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:var(--font-mono);border-bottom:1px solid var(--border);}
+td{padding:10px 14px;font-size:.85rem;border-bottom:1px solid rgba(30,45,61,.5);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 8px;border-radius:2px;font-size:.65rem;font-family:var(--font-mono);font-weight:400;letter-spacing:.5px;}
+.badge.online{background:rgba(0,245,160,.15);color:var(--accent);border:1px solid rgba(0,245,160,.3);}
+.badge.offline{background:rgba(74,85,104,.15);color:var(--muted);border:1px solid rgba(74,85,104,.3);}
+.badge.banned{background:rgba(255,60,95,.15);color:var(--danger);border:1px solid rgba(255,60,95,.3);}
+.badge.vip{background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.3);}
+.badge.admin{background:rgba(255,214,10,.15);color:var(--warn);border:1px solid rgba(255,214,10,.3);}
+.badge.warn{background:rgba(255,214,10,.15);color:var(--warn);border:1px solid rgba(255,214,10,.3);}
+.badge.shadow{background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.3);}
+.badge.vpn{background:rgba(255,60,95,.15);color:var(--danger);border:1px solid rgba(255,60,95,.3);}
+.badge.mobile{background:rgba(0,184,255,.15);color:var(--accent2);border:1px solid rgba(0,184,255,.3);}
+.badge.incognito{background:rgba(168,85,247,.15);color:var(--purple);}
+
+/* ACTION BUTTONS */
+.action-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.btn{padding:5px 12px;border-radius:3px;font-size:.75rem;font-family:var(--font-ui);font-weight:700;letter-spacing:.5px;cursor:pointer;border:1px solid;transition:.15s;}
+.btn:hover{opacity:.8;transform:translateY(-1px);}
+.btn-danger{background:rgba(255,60,95,.1);color:var(--danger);border-color:var(--danger);}
+.btn-success{background:rgba(0,245,160,.1);color:var(--accent);border-color:var(--accent);}
+.btn-warn{background:rgba(255,214,10,.1);color:var(--warn);border-color:var(--warn);}
+.btn-info{background:rgba(0,184,255,.1);color:var(--accent2);border-color:var(--accent2);}
+.btn-purple{background:rgba(168,85,247,.1);color:var(--purple);border-color:var(--purple);}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border);}
+.btn-sm{padding:4px 10px;font-size:.7rem;}
+.btn-lg{padding:10px 20px;font-size:.9rem;}
+.btn-full{width:100%;}
+
+/* SEARCH BAR */
+.search-bar{display:flex;gap:8px;margin-bottom:16px;}
+.search-bar input{flex:1;background:var(--card);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:4px;font-family:var(--font-mono);font-size:.85rem;outline:none;}
+.search-bar input:focus{border-color:var(--accent);}
+.search-bar input::placeholder{color:var(--muted);}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:6px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;}
+.modal::-webkit-scrollbar{width:4px;}
+.modal::-webkit-scrollbar-thumb{background:var(--border);}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;}
+.modal-head h2{font-size:1rem;font-weight:700;letter-spacing:1px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;transition:.15s;}
+.modal-close:hover{color:var(--danger);}
+.modal-body{padding:20px 22px;}
+
+/* FORM ELEMENTS */
+.form-group{margin-bottom:14px;}
+.form-label{font-size:.75rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;display:block;font-family:var(--font-mono);}
+.form-input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:4px;font-family:var(--font-mono);font-size:.9rem;outline:none;}
+.form-input:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+textarea.form-input{resize:vertical;min-height:80px;}
+.form-actions{display:flex;gap:8px;margin-top:18px;}
+
+/* USER INTEL CARD */
+.intel-section{background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-bottom:12px;overflow:hidden;}
+.intel-section-head{padding:10px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);font-size:.7rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--font-mono);}
+.intel-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.intel-item{padding:12px 16px;border-bottom:1px solid rgba(30,45,61,.5);border-right:1px solid rgba(30,45,61,.5);}
+.intel-item:nth-child(even){border-right:none;}
+.intel-item:last-child,.intel-item:nth-last-child(2){border-bottom:none;}
+.intel-item.full{grid-column:1/-1;border-right:none;}
+.intel-key{font-size:.65rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:4px;}
+.intel-val{font-family:var(--font-mono);font-size:.85rem;color:var(--text);word-break:break-all;}
+.intel-val.accent{color:var(--accent);}
+.intel-val.danger{color:var(--danger);}
+.intel-val.warn{color:var(--warn);}
+.intel-val.muted{color:var(--muted);}
+
+/* HISTORY TIMELINE */
+.history-item{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid rgba(30,45,61,.4);}
+.history-item:last-child{border-bottom:none;}
+.history-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.history-dot.ban{background:var(--danger);}
+.history-dot.unban{background:var(--accent);}
+.history-info{flex:1;}
+.history-action{font-size:.8rem;font-weight:600;}
+.history-meta{font-size:.7rem;color:var(--muted);font-family:var(--font-mono);margin-top:2px;}
+
+/* ANNOUNCE BOX */
+.announce-box{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:20px;}
+
+/* TOAST */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9998;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:12px 18px;font-size:.85rem;display:flex;align-items:center;gap:10px;animation:slideIn .3s ease;pointer-events:all;max-width:320px;}
+.toast.success{border-left:3px solid var(--accent);color:var(--accent);}
+.toast.error{border-left:3px solid var(--danger);color:var(--danger);}
+.toast.info{border-left:3px solid var(--accent2);color:var(--accent2);}
+.toast.warn{border-left:3px solid var(--warn);color:var(--warn);}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* CHAT LOG */
+.chat-msg{padding:8px 12px;border-bottom:1px solid rgba(30,45,61,.4);display:flex;gap:10px;font-size:.82rem;}
+.chat-msg:hover{background:rgba(255,255,255,.02);}
+.chat-sender{color:var(--accent);font-family:var(--font-mono);flex-shrink:0;min-width:120px;}
+.chat-text{color:var(--text);word-break:break-word;flex:1;}
+.chat-time{color:var(--muted);font-family:var(--font-mono);font-size:.7rem;flex-shrink:0;}
+.chat-del{cursor:pointer;color:var(--danger);font-size:.75rem;opacity:0;transition:.15s;}
+.chat-msg:hover .chat-del{opacity:1;}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--muted);font-family:var(--font-mono);font-size:.85rem;}
+.loading::after{content:"...";animation:dots 1.5s infinite;}
+@keyframes dots{0%,20%{content:"   "}40%{content:".  "}60%{content:".. "}80%,100%{content:"..."}}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px;color:var(--muted);}
+.empty-icon{font-size:2rem;margin-bottom:8px;}
+.empty-text{font-size:.85rem;}
+
+/* SCROLLABLE TABLE WRAP */
+.table-scroll{overflow-x:auto;}
+
+/* DISCORD STATUS */
+.discord-badge{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted);}
+.discord-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+.discord-dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .intel-grid{grid-template-columns:1fr;}
+  .intel-item{border-right:none;}
+}
+</style>
 </head>
 <body>
-    <div class="admin-card">
-        <h2>Fast Ban Panel 👑</h2>
-        <p style="font-size: 12px; color: #666; text-align: center;">Enter username to force logout</p>
-        
-        <input type="text" id="targetUser" placeholder="Target Username (Exact Case)">
-        <input type="text" id="reason" placeholder="Reason for ban (Optional)">
-        
-        <button class="btn ban-btn" onclick="kickUser()">🚫 Force Logout & Ban</button>
-        
-        <div id="status"></div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>HEYY<span style="color:var(--accent2)">YUKI</span></h1>
+    <p>Admin Panel — Authorized Access Only</p>
+    <input type="password" id="loginPass" placeholder="Enter admin password..." onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">ACCESS PANEL</button>
+    <p class="login-error" id="loginErr">❌ Wrong password. Try again.</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">HEYYYUKI PANEL <span>StrangerToStranger v5.0</span></div>
+      <div class="status-pills">
+        <span class="pill green" id="mongoStatus">● MONGO</span>
+        <span class="pill blue" id="discordStatus">● DISCORD</span>
+        <span class="pill green" id="serverStatus">● SERVER</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="online-count"><span id="onlineCount">0</span> ONLINE</div>
+      <button class="refresh-btn" onclick="refreshAll()">↻ REFRESH</button>
+      <button class="refresh-btn" onclick="logout()" style="color:var(--danger);border-color:var(--danger)">EXIT</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="online" onclick="showPage('online',this)">
+        <span class="icon">🌐</span> Online Users
+      </div>
+      <div class="nav-item" data-page="banned" onclick="showPage('banned',this)">
+        <span class="icon">🔨</span> Banned Users
+      </div>
+      <div class="nav-item" data-page="warnings" onclick="showPage('warnings',this)">
+        <span class="icon">⚠️</span> Warnings
+      </div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports',this)">
+        <span class="icon">🚨</span> Reports <span class="nav-badge" id="reportsBadge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-page="chat" onclick="showPage('chat',this)">
+        <span class="icon">💬</span> Live Chat
+      </div>
+      <div class="nav-item" data-page="lookup" onclick="showPage('lookup',this)">
+        <span class="icon">🔍</span> User Lookup
+      </div>
+      <div class="nav-item" data-page="announce" onclick="showPage('announce',this)">
+        <span class="icon">📢</span> Announce
+      </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        
-        function kickUser() {
-            const target = document.getElementById('targetUser').value.trim();
-            const reason = document.getElementById('reason').value.trim();
-            const statusDiv = document.getElementById('status');
+    <!-- CONTENT -->
+    <div class="content">
 
-            if(!target) {
-                alert("Please enter a username!");
-                return;
-            }
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> Dashboard</div>
+          <div class="discord-badge">
+            <div class="discord-dot" id="discordDot"></div>
+            <span id="discordLabel">Discord connecting...</span>
+          </div>
+        </div>
+        <div class="stats-grid" id="statsGrid">
+          <div class="loading">Loading stats</div>
+        </div>
 
-            // Realtime event trigger
-            socket.emit('admin:banUser', {
-                adminToken: 'Yash@4112005', // Token ab code ke andar fix hai
-                targetUsername: target,
-                reason: reason || "Forced logout by admin"
-            });
+        <div class="section-header" style="margin-top:8px;">
+          <div class="section-title" style="font-size:1rem;"><span>//</span> Quick Actions</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;">
+          <button class="btn btn-danger btn-lg" onclick="openModal('banModal')">🔨 Ban User</button>
+          <button class="btn btn-success btn-lg" onclick="openModal('unbanModal')">✅ Unban User</button>
+          <button class="btn btn-warn btn-lg" onclick="openModal('kickModal')">👢 Kick User</button>
+          <button class="btn btn-info btn-lg" onclick="openModal('warnModal')">⚠️ Warn User</button>
+          <button class="btn btn-purple btn-lg" onclick="openModal('announceModal')">📢 Announce</button>
+          <button class="btn btn-ghost btn-lg" onclick="openModal('vipModal')">💎 VIP</button>
+        </div>
 
-            statusDiv.innerText = "Kicking " + target + "...";
-            statusDiv.style.color = "#3f51b5";
-            document.getElementById('targetUser').value = '';
+        <div class="section-header">
+          <div class="section-title" style="font-size:1rem;"><span>//</span> Recent Reports</div>
+        </div>
+        <div class="table-wrap" id="dashReports">
+          <div class="loading">Loading</div>
+        </div>
+      </div>
+
+      <!-- ONLINE USERS -->
+      <div class="page" id="page-online">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> Online Users</div>
+          <button class="btn btn-info btn-sm" onclick="loadOnline()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap" id="onlineTable">
+          <div class="loading">Loading</div>
+        </div>
+      </div>
+
+      <!-- BANNED -->
+      <div class="page" id="page-banned">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> Banned Users</div>
+          <button class="btn btn-danger btn-sm" onclick="openModal('banModal')">+ Ban New</button>
+        </div>
+        <div class="search-bar">
+          <input id="banSearch" placeholder="Search by username, IP, country..." oninput="debounce(loadBanned,400)()">
+          <button class="btn btn-ghost" onclick="loadBanned()">Search</button>
+        </div>
+        <div class="table-wrap" id="bannedTable">
+          <div class="loading">Loading</div>
+        </div>
+      </div>
+
+      <!-- WARNINGS -->
+      <div class="page" id="page-warnings">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> Warning Records</div>
+          <button class="btn btn-info btn-sm" onclick="loadWarnings()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap" id="warningsTable">
+          <div class="loading">Loading</div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="page" id="page-reports">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> User Reports</div>
+          <button class="btn btn-info btn-sm" onclick="loadReports()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap" id="reportsTable">
+          <div class="loading">Loading</div>
+        </div>
+      </div>
+
+      <!-- CHAT LOG -->
+      <div class="page" id="page-chat">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> Live Chat Log</div>
+          <button class="btn btn-info btn-sm" onclick="loadChat()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap" id="chatLog" style="max-height:70vh;overflow-y:auto;">
+          <div class="loading">Loading</div>
+        </div>
+      </div>
+
+      <!-- USER LOOKUP -->
+      <div class="page" id="page-lookup">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> User Intelligence Lookup</div>
+        </div>
+        <div class="search-bar">
+          <input id="lookupInput" placeholder="Enter username..." onkeydown="if(event.key==='Enter')lookupUser()">
+          <button class="btn btn-info" onclick="lookupUser()">🔍 Lookup</button>
+        </div>
+        <div id="lookupResult"></div>
+      </div>
+
+      <!-- ANNOUNCE -->
+      <div class="page" id="page-announce">
+        <div class="section-header">
+          <div class="section-title"><span>//</span> Broadcast Announcement</div>
+        </div>
+        <div class="announce-box">
+          <div class="form-group">
+            <label class="form-label">Announcement Message</label>
+            <textarea class="form-input" id="annText" placeholder="Sab users ko kya message bhejana hai..." style="min-height:120px;"></textarea>
+          </div>
+          <button class="btn btn-success btn-lg" onclick="sendAnnouncement()">📢 Send to All Users</button>
+          <p style="color:var(--muted);font-size:.75rem;margin-top:10px;font-family:var(--font-mono);">
+            ↳ Yeh message Discord ke status channel mein bhi jayega
+          </p>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODALS -->
+
+<!-- BAN MODAL -->
+<div class="modal-overlay" id="banModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>🔨 Ban User</h2>
+      <button class="modal-close" onclick="closeModal('banModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="banUsername" placeholder="Username enter karo...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input class="form-input" id="banReason" placeholder="Ban ki wajah..." value="Admin ban">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-danger btn-full" onclick="doBan()">🔨 Confirm Ban</button>
+        <button class="btn btn-ghost" onclick="closeModal('banModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UNBAN MODAL -->
+<div class="modal-overlay" id="unbanModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>✅ Unban User</h2>
+      <button class="modal-close" onclick="closeModal('unbanModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="unbanUsername" placeholder="Username enter karo...">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-success btn-full" onclick="doUnban()">✅ Confirm Unban</button>
+        <button class="btn btn-ghost" onclick="closeModal('unbanModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KICK MODAL -->
+<div class="modal-overlay" id="kickModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>👢 Kick User</h2>
+      <button class="modal-close" onclick="closeModal('kickModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Username (must be online)</label>
+        <input class="form-input" id="kickUsername" placeholder="Online user ka username...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input class="form-input" id="kickReason" placeholder="Kick reason..." value="Admin kick">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-warn btn-full" onclick="doKick()">👢 Confirm Kick</button>
+        <button class="btn btn-ghost" onclick="closeModal('kickModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WARN MODAL -->
+<div class="modal-overlay" id="warnModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>⚠️ Warn User</h2>
+      <button class="modal-close" onclick="closeModal('warnModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="warnUsername" placeholder="Username...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input class="form-input" id="warnReason" placeholder="Warning reason...">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-warn btn-full" onclick="doWarn()">⚠️ Send Warning</button>
+        <button class="btn btn-ghost" onclick="closeModal('warnModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIP MODAL -->
+<div class="modal-overlay" id="vipModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>💎 Manage VIP</h2>
+      <button class="modal-close" onclick="closeModal('vipModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="vipUsername" placeholder="Username...">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-purple" style="flex:1" onclick="doVip('add')">💎 Give VIP</button>
+        <button class="btn btn-danger" style="flex:1" onclick="doVip('remove')">✂️ Remove VIP</button>
+        <button class="btn btn-ghost" onclick="closeModal('vipModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANNOUNCE MODAL -->
+<div class="modal-overlay" id="announceModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>📢 Quick Announce</h2>
+      <button class="modal-close" onclick="closeModal('announceModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Message</label>
+        <textarea class="form-input" id="modalAnnText" placeholder="Announcement message..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-success btn-full" onclick="doModalAnnounce()">📢 Send</button>
+        <button class="btn btn-ghost" onclick="closeModal('announceModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- USER INTEL MODAL -->
+<div class="modal-overlay" id="intelModal">
+  <div class="modal" style="width:580px;">
+    <div class="modal-head">
+      <h2 id="intelModalTitle">🔍 User Intelligence</h2>
+      <button class="modal-close" onclick="closeModal('intelModal')">×</button>
+    </div>
+    <div class="modal-body" id="intelModalBody">
+      <div class="loading">Fetching data</div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const BASE = window.location.origin;
+let ADMIN_TOKEN = "";
+
+// ── AUTH ──
+function doLogin() {
+  const pass = document.getElementById("loginPass").value;
+  if (!pass) return;
+  
+if (pass !== "heyuki2026") {
+    document.getElementById("loginErr").style.display = "block";
+    return;
+  }
+  
+  ADMIN_TOKEN = pass;
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  refreshAll();
+  startAutoRefresh();
+}
+function logout() {
+  ADMIN_TOKEN = "";
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+}
+
+// ── API HELPER ──
+async function apiFetch(url, options = {}) {
+  const res = await fetch(BASE + url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-token": ADMIN_TOKEN,
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+// ── NAVIGATION ──
+function showPage(page, el) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-" + page).classList.add("active");
+  el.classList.add("active");
+  loadPage(page);
+}
+function loadPage(page) {
+  if (page === "dashboard") { loadStats(); loadDashReports(); }
+  if (page === "online")    loadOnline();
+  if (page === "banned")    loadBanned();
+  if (page === "warnings")  loadWarnings();
+  if (page === "reports")   loadReports();
+  if (page === "chat")      loadChat();
+}
+
+// ── AUTO REFRESH ──
+function startAutoRefresh() {
+  setInterval(() => {
+    const activePage = document.querySelector(".nav-item.active")?.dataset.page;
+    if (activePage) loadPage(activePage);
+    updateTopStats();
+  }, 15000);
+}
+
+function refreshAll() {
+  updateTopStats();
+  loadStats();
+  loadDashReports();
+}
+
+async function updateTopStats() {
+  try {
+    const data = await apiFetch("/api/admin/stats");
+    document.getElementById("onlineCount").textContent = data.online;
+    document.getElementById("mongoStatus").className = "pill " + (data.mongo === "connected" ? "green" : "red");
+    document.getElementById("discordStatus").className = "pill " + (data.discord ? "blue" : "red");
+    document.getElementById("discordDot").className = "discord-dot " + (data.discord ? "online" : "");
+    document.getElementById("discordLabel").textContent = data.discord ? "Discord Connected" : "Discord Offline";
+    document.getElementById("serverStatus").className = "pill green";
+  } catch(e) {
+    document.getElementById("serverStatus").className = "pill red";
+  }
+}
+
+// ── STATS ──
+async function loadStats() {
+  try {
+    const d = await apiFetch("/api/admin/stats");
+    document.getElementById("onlineCount").textContent = d.online;
+    document.getElementById("statsGrid").innerHTML = `
+      <div class="stat-card" style="--accent-color:var(--accent)">
+        <div class="stat-label">Online Now</div>
+        <div class="stat-value">${d.online}</div>
+        <div class="stat-sub">Active users</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--accent2)">
+        <div class="stat-label">Messages</div>
+        <div class="stat-value">${d.messages}</div>
+        <div class="stat-sub">Total in DB</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--danger)">
+        <div class="stat-label">Banned</div>
+        <div class="stat-value">${d.banned}</div>
+        <div class="stat-sub">Permanent bans</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--warn)">
+        <div class="stat-label">Warned</div>
+        <div class="stat-value">${d.warned}</div>
+        <div class="stat-sub">Warning records</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--purple)">
+        <div class="stat-label">Reports</div>
+        <div class="stat-value">${d.reports}</div>
+        <div class="stat-sub">User reports</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#ff9500">
+        <div class="stat-label">DM Channels</div>
+        <div class="stat-value">${d.dms}</div>
+        <div class="stat-sub">Private chats</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--accent2)">
+        <div class="stat-label">Groups</div>
+        <div class="stat-value">${d.groups}</div>
+        <div class="stat-sub">Created</div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById("statsGrid").innerHTML = `<div class="empty"><div class="empty-icon">❌</div><div>${e.message}</div></div>`;
+  }
+}
+
+// ── ONLINE USERS ──
+async function loadOnline() {
+  const el = document.getElementById("onlineTable");
+  el.innerHTML = '<div class="loading">Loading</div>';
+  try {
+    const users = await apiFetch("/api/admin/online");
+    if (!users.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🌐</div><div class="empty-text">Koi online nahi hai</div></div>'; return; }
+    el.innerHTML = `
+      <div class="table-header"><h3>Online Users (${users.length})</h3></div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Username</th><th>IP</th><th>Room</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${users.map(u => `
+          <tr>
+            <td><b>${esc(u.name)}</b></td>
+            <td><code style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent2)">${esc(u.ip||"N/A")}</code></td>
+            <td><code style="font-family:var(--font-mono);font-size:.75rem">${esc(u.room||"global")}</code></td>
+            <td>
+              ${u.isAdmin ? '<span class="badge admin">ADMIN</span>' : ''}
+              ${u.isVip && !u.isAdmin ? '<span class="badge vip">VIP</span>' : ''}
+              ${!u.isAdmin && !u.isVip ? '<span class="badge offline">USER</span>' : ''}
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="btn btn-info btn-sm" onclick="openIntel('${esc(u.name)}')">🔍 Intel</button>
+                <button class="btn btn-warn btn-sm" onclick="quickAction('kick','${esc(u.name)}')">👢 Kick</button>
+                <button class="btn btn-danger btn-sm" onclick="quickAction('ban','${esc(u.name)}')">🔨 Ban</button>
+                <button class="btn btn-purple btn-sm" onclick="quickAction('shadow','${esc(u.name)}')">👻 Shadow</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+// ── BANNED ──
+async function loadBanned() {
+  const el  = document.getElementById("bannedTable");
+  const q   = document.getElementById("banSearch")?.value || "";
+  el.innerHTML = '<div class="loading">Loading</div>';
+  try {
+    const users = await apiFetch(`/api/admin/banned?filter=${encodeURIComponent(q)}`);
+    if (!users.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🔨</div><div class="empty-text">Koi banned user nahi</div></div>'; return; }
+    el.innerHTML = `
+      <div class="table-header"><h3>Banned Users (${users.length})</h3></div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Username</th><th>IP</th><th>Ban #</th><th>Reason</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${users.map(u => `
+          <tr>
+            <td><b>${esc(u.username)}</b></td>
+            <td><code style="font-family:var(--font-mono);font-size:.8rem;color:var(--danger)">${esc(u.ip||"N/A")}</code></td>
+            <td><span class="badge banned">${u.banCount||1}×</span></td>
+            <td style="color:var(--muted);font-size:.8rem">${esc(u.reason||"—")}</td>
+            <td>
+              <div class="action-btns">
+                <button class="btn btn-info btn-sm" onclick="openIntel('${esc(u.username)}')">🔍 Intel</button>
+                <button class="btn btn-success btn-sm" onclick="quickAction('unban','${esc(u.username)}')">✅ Unban</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+// ── WARNINGS ──
+async function loadWarnings() {
+  const el = document.getElementById("warningsTable");
+  el.innerHTML = '<div class="loading">Loading</div>';
+  try {
+    const warns = await apiFetch("/api/admin/warnings");
+    if (!warns.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Koi warning record nahi</div></div>'; return; }
+    el.innerHTML = `
+      <div class="table-header"><h3>Warning Records (${warns.length})</h3></div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Username</th><th>Warnings</th><th>Last Warning</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${warns.map(w => `
+          <tr>
+            <td><b>${esc(w.username)}</b></td>
+            <td>
+              <span class="badge ${w.count>=3?'banned':w.count>=2?'warn':'online'}">${w.count}/3</span>
+            </td>
+            <td style="color:var(--muted);font-size:.8rem;font-family:var(--font-mono)">${w.lastWarningAt ? new Date(w.lastWarningAt).toLocaleString("en-IN") : "—"}</td>
+            <td>
+              <div class="action-btns">
+                <button class="btn btn-info btn-sm" onclick="openIntel('${esc(w.username)}')">🔍 Intel</button>
+                <button class="btn btn-warn btn-sm" onclick="quickAction('warn','${esc(w.username)}')">+Warn</button>
+                <button class="btn btn-ghost btn-sm" onclick="quickAction('clearwarn','${esc(w.username)}')">🧹 Clear</button>
+                <button class="btn btn-danger btn-sm" onclick="quickAction('ban','${esc(w.username)}')">🔨 Ban</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+// ── REPORTS ──
+async function loadReports() {
+  const el = document.getElementById("reportsTable");
+  el.innerHTML = '<div class="loading">Loading</div>';
+  try {
+    const reports = await apiFetch("/api/admin/reports");
+    const badge   = document.getElementById("reportsBadge");
+    if (reports.length > 0) { badge.style.display = "inline"; badge.textContent = reports.length; }
+    else badge.style.display = "none";
+
+    if (!reports.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🚨</div><div class="empty-text">Koi report nahi</div></div>'; return; }
+    el.innerHTML = `
+      <div class="table-header"><h3>User Reports (${reports.length})</h3></div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Reported</th><th>By</th><th>Category</th><th>Device</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${reports.map(r => `
+          <tr>
+            <td><b>${esc(r.reportedUser||"—")}</b></td>
+            <td style="color:var(--muted)">${esc(r.reporterUser||"—")}</td>
+            <td><span class="badge warn">${esc(r.category||"—")}</span></td>
+            <td style="font-size:.75rem">${esc(r.device||"—")}</td>
+            <td style="color:var(--muted);font-size:.75rem;font-family:var(--font-mono)">${new Date(r.createdAt).toLocaleString("en-IN")}</td>
+            <td>
+              <div class="action-btns">
+                <button class="btn btn-info btn-sm" onclick="openIntel('${esc(r.reportedUser)}')">🔍 Intel</button>
+                <button class="btn btn-danger btn-sm" onclick="quickAction('ban','${esc(r.reportedUser)}')">🔨 Ban</button>
+                <button class="btn btn-warn btn-sm" onclick="quickAction('warn','${esc(r.reportedUser)}')">⚠️ Warn</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+// ── DASH REPORTS ──
+async function loadDashReports() {
+  const el = document.getElementById("dashReports");
+  try {
+    const reports = await apiFetch("/api/admin/reports");
+    const latest  = reports.slice(0, 5);
+    if (!latest.length) { el.innerHTML = '<div class="empty" style="padding:16px"><div class="empty-text">Koi recent report nahi</div></div>'; return; }
+    el.innerHTML = `
+      <div class="table-header"><h3>Recent Reports</h3></div>
+      <table>
+        <thead><tr><th>Reported</th><th>Category</th><th>Date</th></tr></thead>
+        <tbody>
+          ${latest.map(r => `
+          <tr>
+            <td>${esc(r.reportedUser||"—")}</td>
+            <td><span class="badge warn">${esc(r.category||"—")}</span></td>
+            <td style="color:var(--muted);font-size:.75rem;font-family:var(--font-mono)">${new Date(r.createdAt).toLocaleString("en-IN")}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    `;
+  } catch(e) {}
+}
+
+// ── CHAT LOG ──
+async function loadChat() {
+  const el = document.getElementById("chatLog");
+  el.innerHTML = '<div class="loading">Loading</div>';
+  try {
+    const msgs = await apiFetch("/api/admin/messages");
+    if (!msgs.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">Koi message nahi</div></div>'; return; }
+    el.innerHTML = '<div class="table-header"><h3>Recent Global Messages (50)</h3></div>' +
+      msgs.map(m => `
+      <div class="chat-msg" id="msg_${m._id}">
+        <span class="chat-sender">${esc(m.senderName||"System")}</span>
+        <span class="chat-text">${esc(m.text||"")}</span>
+        <span class="chat-time">${new Date(m.createdAt).toLocaleTimeString("en-IN")}</span>
+        <span class="chat-del" onclick="deleteMsg('${m._id}')">✕</span>
+      </div>`).join("");
+    el.scrollTop = el.scrollHeight;
+  } catch(e) { el.innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+async function deleteMsg(id) {
+  if (!confirm("Is message ko delete karo?")) return;
+  try {
+    await apiFetch("/api/admin/deletemsg", { method: "POST", body: { id } });
+    document.getElementById("msg_" + id)?.remove();
+    toast("Message deleted", "success");
+  } catch(e) { toast(e.message, "error"); }
+}
+
+// ── USER LOOKUP ──
+async function lookupUser() {
+  const uname = document.getElementById("lookupInput").value.trim();
+  if (!uname) return;
+  const el = document.getElementById("lookupResult");
+  el.innerHTML = '<div class="loading">Fetching intelligence</div>';
+  try {
+    const d = await apiFetch(`/api/admin/user/${encodeURIComponent(uname)}`);
+    renderIntelCard(el, d);
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">${e.message}</div></div>`;
+  }
+}
+
+// ── INTEL MODAL ──
+async function openIntel(username) {
+  document.getElementById("intelModalTitle").textContent = `🔍 Intel: ${username}`;
+  document.getElementById("intelModalBody").innerHTML = '<div class="loading">Fetching intelligence</div>';
+  openModal("intelModal");
+  try {
+    const d = await apiFetch(`/api/admin/user/${encodeURIComponent(username)}`);
+    renderIntelCard(document.getElementById("intelModalBody"), d);
+  } catch(e) {
+    document.getElementById("intelModalBody").innerHTML = `<div class="empty">${e.message}</div>`;
+  }
+}
+
+function renderIntelCard(el, d) {
+  const s   = d.session   || {};
+  const ban = d.ban       || {};
+  const w   = d.warning   || {};
+
+  // VPN detection
+  const forwardedList = s.forwardedFor ? s.forwardedFor.split(",").map(x=>x.trim()) : [];
+  const vpnSuspect    = s.vpnDetected || forwardedList.length > 1;
+
+  const banHistHtml = (ban.banHistory && ban.banHistory.length > 0)
+    ? ban.banHistory.slice(-5).map(h => `
+        <div class="history-item">
+          <div class="history-dot ${h.action}"></div>
+          <div class="history-info">
+            <div class="history-action" style="color:${h.action==='ban'?'var(--danger)':'var(--accent)'}">${h.action === "ban" ? "🔨 Banned" : "✅ Unbanned"}</div>
+            <div class="history-meta">${h.reason||"—"} | by ${h.by||"—"} | ${h.at ? new Date(h.at).toLocaleString("en-IN") : "—"}</div>
+          </div>
+        </div>`).join("")
+    : '<div class="empty-text" style="font-size:.8rem;padding:8px 0;color:var(--muted)">Kabhi ban nahi hua</div>';
+
+  const warnMsgsHtml = (w.messages && w.messages.length > 0)
+    ? w.messages.slice(-3).map(m => `
+        <div style="padding:6px 0;border-bottom:1px solid rgba(30,45,61,.4);font-size:.8rem;font-family:var(--font-mono)">
+          <span style="color:var(--warn)">"${esc(m.text||"")}"</span>
+          <span style="color:var(--muted);margin-left:8px">${m.date ? new Date(m.date).toLocaleString("en-IN") : ""}</span>
+        </div>`).join("")
+    : '<div style="color:var(--muted);font-size:.8rem;padding:8px 0">Koi profanity message nahi</div>';
+
+  el.innerHTML = `
+    <!-- Status Badges -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <span class="badge ${d.online?'online':'offline'}">${d.online?'🟢 ONLINE':'⚫ OFFLINE'}</span>
+      ${d.isBanned ? '<span class="badge banned">🔨 BANNED</span>' : ''}
+      ${d.isAdmin  ? '<span class="badge admin">👑 ADMIN</span>' : ''}
+      ${d.isVip    ? '<span class="badge vip">💎 VIP</span>' : ''}
+      ${vpnSuspect ? '<span class="badge vpn">🛡️ VPN DETECTED</span>' : ''}
+      ${s.isMobile ? '<span class="badge mobile">📱 MOBILE</span>' : '<span class="badge offline">🖥️ DESKTOP</span>'}
+      ${s.incognitoHint ? '<span class="badge incognito">🕵️ INCOGNITO</span>' : ''}
+    </div>
+
+    <!-- IP Intelligence -->
+    <div class="intel-section">
+      <div class="intel-section-head">🌐 IP Intelligence</div>
+      <div class="intel-grid">
+        <div class="intel-item">
+          <div class="intel-key">Primary IP</div>
+          <div class="intel-val accent">${esc(s.ip || d.liveData?.ip || "N/A")}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">Forwarded / Proxy IP</div>
+          <div class="intel-val ${vpnSuspect?'danger':'muted'}">${esc(forwardedList.slice(1).join(", ") || "—")}</div>
+        </div>
+        <div class="intel-item full">
+          <div class="intel-key">VPN / Proxy Status</div>
+          <div class="intel-val ${vpnSuspect?'danger':'accent'}">
+            ${vpnSuspect ? '🔴 VPN / Proxy Detected — x-forwarded-for chain mein multiple IPs hain' : '🟢 No VPN detected'}
+          </div>
+        </div>
+        <div class="intel-item full">
+          <div class="intel-key">Full Forwarded-For Chain</div>
+          <div class="intel-val muted" style="font-size:.8rem">${esc(s.forwardedFor || "N/A")}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Device & Browser -->
+    <div class="intel-section">
+      <div class="intel-section-head">💻 Device & Browser</div>
+      <div class="intel-grid">
+        <div class="intel-item">
+          <div class="intel-key">Browser</div>
+          <div class="intel-val">${esc(s.browser || "Unknown")}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">Operating System</div>
+          <div class="intel-val">${esc(s.os || "Unknown")}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">Device Type</div>
+          <div class="intel-val">${s.isMobile ? "📱 Mobile" : "🖥️ Desktop"}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">Incognito / Private</div>
+          <div class="intel-val ${s.incognitoHint?'warn':'muted'}">${s.incognitoHint ? '🕵️ Detected' : 'Normal mode / Unknown'}</div>
+        </div>
+        <div class="intel-item full">
+          <div class="intel-key">User Agent</div>
+          <div class="intel-val muted" style="font-size:.7rem;word-break:break-all">${esc(s.userAgent || "N/A")}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session Info -->
+    <div class="intel-section">
+      <div class="intel-section-head">🕒 Session Info</div>
+      <div class="intel-grid">
+        <div class="intel-item">
+          <div class="intel-key">Total Sessions</div>
+          <div class="intel-val accent">${s.sessionCount || "—"}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">Last Seen</div>
+          <div class="intel-val">${s.lastSeen ? new Date(s.lastSeen).toLocaleString("en-IN") : d.online ? "🟢 Right Now" : "—"}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">First Seen</div>
+          <div class="intel-val muted">${s.connectedAt ? new Date(s.connectedAt).toLocaleString("en-IN") : "—"}</div>
+        </div>
+        <div class="intel-item">
+          <div class="intel-key">Current Room</div>
+          <div class="intel-val muted">${d.liveData?.room || (d.online ? "global" : "—")}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ban History -->
+    <div class="intel-section">
+      <div class="intel-section-head">🔨 Ban History (${ban.banCount||0} bans, ${ban.unbanCount||0} unbans)</div>
+      <div style="padding:12px 16px;">${banHistHtml}</div>
+    </div>
+
+    <!-- Warning History -->
+    <div class="intel-section">
+      <div class="intel-section-head">⚠️ Warning History (${w.count||0}/3)</div>
+      <div style="padding:12px 16px;">${warnMsgsHtml}</div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="margin-top:16px;">
+      <div class="form-label" style="margin-bottom:10px;">Quick Actions</div>
+      <div class="action-btns">
+        ${!d.isBanned
+          ? `<button class="btn btn-danger" onclick="quickAction('ban','${esc(d.username)}');closeModal('intelModal')">🔨 Ban</button>`
+          : `<button class="btn btn-success" onclick="quickAction('unban','${esc(d.username)}');closeModal('intelModal')">✅ Unban</button>`
         }
+        ${d.online ? `<button class="btn btn-warn" onclick="quickAction('kick','${esc(d.username)}');closeModal('intelModal')">👢 Kick</button>` : ""}
+        <button class="btn btn-warn" onclick="quickAction('warn','${esc(d.username)}')">⚠️ Warn</button>
+        <button class="btn btn-ghost" onclick="quickAction('clearwarn','${esc(d.username)}')">🧹 Clear Warns</button>
+        <button class="btn btn-purple" onclick="quickAction('shadow','${esc(d.username)}')">👻 Shadow</button>
+        <button class="btn btn-ghost" onclick="quickAction('deletemsgs','${esc(d.username)}')">🗑️ Del Messages</button>
+        <button class="btn btn-ghost" onclick="quickAction('vip','${esc(d.username)}')">💎 VIP Toggle</button>
+      </div>
+    </div>
+  `;
+}
 
-        socket.on('banStatus', (data) => {
-            document.getElementById('status').innerText = `✅ User ${data.targetUsername} has been kicked!`;
-            document.getElementById('status').style.color = "green";
-        });
-    </script>
+// ── ACTIONS ──
+async function doBan() {
+  const username = document.getElementById("banUsername").value.trim();
+  const reason   = document.getElementById("banReason").value.trim() || "Admin ban";
+  if (!username) return toast("Username daalo", "error");
+  try {
+    const r = await apiFetch("/api/admin/ban", { method: "POST", body: { username, reason } });
+    toast(r.message, "success");
+    closeModal("banModal");
+    loadPage(document.querySelector(".nav-item.active")?.dataset.page);
+  } catch(e) { toast(e.message, "error"); }
+}
+
+async function doUnban() {
+  const username = document.getElementById("unbanUsername").value.trim();
+  if (!username) return toast("Username daalo", "error");
+  try {
+    const r = await apiFetch("/api/admin/unban", { method: "POST", body: { username } });
+    toast(r.message, "success");
+    closeModal("unbanModal");
+    loadPage(document.querySelector(".nav-item.active")?.dataset.page);
+  } catch(e) { toast(e.message, "error"); }
+}
+
+async function doKick() {
+  const username = document.getElementById("kickUsername").value.trim();
+  const reason   = document.getElementById("kickReason").value.trim() || "Admin kick";
+  if (!username) return toast("Username daalo", "error");
+  try {
+    const r = await apiFetch("/api/admin/kick", { method: "POST", body: { username, reason } });
+    toast(r.message, "success");
+    closeModal("kickModal");
+  } catch(e) { toast(e.message, "error"); }
+}
+
+async function doWarn() {
+  const username = document.getElementById("warnUsername").value.trim();
+  const reason   = document.getElementById("warnReason").value.trim();
+  if (!username || !reason) return toast("Username aur reason dono dalo", "error");
+  try {
+    const r = await apiFetch("/api/admin/warn", { method: "POST", body: { username, reason } });
+    toast(r.message, r.autoBanned ? "warn" : "success");
+    closeModal("warnModal");
+    loadPage(document.querySelector(".nav-item.active")?.dataset.page);
+  } catch(e) { toast(e.message, "error"); }
+}
+
+async function doVip(action) {
+  const username = document.getElementById("vipUsername").value.trim();
+  if (!username) return toast("Username daalo", "error");
+  try {
+    const r = await apiFetch("/api/admin/vip", { method: "POST", body: { username, action } });
+    toast(r.message, "success");
+    closeModal("vipModal");
+  } catch(e) { toast(e.message, "error"); }
+}
+
+async function sendAnnouncement() {
+  const msg = document.getElementById("annText").value.trim();
+  if (!msg) return toast("Message daalo", "error");
+  try {
+    await apiFetch("/api/admin/announce", { method: "POST", body: { message: msg } });
+    toast("Announcement bhej di gayi! 📢", "success");
+    document.getElementById("annText").value = "";
+  } catch(e) { toast(e.message, "error"); }
+}
+
+async function doModalAnnounce() {
+  const msg = document.getElementById("modalAnnText").value.trim();
+  if (!msg) return toast("Message daalo", "error");
+  try {
+    await apiFetch("/api/admin/announce", { method: "POST", body: { message: msg } });
+    toast("Announcement bhej di gayi! 📢", "success");
+    closeModal("announceModal");
+    document.getElementById("modalAnnText").value = "";
+  } catch(e) { toast(e.message, "error"); }
+}
+
+// Quick action handler (from tables)
+async function quickAction(action, username) {
+  try {
+    switch(action) {
+      case "ban":
+        const banReason = prompt(`Ban reason for ${username}:`, "Admin ban");
+        if (banReason === null) return;
+        const br = await apiFetch("/api/admin/ban", { method: "POST", body: { username, reason: banReason } });
+        toast(br.message, "success"); break;
+
+      case "unban":
+        if (!confirm(`Unban ${username}?`)) return;
+        const ur = await apiFetch("/api/admin/unban", { method: "POST", body: { username } });
+        toast(ur.message, "success"); break;
+
+      case "kick":
+        const kr = await apiFetch("/api/admin/kick", { method: "POST", body: { username, reason: "Admin kick" } });
+        toast(kr.message, "success"); break;
+
+      case "warn":
+        const wr = prompt(`Warning reason for ${username}:`);
+        if (!wr) return;
+        const wRes = await apiFetch("/api/admin/warn", { method: "POST", body: { username, reason: wr } });
+        toast(wRes.message, wRes.autoBanned ? "warn" : "success"); break;
+
+      case "clearwarn":
+        if (!confirm(`${username} ki saari warnings clear karo?`)) return;
+        const cwr = await apiFetch("/api/admin/clearwarn", { method: "POST", body: { username } });
+        toast(cwr.message, "success"); break;
+
+      case "shadow":
+        const sr = await apiFetch("/api/admin/shadow", { method: "POST", body: { username } });
+        toast(sr.message, sr.shadow ? "warn" : "info"); break;
+
+      case "deletemsgs":
+        if (!confirm(`${username} ke saare messages delete karo?`)) return;
+        const dmr = await apiFetch("/api/admin/deletemsgs", { method: "POST", body: { username } });
+        toast(dmr.message, "success"); break;
+
+      case "vip":
+        const vAction = confirm(`${username} ko VIP dena hai? (Cancel = Remove)`) ? "add" : "remove";
+        const vr = await apiFetch("/api/admin/vip", { method: "POST", body: { username, action: vAction } });
+        toast(vr.message, "success"); break;
+    }
+    // Refresh current page
+    setTimeout(() => loadPage(document.querySelector(".nav-item.active")?.dataset.page), 500);
+  } catch(e) { toast(e.message, "error"); }
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).classList.add("show"); }
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+
+// Close on overlay click
+document.querySelectorAll(".modal-overlay").forEach(el => {
+  el.addEventListener("click", e => { if (e.target === el) el.classList.remove("show"); });
+});
+
+// ── TOAST ──
+function toast(msg, type = "info") {
+  const c  = document.getElementById("toastContainer");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── HELPERS ──
+function esc(str) {
+  return String(str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+let _debounceTimers = {};
+function debounce(fn, delay) {
+  const key = fn.toString().substr(0, 20);
+  return function(...args) {
+    clearTimeout(_debounceTimers[key]);
+    _debounceTimers[key] = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+
+
+
+
+
+
+// 1. Right-click disable karne ke liye
+  document.addEventListener('contextmenu', event => event.preventDefault());
+
+  // 2. Keyboard shortcuts disable karne ke liye (F12, Ctrl+Shift+I, Ctrl+U)
+  document.onkeydown = function(e) {
+    // Disable F12
+    if (e.keyCode == 123) return false;
+    
+    // Disable Ctrl + Shift + I
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+    
+    // Disable Ctrl + Shift + J
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+    
+    // Disable Ctrl + U (View Source)
+    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+  }
+</script>
 </body>
 </html>
