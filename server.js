@@ -1826,7 +1826,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// User session API (optional — admin use ke liye)
+// User session API
 app.get("/api/session/:username", async (req, res) => {
   try {
     const session = await UserSession.findOne({
@@ -1837,6 +1837,346 @@ app.get("/api/session/:username", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// 🎛️ ADMIN PANEL REST API
+// Password middleware
+// ══════════════════════════════════════════════════════════════════
+const PANEL_PASSWORD = process.env.PANEL_PASSWORD || "heyuki2026";
+
+function requireAdmin(req, res, next) {
+  const token = req.headers["x-admin-token"] || req.query.token;
+  if (token !== PANEL_PASSWORD) {
+    return res.status(401).json({ error: "Unauthorized — Wrong password" });
+  }
+  next();
+}
+
+// Serve admin panel HTML
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+// GET /api/admin/stats
+app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+  try {
+    const [msgCount, banCount, warnCount, reportCount, dmCount, groupCount] =
+      await Promise.all([
+        Message.countDocuments(),
+        Banned.countDocuments(),
+        Warning.countDocuments(),
+        Report.countDocuments(),
+        DM.countDocuments(),
+        Group.countDocuments(),
+      ]);
+    res.json({
+      online:    Object.keys(activeUsers).length,
+      messages:  msgCount,
+      banned:    banCount,
+      warned:    warnCount,
+      reports:   reportCount,
+      dms:       dmCount,
+      groups:    groupCount,
+      discord:   discordReady,
+      mongo:     mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/online
+app.get("/api/admin/online", requireAdmin, (req, res) => {
+  const users = Object.values(activeUsers).map(u => ({
+    name:     u.name,
+    ip:       u.ip,
+    isVip:    u.isVip,
+    isAdmin:  u.isAdmin,
+    room:     u.room,
+    socketId: u.socketId,
+  }));
+  res.json(users);
+});
+
+// GET /api/admin/banned
+app.get("/api/admin/banned", requireAdmin, async (req, res) => {
+  try {
+    const filter = req.query.filter || "";
+    const query  = filter
+      ? { $or: [
+          { username: { $regex: filter, $options: "i" } },
+          { ip: filter },
+          { country: { $regex: filter, $options: "i" } },
+        ]}
+      : {};
+    const users = await Banned.find(query).sort({ _id: -1 }).limit(100).lean();
+    res.json(users);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/warnings
+app.get("/api/admin/warnings", requireAdmin, async (req, res) => {
+  try {
+    const warnings = await Warning.find({}).sort({ count: -1 }).limit(50).lean();
+    res.json(warnings);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/reports
+app.get("/api/admin/reports", requireAdmin, async (req, res) => {
+  try {
+    const reports = await Report.find({}).sort({ createdAt: -1 }).limit(50).lean();
+    res.json(reports);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/user/:username — full user intel
+app.get("/api/admin/user/:username", requireAdmin, async (req, res) => {
+  try {
+    const uname  = req.params.username.toLowerCase();
+    const regex  = new RegExp("^" + uname + "$", "i");
+    const [session, banRecord, warnRecord] = await Promise.all([
+      UserSession.findOne({ username: regex }).sort({ lastSeen: -1 }).lean(),
+      Banned.findOne({ username: regex }).lean(),
+      Warning.findOne({ username: regex }).lean(),
+    ]);
+    const onlineUser = Object.values(activeUsers).find(
+      u => u.name.toLowerCase() === uname
+    );
+    res.json({
+      username: uname,
+      online:   !!onlineUser,
+      isVip:    isUserVip(uname),
+      isAdmin:  isUserAdmin(uname),
+      isBanned: bannedUsernames.has(uname) || !!banRecord,
+      session:  session   || null,
+      ban:      banRecord || null,
+      warning:  warnRecord|| null,
+      liveData: onlineUser ? { ip: onlineUser.ip, room: onlineUser.room } : null,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/ban
+app.post("/api/admin/ban", requireAdmin, async (req, res) => {
+  try {
+    const { username, reason = "Admin ban" } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const uname = username.toLowerCase();
+
+    bannedUsernames.add(uname);
+    saveBanned();
+
+    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+    const session    = await UserSession.findOne({ username: { $regex: new RegExp("^" + uname + "$", "i") } }).lean();
+
+    await Banned.findOneAndUpdate(
+      { username: uname },
+      {
+        $set:  { username: uname, ip: onlineUser?.ip || session?.ip || "Unknown", reason },
+        $inc:  { banCount: 1 },
+        $push: { banHistory: { action: "ban", reason, by: "Web Panel", at: new Date() } },
+      },
+      { upsert: true }
+    );
+
+    if (onlineUser) {
+      io.to(onlineUser.socketId).emit("force_logout", `🚫 Aap admin panel dwara ban ho gaye. Reason: ${reason}`);
+      setTimeout(() => {
+        const sock = io.sockets.sockets.get(onlineUser.socketId);
+        if (sock) sock.disconnect(true);
+      }, 500);
+      if (onlineUser.ip) {
+        tempBannedIPs.set(onlineUser.ip, {
+          expiry: Date.now() + 999 * 365 * 24 * 60 * 60 * 1000,
+          reservedName: uname,
+        });
+      }
+    }
+
+    sendEmbed(BANNED_LOG_CHANNEL_ID, {
+      color: 0xff3c5f,
+      title: "🔨 Ban via Web Panel",
+      fields: [
+        { name: "👤 Username", value: `\`${uname}\``,   inline: true },
+        { name: "📝 Reason",   value: `\`${reason}\``,  inline: true },
+        { name: "🌐 By",       value: "Web Admin Panel", inline: true },
+      ],
+    });
+
+    res.json({ ok: true, message: `${username} banned successfully` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/unban
+app.post("/api/admin/unban", requireAdmin, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const uname = username.toLowerCase();
+
+    bannedUsernames.delete(uname);
+    saveBanned();
+
+    const banDoc = await Banned.findOne({ username: uname });
+    if (banDoc) {
+      banDoc.unbanCount = (banDoc.unbanCount || 0) + 1;
+      banDoc.banHistory = banDoc.banHistory || [];
+      banDoc.banHistory.push({ action: "unban", reason: "Web Panel unban", by: "Web Admin Panel", at: new Date() });
+      await banDoc.save();
+      if (banDoc.ip) tempBannedIPs.delete(banDoc.ip);
+    } else {
+      await Banned.deleteOne({ username: uname });
+    }
+
+    res.json({ ok: true, message: `${username} unbanned successfully` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/kick
+app.post("/api/admin/kick", requireAdmin, (req, res) => {
+  try {
+    const { username, reason = "Admin kick" } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const uname = username.toLowerCase();
+
+    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+    if (!onlineUser) return res.status(404).json({ error: `${username} is not online` });
+
+    io.to(onlineUser.socketId).emit("force_logout", `👢 Admin panel se kick: ${reason}`);
+    setTimeout(() => {
+      const sock = io.sockets.sockets.get(onlineUser.socketId);
+      if (sock) sock.disconnect(true);
+    }, 500);
+
+    res.json({ ok: true, message: `${username} kicked` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/warn
+app.post("/api/admin/warn", requireAdmin, async (req, res) => {
+  try {
+    const { username, reason = "Admin warning" } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const uname = username.toLowerCase();
+
+    let warning = await Warning.findOne({ username: uname });
+    if (!warning) {
+      warning = new Warning({ username: uname, count: 1, reason, messages: [{ text: `[Admin] ${reason}`, date: new Date() }] });
+    } else {
+      warning.count += 1;
+      warning.messages.push({ text: `[Admin] ${reason}`, date: new Date() });
+      warning.lastWarningAt = new Date();
+    }
+    await warning.save();
+
+    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+    if (onlineUser) {
+      io.to(onlineUser.socketId).emit("profanity_warning", {
+        count: warning.count,
+        message: `⚠️ Admin Warning ${warning.count}/3: ${reason}`,
+      });
+    }
+
+    if (warning.count >= 3) {
+      bannedUsernames.add(uname);
+      saveBanned();
+      await Banned.findOneAndUpdate(
+        { username: uname },
+        { $set: { username: uname, reason: "3 warnings" }, $inc: { banCount: 1 }, $push: { banHistory: { action: "ban", reason: "Auto: 3 warnings", by: "System", at: new Date() } } },
+        { upsert: true }
+      );
+      if (onlineUser) {
+        io.to(onlineUser.socketId).emit("force_logout", "🚫 3 warnings ke baad auto-ban!");
+        setTimeout(() => { const sock = io.sockets.sockets.get(onlineUser.socketId); if (sock) sock.disconnect(true); }, 500);
+      }
+      return res.json({ ok: true, autoBanned: true, message: `${username} got 3rd warning and was auto-banned` });
+    }
+
+    res.json({ ok: true, autoBanned: false, count: warning.count, message: `Warning #${warning.count}/3 given to ${username}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/clearwarn
+app.post("/api/admin/clearwarn", requireAdmin, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    await Warning.deleteOne({ username: username.toLowerCase() });
+    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username.toLowerCase());
+    if (onlineUser) {
+      io.to(onlineUser.socketId).emit("profanity_warning", { count: 0, message: "✅ Aapki saari warnings clear ho gayi." });
+    }
+    res.json({ ok: true, message: `Warnings cleared for ${username}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/announce
+app.post("/api/admin/announce", requireAdmin, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message required" });
+    await new Announcement({ text: message, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }).save();
+    io.emit("announcement", { text: message, from: "Admin", createdAt: new Date() });
+    sendEmbed(STATUS_CHANNEL_ID, { color: 0x00f5a0, title: "📢 Web Panel Announcement", description: message });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/vip
+app.post("/api/admin/vip", requireAdmin, async (req, res) => {
+  try {
+    const { username, action } = req.body;
+    if (!username || !action) return res.status(400).json({ error: "username and action required" });
+    const uname = username.toLowerCase();
+    if (action === "add") {
+      vips.add(uname); saveVips();
+      await Vip.updateOne({ username: uname }, { username: uname }, { upsert: true });
+      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+      if (onlineUser) { onlineUser.isVip = true; io.emit("user list", buildUserList()); }
+      res.json({ ok: true, message: `${username} is now VIP` });
+    } else {
+      vips.delete(uname); saveVips();
+      await Vip.deleteOne({ username: uname });
+      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+      if (onlineUser) { onlineUser.isVip = false; io.emit("user list", buildUserList()); }
+      res.json({ ok: true, message: `VIP removed from ${username}` });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/shadow
+app.post("/api/admin/shadow", requireAdmin, (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const uname = username.toLowerCase();
+    if (shadowBanned.has(uname)) {
+      shadowBanned.delete(uname);
+      res.json({ ok: true, shadow: false, message: `Shadow ban removed from ${username}` });
+    } else {
+      shadowBanned.add(uname);
+      res.json({ ok: true, shadow: true, message: `${username} is now shadow banned` });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/deletemsgs
+app.post("/api/admin/deletemsgs", requireAdmin, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const result = await Message.deleteMany({ senderName: { $regex: new RegExp("^" + username + "$", "i") } });
+    io.emit("reload_messages");
+    res.json({ ok: true, deleted: result.deletedCount, message: `${result.deletedCount} messages deleted` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/messages (recent)
+app.get("/api/admin/messages", requireAdmin, async (req, res) => {
+  try {
+    const msgs = await Message.find({ room: "global" }).sort({ createdAt: -1 }).limit(50).lean();
+    res.json(msgs.reverse());
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
