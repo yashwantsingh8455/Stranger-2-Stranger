@@ -1,6 +1,7 @@
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   StrangerToStranger — HeyyYuki Powered Server v4.0 FINAL   ║
-// ║   All Commands Fixed | All Functions Working | 2026         ║
+// ║   StrangerToStranger — HeyyYuki Powered Server v4.1 FINAL   ║
+// ║   Profanity Detection | Warning System | DM Persistence     ║
+// ║   Complete Working Solution 2026                            ║
 // ╚══════════════════════════════════════════════════════════════╝
 
 require("dotenv").config();
@@ -28,24 +29,142 @@ const {
 const MONGO_URI =
   process.env.MONGO_URI ||
   "mongodb+srv://yashwantsingh2046_db_user:Yashu2046@db.avouoxu.mongodb.net/?appName=db";
-const CLIENT_ID   = process.env.CLIENT_ID   || "1478767384398528573";
+const CLIENT_ID = process.env.CLIENT_ID || "1478767384398528573";
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || "";
 
-// Admin panel control channel IDs (add more as needed)
 const CONTROL_CHANNEL_IDS = ["1506573109728247848"];
 const GUILD_ID = "1485522389403173004";
 
-const STATUS_CHANNEL_ID    = process.env.STATUS_CHANNEL_ID    || "";
-const CHAT_CHANNEL_ID      = process.env.CHAT_CHANNEL_ID      || "1506240430260621312";
-const MEDIA_LOG_CHANNEL_ID = process.env.MEDIA_LOG_CHANNEL_ID || "";
-const JOIN_LEAVE_CHANNEL_ID= process.env.JOIN_LEAVE_CHANNEL_ID|| "1506240499361775707";
-const MOD_LOG_CHANNEL_ID   = process.env.MOD_LOG_CHANNEL_ID   || "";
-const VIP_LOG_CHANNEL_ID   = process.env.VIP_LOG_CHANNEL_ID   || "";
-const REPORT_CHANNEL_ID    = process.env.REPORT_CHANNEL_ID    || "1506239632466116698";
-const ERROR_CHANNEL_ID     = process.env.ERROR_CHANNEL_ID     || "1506240662381658162";
+const STATUS_CHANNEL_ID =
+  process.env.STATUS_CHANNEL_ID || "1506573109728247848";
+const CHAT_CHANNEL_ID = process.env.CHAT_CHANNEL_ID || "1506240430260621312";
+const MEDIA_LOG_CHANNEL_ID =
+  process.env.MEDIA_LOG_CHANNEL_ID || "1506573109728247848";
+const JOIN_LEAVE_CHANNEL_ID =
+  process.env.JOIN_LEAVE_CHANNEL_ID || "1506240499361775707";
+const MOD_LOG_CHANNEL_ID =
+  process.env.MOD_LOG_CHANNEL_ID || "1506573109728247848";
+const VIP_LOG_CHANNEL_ID =
+  process.env.VIP_LOG_CHANNEL_ID || "1506573109728247848";
+const REPORT_CHANNEL_ID =
+  process.env.REPORT_CHANNEL_ID || "1506573109728247848";
+const ERROR_CHANNEL_ID = process.env.ERROR_CHANNEL_ID || "1506240662381658162";
+const PROFANITY_CHANNEL_ID =
+  process.env.PROFANITY_CHANNEL_ID || REPORT_CHANNEL_ID; // 👈 Profanity alerts yahan jayenge
 
 const ADMIN_NAME = process.env.ADMIN_NAME || "Yashwant";
-const PORT       = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4000;
+
+
+
+// Apne naye channel ki ID yahan daal do
+const BANNED_LOG_CHANNEL_ID = process.env.BANNED_LOG_CHANNEL_ID || "1512753547765223632";
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════
+// 🧠 PROFANITY DETECTION SETUP
+// ══════════════════════════════════════════════════════════════
+// Hinglish + Hindi + English profanity words
+const PROFANITY_WORDS = new Set([
+  // Hindi/Hinglish
+  "gandu",
+  "gaandu",
+  "madarchod",
+  "behenchod",
+  "bhaanchod",
+  "lavda",
+  "lund",
+  "chutiya",
+  "chutia",
+  "chutiye",
+  "bhag",
+  "sala",
+  "salle",
+  "saala",
+  "mc",
+  "bc",
+  "randi",
+  "randi",
+  "kutti",
+  "kutty",
+  "kutiya",
+  "kuthi",
+  "kamina",
+  "kamine",
+  "nalayak",
+  "besharam",
+  "aayashi",
+  "teri maa",
+  "teri mummy",
+  "tere baap",
+  "bhenji",
+  "bhagi",
+  "pehli baar",
+  "gaali",
+  "gaaliyan",
+  "saand",
+  "budha",
+  "buddha",
+  "bawli",
+  "bewakoof",
+  "bakwas",
+  "jhooth",
+  "jhuthe",
+  "saath",
+  "jadughar",
+  "naakaara",
+  "napunsak",
+  "nakarad",
+  "nakarad",
+
+  // English
+  "fuck",
+  "shit",
+  "ass",
+  "bitch",
+  "bastard",
+  "damn",
+  "crap",
+  "whore",
+  "asshole",
+  "dickhead",
+  "motherfucker",
+  "arsehole",
+  "dumbass",
+  "prick",
+  "bloody",
+  "cunt",
+  "twat",
+  "wanker",
+  "bollocks",
+  "bugger",
+  "arse",
+  "cock",
+  "dick",
+  "pussy",
+  "slut",
+  "whore",
+  "screw",
+
+  // Abbreviations
+  "wtf",
+  "stfu",
+  "ffs",
+  "gtfo",
+]);
+
+// Function to check if message contains profanity
+function containsProfanity(text) {
+  const words = text.toLowerCase().split(/\s+/);
+  return words.some((word) => {
+    // Remove punctuation from word
+    const cleanWord = word.replace(/[.,!?;:'-]/g, "");
+    return PROFANITY_WORDS.has(cleanWord);
+  });
+}
 
 // ══════════════════════════════════════════════════════════════
 // 📦 MONGODB CONNECTION
@@ -65,31 +184,33 @@ mongoose
 // 📋 MONGODB SCHEMAS
 // ══════════════════════════════════════════════════════════════
 const MsgSchema = new mongoose.Schema({
-  room:        { type: String, default: "global" },
-  senderId:    String,
-  senderName:  String,
-  senderAvatar:String,
+  room: { type: String, default: "global" },
+  senderId: String,
+  senderName: String,
+  senderAvatar: String,
   senderColor: String,
-  text:        String,
-  type:        { type: String, default: "text" },
-  mediaUrl:    String,
-  isVip:       { type: Boolean, default: false },
-  createdAt:   { type: Date, default: Date.now },
+  text: String,
+  type: { type: String, default: "text" },
+  mediaUrl: String,
+  isVip: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
 });
 const Message = mongoose.model("Message", MsgSchema);
 
+// 💬 DM Schema - PERMANENT STORAGE
 const DMSchema = new mongoose.Schema({
-  channelId:        { type: String, unique: true },
+  channelId: { type: String, unique: true },
   participantNames: [String],
   messages: [
     {
-      senderName:  String,
-      senderAvatar:String,
+      senderName: String,
+      senderAvatar: String,
       senderColor: String,
-      text:        String,
-      mediaUrl:    String,
-      type:        { type: String, default: "text" },
-      createdAt:   { type: Date, default: Date.now },
+      text: String,
+      mediaUrl: String,
+      type: { type: String, default: "text" },
+      caption: String, // GIF caption
+      createdAt: { type: Date, default: Date.now },
     },
   ],
   updatedAt: { type: Date, default: Date.now },
@@ -97,29 +218,41 @@ const DMSchema = new mongoose.Schema({
 const DM = mongoose.model("DM", DMSchema);
 
 const GroupSchema = new mongoose.Schema({
-  name:        String,
+  name: String,
   description: String,
-  password:    String,
-  adminName:   String,
-  icon:        { type: String, default: "👥" },
-  members:     [String],
-  createdAt:   { type: Date, default: Date.now },
+  password: String,
+  adminName: String,
+  icon: { type: String, default: "👥" },
+  members: [String],
+  createdAt: { type: Date, default: Date.now },
 });
 const Group = mongoose.model("Group", GroupSchema);
 
 const ReportSchema = new mongoose.Schema({
   reportedUser: String,
   reporterUser: String,
-  reporterEmail:String,
-  category:     String,
-  reason:       String,
-  device:       String,
-  createdAt:    { type: Date, default: Date.now },
+  reporterEmail: String,
+  category: String,
+  reason: String,
+  device: String,
+  createdAt: { type: Date, default: Date.now },
 });
 const Report = mongoose.model("Report", ReportSchema);
 
+// 🚨 WARNING SYSTEM SCHEMA
+const WarningSchema = new mongoose.Schema({
+  username: { type: String, index: true },
+  count: { type: Number, default: 1 },
+  lastWarningAt: { type: Date, default: Date.now },
+  reason: String,
+  messages: [{ text: String, date: Date }],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+const Warning = mongoose.model("Warning", WarningSchema);
+
 const AnnouncementSchema = new mongoose.Schema({
-  text:      String,
+  text: String,
   expiresAt: Date,
   createdAt: { type: Date, default: Date.now },
 });
@@ -127,41 +260,58 @@ const Announcement =
   mongoose.models.Announcement ||
   mongoose.model("Announcement", AnnouncementSchema);
 
-const BanSchema = new mongoose.Schema({ username: { type: String, unique: true } });
-const VipSchema = new mongoose.Schema({ username: { type: String, unique: true } });
+const BanSchema = new mongoose.Schema({
+  username: { type: String, unique: true },
+  ip: { type: String },
+  reason: { type: String, default: "Profanity/Abuse" },
+  country: { type: String, default: "Unknown" }
+});
+
+const VipSchema = new mongoose.Schema({
+  username: { type: String, unique: true },
+});
 const Banned = mongoose.model("Banned", BanSchema);
-const Vip    = mongoose.model("Vip",    VipSchema);
+const Vip = mongoose.model("Vip", VipSchema);
 
 // ══════════════════════════════════════════════════════════════
 // 📁 FILE-BASED PERSISTENCE
 // ══════════════════════════════════════════════════════════════
 const BANNED_FILE = path.join(__dirname, "banned-usernames.json");
-const VIPS_FILE   = path.join(__dirname, "vip-users.json");
+const VIPS_FILE = path.join(__dirname, "vip-users.json");
 const ADMINS_FILE = path.join(__dirname, "admin-users.json");
 
 let bannedUsernames = new Set();
-let vips            = new Set();
-let admins          = new Set();
+let vips = new Set();
+let admins = new Set();
 
 function loadJSON(file) {
-  try { return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : []; }
-  catch (e) { return []; }
+  try {
+    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
+  } catch (e) {
+    return [];
+  }
 }
 
 bannedUsernames = new Set(loadJSON(BANNED_FILE));
-vips            = new Set(loadJSON(VIPS_FILE));
-admins          = new Set(loadJSON(ADMINS_FILE));
+vips = new Set(loadJSON(VIPS_FILE));
+admins = new Set(loadJSON(ADMINS_FILE));
 
-function saveBanned() { fs.writeFileSync(BANNED_FILE, JSON.stringify([...bannedUsernames])); }
-function saveVips()   { fs.writeFileSync(VIPS_FILE,   JSON.stringify([...vips])); }
-function saveAdmins() { fs.writeFileSync(ADMINS_FILE,  JSON.stringify([...admins])); }
+function saveBanned() {
+  fs.writeFileSync(BANNED_FILE, JSON.stringify([...bannedUsernames]));
+}
+function saveVips() {
+  fs.writeFileSync(VIPS_FILE, JSON.stringify([...vips]));
+}
+function saveAdmins() {
+  fs.writeFileSync(ADMINS_FILE, JSON.stringify([...admins]));
+}
 
 // ══════════════════════════════════════════════════════════════
 // 🧠 IN-MEMORY STATE
 // ══════════════════════════════════════════════════════════════
-const activeUsers    = {};   // socketId → user object
-const tempBannedIPs  = new Map();
-const shadowBanned   = new Set();
+const activeUsers = {};
+const tempBannedIPs = new Map();
+const shadowBanned = new Set();
 
 // ══════════════════════════════════════════════════════════════
 // 🛠️ UTILITY HELPERS
@@ -190,29 +340,29 @@ function isUserVip(nameLower) {
 
 function buildUserList() {
   return Object.values(activeUsers).map((u) => {
-    const nameLower   = u.name.toLowerCase();
+    const nameLower = u.name.toLowerCase();
     const userIsAdmin = isUserAdmin(nameLower);
-    const userIsVip   = isUserVip(nameLower);
-    let displayName   = u.name;
+    const userIsVip = isUserVip(nameLower);
+    let displayName = u.name;
 
-    if (userIsAdmin)     displayName = "👑 " + displayName;
-    else if (userIsVip)  displayName = displayName + " 💎";
+    if (userIsAdmin) displayName = "👑 " + displayName;
+    else if (userIsVip) displayName = displayName + " 💎";
 
     return {
       socketId: u.socketId,
-      name:     displayName,
-      rawName:  u.name,
-      bio:      u.bio,
-      avatar:   u.avatar,
-      color:    u.color,
-      isVip:    userIsVip,
-      isAdmin:  userIsAdmin,
+      name: displayName,
+      rawName: u.name,
+      bio: u.bio,
+      avatar: u.avatar,
+      color: u.color,
+      isVip: userIsVip,
+      isAdmin: userIsAdmin,
     };
   });
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🤖 DISCORD BOT — SETUP
+// 🤖 DISCORD BOT SETUP
 // ══════════════════════════════════════════════════════════════
 const discordClient = new Client({
   intents: [
@@ -224,136 +374,119 @@ const discordClient = new Client({
 
 let discordReady = false;
 
-// ── Slash Commands Definition ──
+// Slash Commands
 const commands = [
   new SlashCommandBuilder()
     .setName("ann")
-    .setDescription("Global chat mein system announcement bhejo")
+    .setDescription("Global announcement bhejo")
     .addStringOption((o) =>
-      o.setName("message").setDescription("Announcement text").setRequired(true)
+      o
+        .setName("message")
+        .setDescription("Announcement text")
+        .setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("kick")
-    .setDescription("User ko 5 minute ke liye kick karo")
+    .setDescription("User ko 5 minute kick karo")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("ban")
-    .setDescription("Username permanently ban karo")
+    .setDescription("User ko permanently ban karo")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("unban")
-    .setDescription("Username unban karo")
+    .setDescription("User ko unban karo")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
+
+    new SlashCommandBuilder()
+    .setName("banlist")
+    .setDescription("Banned users ki list filter karo")
+    .addStringOption(o => o.setName("username").setDescription("Username se search karo"))
+    .addStringOption(o => o.setName("country").setDescription("Country code se search karo (e.g., IN, US)"))
+    .addStringOption(o => o.setName("ip").setDescription("IP address se search karo")),
 
   new SlashCommandBuilder()
     .setName("addvip")
-    .setDescription("User ko VIP do")
+    .setDescription("VIP do")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("removevip")
-    .setDescription("User ka VIP hatao")
+    .setDescription("VIP hatao")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("online")
-    .setDescription("Sabhi online users ka list dekho"),
-
-  new SlashCommandBuilder()
-    .setName("cleargroup")
-    .setDescription("Group ke messages clear karo")
-    .addStringOption((o) =>
-      o.setName("groupname").setDescription("Group name").setRequired(true)
-    ),
+    .setDescription("Online users dekho"),
 
   new SlashCommandBuilder()
     .setName("stats")
-    .setDescription("Server statistics dekho"),
+    .setDescription("Server statistics"),
 
   new SlashCommandBuilder()
     .setName("assignadmin")
-    .setDescription("User ko permanent admin banao")
+    .setDescription("Admin banao")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("removeadmin")
-    .setDescription("User ka admin status hatao")
+    .setDescription("Admin status hatao")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("clearmessages")
-    .setDescription("Global chat ke saare messages delete karo"),
+    .setDescription("Global chat clear karo"),
 
   new SlashCommandBuilder()
-    .setName("shadowban")
-    .setDescription("User ko shadow ban karo (sirf use dikhega)")
+    .setName("warnings")
+    .setDescription("User ke warnings dekho")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
 
+    
+
   new SlashCommandBuilder()
-    .setName("removeshadowban")
-    .setDescription("Shadow ban hatao")
+    .setName("clearwarnings")
+    .setDescription("User ke warnings reset karo")
     .addStringOption((o) =>
-      o.setName("username").setDescription("Username").setRequired(true)
+      o.setName("username").setDescription("Username").setRequired(true),
     ),
-
-  new SlashCommandBuilder()
-    .setName("announce")
-    .setDescription("Website pe timed announcement set karo")
-    .addIntegerOption((o) =>
-      o.setName("duration").setDescription("Duration in minutes").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o.setName("message").setDescription("Announcement text").setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("active-announcements")
-    .setDescription("Active website announcements dekho"),
-
-  new SlashCommandBuilder()
-    .setName("remove-currentannouncement")
-    .setDescription("Active website announcement hatao"),
 ].map((c) => c.toJSON());
 
-// ── Register Slash Commands ──
+// Register Commands
 if (DISCORD_TOKEN) {
-  const GUILD_ID = "1485522389403173004"; // 👈 apna server ID daalo
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
   (async () => {
     try {
-      await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-        { body: commands }
-      );
-      console.log("✅ Slash commands registered (guild only)");
+      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
+        body: commands,
+      });
+      console.log("✅ Slash commands registered");
     } catch (e) {
-      console.error("❌ Slash command registration error:", e.message);
+      console.error("❌ Slash command error:", e.message);
     }
   })();
 }
 
-// ══════════════════════════════════════════════════════════════
-// 🤖 DISCORD BOT — EVENTS
-// ══════════════════════════════════════════════════════════════
+// Discord Bot Ready
 discordClient.once("ready", () => {
   discordReady = true;
   console.log(`🤖 HeyyYuki online as ${discordClient.user.tag}`);
@@ -361,45 +494,38 @@ discordClient.once("ready", () => {
     type: ActivityType.Watching,
   });
   updateDiscordStatus();
-  logToDiscordError(`🤖 HeyyYuki Bot Started as ${discordClient.user.tag}`, "info");
+  logToDiscordError(`🤖 HeyyYuki Bot Started`, "info");
 });
 
-// Discord se chat message aaye toh web users ko bhi dikhao
+// Discord Message Mirror
 discordClient.on("messageCreate", (msg) => {
   if (msg.author.bot || msg.channel.id !== CHAT_CHANNEL_ID) return;
   if (msg.content.startsWith("/")) return;
   io.to("global").emit("chat message", {
-    id:         "discord_" + Date.now(),
-    sender:     `[Discord] ${msg.author.username}`,
-    message:    msg.content,
-    type:       "text",
-    isVip:      true,
-    senderColor:"#5865f2",
-    createdAt:  new Date(),
+    id: "discord_" + Date.now(),
+    sender: `[Discord] ${msg.author.username}`,
+    message: msg.content,
+    type: "text",
+    isVip: true,
+    senderColor: "#5865f2",
+    createdAt: new Date(),
   });
 });
 
 // ══════════════════════════════════════════════════════════════
-// 🤖 DISCORD BOT — INTERACTION HANDLER (All Commands Fixed)
+// 🤖 DISCORD INTERACTION HANDLER
 // ══════════════════════════════════════════════════════════════
 discordClient.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  // Security: sirf allowed channels se commands
   if (!CONTROL_CHANNEL_IDS.includes(interaction.channelId)) {
     return interaction.reply({
-      content:
-        `❌ **Access Denied!**\n\n` +
-        `Ye channel allowed nahi hai.\n` +
-        `**Is channel ka ID:** \`${interaction.channelId}\`\n` +
-        `Ise copy karke \`CONTROL_CHANNEL_IDS\` array mein add karein.`,
+      content: `❌ Access Denied! Channel ID: \`${interaction.channelId}\``,
       flags: 64,
     });
   }
 
   const { commandName, options } = interaction;
-
-  // Crash-proof reply helper
   const safeReply = async (content, ephemeral = true) => {
     try {
       const payload = { content, flags: ephemeral ? 64 : undefined };
@@ -414,71 +540,50 @@ discordClient.on("interactionCreate", async (interaction) => {
   };
 
   try {
-
-    // ──────────────────────────────────────────────────────
-    // 📢 /ann — Global system announcement
-    // ──────────────────────────────────────────────────────
+    // 📢 /ann
     if (commandName === "ann") {
       const text = options.getString("message");
       io.emit("chat message", {
-        id:        "ann_" + Date.now(),
-        sender:    "📢 Announcement",
-        message:   text,
-        type:      "system",
-        room:      "global",
+        id: "ann_" + Date.now(),
+        sender: "📢 Announcement",
+        message: text,
+        type: "system",
+        room: "global",
         createdAt: new Date(),
       });
-      return safeReply(`✅ Announcement sabko bheja gaya:\n> ${text}`);
+      return safeReply(`✅ Announcement bhej diya gaya`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // 👢 /kick — 5 minute kick
-    // ──────────────────────────────────────────────────────
+    // 👢 /kick
     else if (commandName === "kick") {
       const target = options.getString("username").trim().toLowerCase();
-      const entry  = Object.entries(activeUsers).find(
-        ([, u]) => u.name.toLowerCase() === target
+      const entry = Object.entries(activeUsers).find(
+        ([, u]) => u.name.toLowerCase() === target,
       );
-      if (!entry) return safeReply(`❌ \`${target}\` abhi online nahi hai.`);
+      if (!entry) return safeReply(`❌ User online nahi hai`);
 
       const [sid, user] = entry;
-
-      // IP ko 5 min ke liye block karo
       tempBannedIPs.set(user.ip, {
-        expiry:       Date.now() + 5 * 60 * 1000,
+        expiry: Date.now() + 5 * 60 * 1000,
         reservedName: user.name,
       });
 
-      // User ko inform karo phir disconnect karo
       io.to(sid).emit("kicked", {
-        message: "👢 Aapko admin ne 5 minute ke liye kick kiya hai. Baad mein aana.",
+        message: "👢 Aapko admin ne 5 min ke liye kick kiya hai",
       });
       setTimeout(() => {
         const sock = io.sockets.sockets.get(sid);
         if (sock) sock.disconnect(true);
       }, 800);
 
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color:  0xffd60a,
-        title:  "👢 User Kicked",
-        fields: [
-          { name: "Username", value: `\`${user.name}\``, inline: true },
-          { name: "IP",       value: `\`${user.ip}\``,   inline: true },
-          { name: "Duration", value: "5 minutes",         inline: true },
-        ],
-      });
-      return safeReply(`✅ **${user.name}** ko 5 minute ke liye kick kiya gaya.`);
+      return safeReply(`✅ ${user.name} kicked`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // 🔨 /ban — Permanent username ban
-    // ──────────────────────────────────────────────────────
+    // 🔨 /ban
     else if (commandName === "ban") {
       const target = options.getString("username").trim().toLowerCase();
-
-      // Pehle check karo ban pehle se hai ki nahi
       if (bannedUsernames.has(target)) {
-        return safeReply(`⚠️ **${target}** pehle se banned hai.`);
+        return safeReply(`⚠️ ${target} pehle se banned hai`);
       }
 
       bannedUsernames.add(target);
@@ -486,61 +591,58 @@ discordClient.on("interactionCreate", async (interaction) => {
       await Banned.updateOne(
         { username: target },
         { username: target },
-        { upsert: true }
+        { upsert: true },
       );
 
-      // Agar online ho toh turant disconnect karo
       const entry = Object.entries(activeUsers).find(
-        ([, u]) => u.name.toLowerCase() === target
+        ([, u]) => u.name.toLowerCase() === target,
       );
       if (entry) {
         const [sid] = entry;
-        io.to(sid).emit("duplicate", "🚫 Aapko permanently ban kar diya gaya hai.");
+        io.to(sid).emit("duplicate", "🚫 Aap permanently ban ho gaye");
         setTimeout(() => {
           const sock = io.sockets.sockets.get(sid);
           if (sock) sock.disconnect(true);
         }, 800);
       }
 
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color:  0xff3c5f,
-        title:  "🔨 User Permanently Banned",
-        fields: [
-          { name: "Username", value: `\`${target}\``, inline: true },
-          { name: "Status",   value: "Online → Kicked", inline: entry ? true : false },
-        ],
-      });
-      return safeReply(`✅ **${target}** permanently ban ho gaya.`);
+      return safeReply(`✅ ${target} permanently banned`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // ✅ /unban — Ban hatao
-    // ──────────────────────────────────────────────────────
+    // ✅ /unban
+// ✅ /unban (Upgraded for IP + Username Unban)
     else if (commandName === "unban") {
       const target = options.getString("username").trim().toLowerCase();
+      
       if (!bannedUsernames.has(target)) {
-        return safeReply(`⚠️ \`${target}\` banned list mein nahi hai.`);
+        return safeReply(`⚠️ ${target} banned nahi hai`);
       }
+
+      // 1. Pehle dhoondho ki is username ki IP kya thi database mein
+      const bannedUserData = await Banned.findOne({ username: target });
+      if (bannedUserData && bannedUserData.ip) {
+        // Agar IP mili, toh use active memory (tempBannedIPs) se turant hatao
+        tempBannedIPs.delete(bannedUserData.ip);
+      }
+
+      // 2. Set aur Local Storage se username hatao
       bannedUsernames.delete(target);
       saveBanned();
-      await Banned.deleteOne({ username: target });
 
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color:  0x00f5a0,
-        title:  "✅ User Unbanned",
-        fields: [{ name: "Username", value: `\`${target}\``, inline: true }],
-      });
-      return safeReply(`✅ **${target}** unban ho gaya. Ab join kar sakta hai.`);
+      // 3. MongoDB Database se record saaf karo
+      await Banned.deleteOne({ username: target });
+      
+      // 4. Warning schema se bhi uske purane pichle saare pap (warnings) mita do
+      await Warning.deleteOne({ username: { $regex: new RegExp(target, "i") } });
+
+      return safeReply(`✅ ${target} aur uski IP Address ko successfully unban kar diya gaya hai! 🔓`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // 💎 /addvip — VIP do
-    // ──────────────────────────────────────────────────────
+    // 💎 /addvip
     else if (commandName === "addvip") {
       const target = options.getString("username").trim().toLowerCase();
-
       if (vips.has(target)) {
-        return safeReply(`⚠️ **${target}** pehle se VIP hai.`);
+        return safeReply(`⚠️ ${target} pehle se VIP hai`);
       }
 
       vips.add(target);
@@ -548,45 +650,33 @@ discordClient.on("interactionCreate", async (interaction) => {
       await Vip.updateOne(
         { username: target },
         { username: target },
-        { upsert: true }
+        { upsert: true },
       );
 
-      // Live update agar online ho
       const entry = Object.entries(activeUsers).find(
-        ([, u]) => u.name.toLowerCase() === target
+        ([, u]) => u.name.toLowerCase() === target,
       );
       if (entry) {
         const [sid] = entry;
         activeUsers[sid].isVip = true;
-        io.to(sid).emit("vip_granted", { message: "💎 Congratulations! Aapko VIP status mila hai!" });
       }
       io.emit("user list", buildUserList());
 
-      sendEmbed(VIP_LOG_CHANNEL_ID, {
-        color:  0xffd700,
-        title:  "💎 VIP Granted",
-        fields: [
-          { name: "Username", value: `\`${target}\``, inline: true },
-          { name: "Online",   value: entry ? "Yes 🟢" : "No 🔴", inline: true },
-        ],
-      });
-      return safeReply(`✅ **${target}** ko VIP de diya gaya 💎`);
+      return safeReply(`✅ ${target} ko VIP de diya`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // ❌ /removevip — VIP hatao
-    // ──────────────────────────────────────────────────────
+    // ❌ /removevip
     else if (commandName === "removevip") {
       const target = options.getString("username").trim().toLowerCase();
       if (!vips.has(target)) {
-        return safeReply(`⚠️ \`${target}\` VIP list mein nahi hai.`);
+        return safeReply(`⚠️ ${target} VIP nahi hai`);
       }
       vips.delete(target);
       saveVips();
       await Vip.deleteOne({ username: target });
 
       const entry = Object.entries(activeUsers).find(
-        ([, u]) => u.name.toLowerCase() === target
+        ([, u]) => u.name.toLowerCase() === target,
       );
       if (entry) {
         const [sid] = entry;
@@ -594,147 +684,104 @@ discordClient.on("interactionCreate", async (interaction) => {
       }
       io.emit("user list", buildUserList());
 
-      return safeReply(`⚠️ **${target}** ka VIP status hata diya gaya.`);
+      return safeReply(`⚠️ ${target} ka VIP status hataya`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // 👥 /online — Sabhi online users
-    // ──────────────────────────────────────────────────────
+    // 👥 /online
     else if (commandName === "online") {
       const users = Object.values(activeUsers);
-      if (users.length === 0) return safeReply("📭 Abhi koi bhi online nahi hai.");
+      if (users.length === 0) return safeReply("📭 Koi online nahi");
 
-      const list = users.map((u, i) => {
-        const badge = isUserAdmin(u.name.toLowerCase())
-          ? "👑"
-          : isUserVip(u.name.toLowerCase())
-          ? "💎"
-          : "👤";
-        return `${i + 1}. ${badge} \`${u.name}\` — IP: \`${u.ip}\``;
-      }).join("\n");
+      const list = users
+        .map((u, i) => {
+          const badge = isUserAdmin(u.name.toLowerCase())
+            ? "👑"
+            : isUserVip(u.name.toLowerCase())
+              ? "💎"
+              : "👤";
+          return `${i + 1}. ${badge} \`${u.name}\` — \`${u.ip}\``;
+        })
+        .join("\n");
 
-      return safeReply(`**🟢 Online Users (${users.length}):**\n${list}`);
+      return safeReply(`**🟢 Online (${users.length}):**\n${list}`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // 🗑️ /cleargroup — Group messages clear karo
-    // ──────────────────────────────────────────────────────
-    else if (commandName === "cleargroup") {
-      await interaction.deferReply({ flags: 64 });
-      const groupName = options.getString("groupname").trim();
-
-      const group = await Group.findOne({
-        name: { $regex: new RegExp(`^${groupName}$`, "i") },
-      });
-      if (!group) {
-        return interaction.editReply(`❌ Group \`${groupName}\` nahi mila. Sahi naam likhein.`);
-      }
-
-      const room   = "group_" + group._id.toString();
-      const result = await Message.deleteMany({ room });
-
-      // Online users ko clear signal bhejo
-      io.to(room).emit("messages_cleared", { room });
-
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color:  0xff3c5f,
-        title:  "🗑️ Group Messages Cleared",
-        fields: [
-          { name: "Group",   value: group.name,              inline: true },
-          { name: "Deleted", value: `${result.deletedCount}`, inline: true },
-        ],
-      });
-      return interaction.editReply(
-        `✅ **${group.name}** ke **${result.deletedCount}** messages delete ho gaye.`
-      );
-    }
-
-    // ──────────────────────────────────────────────────────
-    // 📊 /stats — Server statistics
-    // ──────────────────────────────────────────────────────
+    // 📊 /stats
     else if (commandName === "stats") {
       await interaction.deferReply({ flags: 64 });
 
-      const [totalMsg, totalDMs, totalReports, totalGroups, totalBanned, totalVips] =
-        await Promise.all([
-          Message.countDocuments(),
-          DM.countDocuments(),
-          Report.countDocuments(),
-          Group.countDocuments(),
-          Banned.countDocuments(),
-          Vip.countDocuments(),
-        ]);
+      const [
+        totalMsg,
+        totalDMs,
+        totalReports,
+        totalBanned,
+        totalVips,
+        totalWarnings,
+      ] = await Promise.all([
+        Message.countDocuments(),
+        DM.countDocuments(),
+        Report.countDocuments(),
+        Banned.countDocuments(),
+        Vip.countDocuments(),
+        Warning.countDocuments(),
+      ]);
 
       const onlineCount = Object.keys(activeUsers).length;
 
       return interaction.editReply(
-        `📊 **StrangerToStranger Server Stats**\n\n` +
-        `🟢 **Online Right Now:** ${onlineCount}\n` +
-        `💬 **Total Messages:** ${totalMsg}\n` +
-        `📨 **Total DMs:** ${totalDMs}\n` +
-        `🚨 **Reports Filed:** ${totalReports}\n` +
-        `👥 **Groups:** ${totalGroups}\n` +
-        `🔨 **Banned Users:** ${totalBanned}\n` +
-        `💎 **VIP Users:** ${totalVips}\n` +
-        `👑 **Admins:** ${admins.size}\n` +
-        `🌐 **MongoDB:** ${mongoose.connection.readyState === 1 ? "Connected ✅" : "Disconnected ❌"}`
+        `📊 **Server Stats**\n\n` +
+          `🟢 Online: ${onlineCount}\n` +
+          `💬 Messages: ${totalMsg}\n` +
+          `📨 DMs: ${totalDMs}\n` +
+          `🚨 Reports: ${totalReports}\n` +
+          `⚠️ Warnings: ${totalWarnings}\n` +
+          `🔨 Banned: ${totalBanned}\n` +
+          `💎 VIPs: ${totalVips}\n` +
+          `👑 Admins: ${admins.size}`,
       );
     }
 
-    // ──────────────────────────────────────────────────────
-    // 👑 /assignadmin — Admin banao
-    // ──────────────────────────────────────────────────────
+    // 👑 /assignadmin
     else if (commandName === "assignadmin") {
       const target = options.getString("username").trim().toLowerCase();
-
       if (isUserAdmin(target)) {
-        return safeReply(`⚠️ **${target}** pehle se admin hai.`);
+        return safeReply(`⚠️ ${target} pehle se admin hai`);
       }
 
       admins.add(target);
       saveAdmins();
-      // Admin ko automatically VIP bhi do
       vips.add(target);
       saveVips();
-      await Vip.updateOne({ username: target }, { username: target }, { upsert: true });
+      await Vip.updateOne(
+        { username: target },
+        { username: target },
+        { upsert: true },
+      );
 
       const entry = Object.entries(activeUsers).find(
-        ([, u]) => u.name.toLowerCase() === target
+        ([, u]) => u.name.toLowerCase() === target,
       );
       if (entry) {
         const [sid] = entry;
         activeUsers[sid].isAdmin = true;
-        activeUsers[sid].isVip   = true;
-        io.to(sid).emit("admin_granted", {
-          message: "👑 Congratulations! Aapko Admin status mila hai!",
-        });
+        activeUsers[sid].isVip = true;
       }
       io.emit("user list", buildUserList());
 
-      sendEmbed(MOD_LOG_CHANNEL_ID, {
-        color:  0xffd700,
-        title:  "👑 Admin Assigned",
-        fields: [
-          { name: "Username", value: `\`${target}\``, inline: true },
-          { name: "Online",   value: entry ? "Yes 🟢" : "No 🔴", inline: true },
-        ],
-      });
-      return safeReply(`✅ **${target}** ab Permanent Admin hai! 👑`);
+      return safeReply(`✅ ${target} admin ban gaya 👑`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // ❌ /removeadmin — Admin status hatao
-    // ──────────────────────────────────────────────────────
+    // ❌ /removeadmin
     else if (commandName === "removeadmin") {
       const target = options.getString("username").trim().toLowerCase();
       if (!admins.has(target)) {
-        return safeReply(`⚠️ \`${target}\` admin list mein nahi hai.`);
+        return safeReply(`⚠️ ${target} admin nahi hai`);
       }
       admins.delete(target);
       saveAdmins();
 
       const entry = Object.entries(activeUsers).find(
-        ([, u]) => u.name.toLowerCase() === target
+        ([, u]) => u.name.toLowerCase() === target,
       );
       if (entry) {
         const [sid] = entry;
@@ -742,124 +789,77 @@ discordClient.on("interactionCreate", async (interaction) => {
       }
       io.emit("user list", buildUserList());
 
-      return safeReply(`⚠️ **${target}** ka Admin status hata diya gaya.`);
+      return safeReply(`⚠️ ${target} ka admin status hataya`);
     }
 
-
-
-
-    
-
-// ──────────────────────────────────────────────────────
-    // 🧹 /clearmessages — Poora global chat clear karo
-    // ──────────────────────────────────────────────────────
-    if (commandName === "clearmessages") {
-      try {
-        // Database se delete karo
-        const result = await Message.deleteMany({ room: "global" });
-        
-        // Website ko signal bhejo
-        io.emit("messages_cleared", { room: "global" });
-
-        // Mod logs
-        sendEmbed(MOD_LOG_CHANNEL_ID, {
-          color: 0xff3c5f,
-          title: "🧹 Global Chat Cleared",
-          fields: [
-            { name: "Messages Deleted", value: `${result.deletedCount}`, inline: true },
-          ],
-        });
-
-        // Reply
-        return await interaction.reply({ 
-          content: `✅ Global chat ke **${result.deletedCount}** messages delete ho gaye aur website ki screen saaf ho gayi!`, 
-          flags: 64 
-        });
-
-      } catch (err) {
-        console.error("❌ COMMAND ERROR [clearmessages]:", err);
-        return await interaction.reply({ content: "❌ Error occurred.", flags: 64 });
-      }
-    }
-
-    // ──────────────────────────────────────────────────────
-    // 👻 /shadowban — Ghost ban (sirf user ko dikhega)
-    // ──────────────────────────────────────────────────────
-    else if (commandName === "shadowban") {
-      const target = options.getString("username").trim().toLowerCase();
-      shadowBanned.add(target);
-      return safeReply(`👻 **${target}** shadow ban ho gaya. Woh message bhejta rahega par kisi ko nahi dikhega.`);
-    }
-
-    // ──────────────────────────────────────────────────────
-    // ✅ /removeshadowban — Shadow ban hatao
-    // ──────────────────────────────────────────────────────
-    else if (commandName === "removeshadowban") {
-      const target = options.getString("username").trim().toLowerCase();
-      if (!shadowBanned.has(target)) {
-        return safeReply(`⚠️ \`${target}\` shadow banned nahi hai.`);
-      }
-      shadowBanned.delete(target);
-      return safeReply(`✅ **${target}** ka shadow ban hata diya gaya.`);
-    }
-
-    // ──────────────────────────────────────────────────────
-    // 📢 /announce — Timed website announcement
-    // ──────────────────────────────────────────────────────
-    else if (commandName === "announce") {
+    // 🧹 /clearmessages
+    else if (commandName === "clearmessages") {
       await interaction.deferReply({ flags: 64 });
-      const duration = options.getInteger("duration");
-      const text     = options.getString("message");
-
-      await Announcement.deleteMany({});
-      const expiry = new Date(Date.now() + duration * 60 * 1000);
-      await new Announcement({ text, expiresAt: expiry }).save();
+      const result = await Message.deleteMany({ room: "global" });
+      io.emit("messages_cleared", { room: "global" });
 
       return interaction.editReply(
-        `✅ Website announcement set!\n` +
-        `⏰ **${duration} minutes** tak dikhegi.\n> ${text}`
+        `✅ **${result.deletedCount}** messages delete ho gaye`,
       );
     }
 
-    // ──────────────────────────────────────────────────────
-    // 📋 /active-announcements — Current announcement check
-    // ──────────────────────────────────────────────────────
-    else if (commandName === "active-announcements") {
-      await interaction.deferReply({ flags: 64 });
-      const current = await Announcement.findOne({ expiresAt: { $gt: new Date() } });
+    // ⚠️ /warnings
+    else if (commandName === "warnings") {
+      const target = options.getString("username").trim().toLowerCase();
+      const warning = await Warning.findOne({
+        username: { $regex: new RegExp(target, "i") },
+      });
 
-      if (!current) return interaction.editReply("❌ Koi active announcement nahi hai abhi.");
+      if (!warning) {
+        return safeReply(`✅ \`${target}\` ke koi warnings nahi hain`);
+      }
 
-      const timeLeft = Math.round((current.expiresAt - Date.now()) / 1000 / 60);
-      return interaction.editReply(
-        `📢 **Active Announcement:**\n> ${current.text}\n\n⏰ **${timeLeft} minute** bacha hai.`
+      return safeReply(
+        `⚠️ **${target}** ke **${warning.count}/3** warnings\n` +
+          `Reason: ${warning.reason}\n` +
+          `${warning.count >= 3 ? "🚫 BANNED LE LI!" : ""}`,
       );
     }
 
-    // ──────────────────────────────────────────────────────
-    // 🗑️ /remove-currentannouncement — Announcement hatao
-    // ──────────────────────────────────────────────────────
-    else if (commandName === "remove-currentannouncement") {
-      await interaction.deferReply({ flags: 64 });
-      const result = await Announcement.deleteMany({});
-      if (result.deletedCount === 0) {
-        return interaction.editReply("⚠️ Hatane ke liye koi active announcement nahi thi.");
-      }
-      return interaction.editReply("✅ Active announcement successfully hata di gayi.");
+// 🔄 /clearwarnings
+    else if (commandName === "clearwarnings") {
+      const target = options.getString("username").trim().toLowerCase();
+      await Warning.deleteOne({ username: { $regex: new RegExp(target, "i") } });
+      return safeReply(`✅ ${target} ke warnings clear ho gaye`);
     }
 
-    // ──────────────────────────────────────────────────────
-    // ❓ Unknown command fallback
-    // ──────────────────────────────────────────────────────
+    // 🔨 /banlist (Fixed Syntax)
+else if (commandName === "banlist") {
+      await interaction.deferReply({ flags: 64 });
+      
+      const username = options.getString("username");
+      const country = options.getString("country");
+      const ip = options.getString("ip");
+
+      let query = {};
+      if (username) query.username = { $regex: new RegExp(username, "i") };
+      if (country) query.country = { $regex: new RegExp(country, "i") };
+      if (ip) query.ip = { $regex: new RegExp(ip, "i") };
+
+      const results = await Banned.find(query).lean();
+
+      if (!results.length) return interaction.editReply("📭 **Koi match nahi mila!**");
+
+      const list = results.map((u, i) => 
+        `**${i + 1}.** 👤 \`${u.username}\` | 🌐 \`${u.ip}\` | 🌍 \`${u.country}\` | 📝 \`${u.reason}\``
+      ).join("\n");
+
+      return interaction.editReply(`🔍 **Search Results (${results.length}):**\n\n${list.substring(0, 1900)}`);
+    }
+
+    // Unknown
     else {
-      return safeReply(`⚠️ Command \`${commandName}\` handle nahi hua. Developer ko batao.`);
+      return safeReply(`⚠️ Command unknown`);
     }
-
   } catch (err) {
     console.error(`❌ Command Error [${commandName}]:`, err);
-    logToDiscordError(`❌ Command Error [${commandName}]:\n${err.message}\n${(err.stack || "").substring(0, 800)}`, "error");
     try {
-      await safeReply("❌ Kuch error aaya. Console mein dekho.");
+      await safeReply("❌ Error aaya");
     } catch (e) {}
   }
 });
@@ -877,16 +877,14 @@ async function updateDiscordStatus() {
   if (!discordReady) return;
   try {
     const count = Object.keys(activeUsers).length;
-    discordClient.user?.setActivity(`${count} Strangers Online 🌐`, {
+    discordClient.user?.setActivity(`${count} Online 🌐`, {
       type: ActivityType.Watching,
     });
-    const ch = await discordClient.channels.fetch(STATUS_CHANNEL_ID).catch(() => null);
-    if (ch) await ch.setName(`🟢-online-${count}`).catch(() => {});
   } catch (e) {}
 }
 
 async function sendEmbed(channelId, opts) {
-  if (!discordReady) return;
+  if (!discordReady || !channelId) return;
   try {
     const ch = discordClient.channels.cache.get(channelId);
     if (!ch) return;
@@ -894,33 +892,32 @@ async function sendEmbed(channelId, opts) {
       .setColor(opts.color || 0x00f5a0)
       .setTitle(opts.title || "")
       .setTimestamp()
-      .setFooter({ text: "HeyyYuki • StrangerToStranger 2026" });
+      .setFooter({ text: "HeyyYuki 2026" });
     if (opts.description) embed.setDescription(opts.description);
-    if (opts.fields)      embed.addFields(opts.fields);
-    if (opts.image)       embed.setImage(opts.image);
+    if (opts.fields) embed.addFields(opts.fields);
     ch.send({ embeds: [embed] });
   } catch (e) {}
 }
 
 async function logToDiscordError(msg, type = "error") {
-  if (!discordReady) return;
+  if (!discordReady || !ERROR_CHANNEL_ID) return;
   try {
     const ch = discordClient.channels.cache.get(ERROR_CHANNEL_ID);
     if (!ch) return;
     const colors = { error: 0xff3c5f, warn: 0xffd60a, info: 0x00f5a0 };
-    const icons  = { error: "❌",    warn: "⚠️",       info: "ℹ️" };
-    const embed  = new EmbedBuilder()
+    const icons = { error: "❌", warn: "⚠️", info: "ℹ️" };
+    const embed = new EmbedBuilder()
       .setColor(colors[type] || 0xff3c5f)
       .setTitle(`${icons[type]} ${type.toUpperCase()}`)
       .setDescription("```" + msg.substring(0, 1900) + "```")
       .setTimestamp()
-      .setFooter({ text: "HeyyYuki Error Monitor" });
+      .setFooter({ text: "HeyyYuki Monitor" });
     ch.send({ embeds: [embed] });
   } catch (e) {}
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔌 SOCKET.IO — CONNECTION HANDLER
+// 🔌 SOCKET.IO
 // ══════════════════════════════════════════════════════════════
 io.on("connection", (socket) => {
   const userIP = getIP(socket);
@@ -929,28 +926,37 @@ io.on("connection", (socket) => {
   // ── JOIN ──
   socket.on("join", async (data) => {
     try {
-      const name     = (data.name  || "").trim();
-      const bio      = (data.bio   || "No bio").trim();
-      const avatar   = data.avatar || "";
-      const color    = data.color  || "#00f5a0";
-      const nameLower= name.toLowerCase();
+      const name = (data.name || "").trim();
+      const bio = (data.bio || "No bio").trim();
+      const avatar = data.avatar || "";
+      const color = data.color || "#00f5a0";
+      const nameLower = name.toLowerCase();
 
       if (!name || name.length < 2) {
-        return socket.emit("error_msg", "Username kam se kam 2 characters ka hona chahiye.");
+        return socket.emit(
+          "error_msg",
+          "Username kam se kam 2 characters ka ho",
+        );
       }
 
-      // IP based kick check
+
+      // Permanent & Temp IP check on Join
+      if (tempBannedIPs.has(userIP)) {
+         return socket.emit("duplicate", "🚫 You are banned by admin.");
+      }
+
+      // IP kick check
       if (tempBannedIPs.has(userIP)) {
         const ban = tempBannedIPs.get(userIP);
         if (Date.now() < ban.expiry) {
           if (nameLower !== ban.reservedName.toLowerCase()) {
             return socket.emit(
               "duplicate",
-              `🚫 Aap kicked hain. Sirf "${ban.reservedName}" allowed hai aapke IP se.`
+              `🚫 Aap kicked hain. Sirf "${ban.reservedName}" allowed hai`,
             );
           }
           return socket.emit("kick_timer", {
-            message:       `👢 Aap kicked hain. ${Math.ceil((ban.expiry - Date.now()) / 60000)} minute wait karein.`,
+            message: `👢 ${Math.ceil((ban.expiry - Date.now()) / 60000)} min wait karein`,
             remainingTime: ban.expiry - Date.now(),
           });
         } else {
@@ -958,19 +964,21 @@ io.on("connection", (socket) => {
         }
       }
 
+      // Ban check
       if (bannedUsernames.has(nameLower)) {
-        return socket.emit("duplicate", "🚫 Aap permanently banned hain.");
+        return socket.emit("duplicate", "🚫 Aap permanently banned hain");
       }
 
+      // Duplicate check
       const duplicate = Object.values(activeUsers).find(
-        (u) => u.name.toLowerCase() === nameLower
+        (u) => u.name.toLowerCase() === nameLower,
       );
       if (duplicate) {
-        return socket.emit("duplicate", "⚠️ Ye username pehle se liya hua hai. Koi aur naam chunein.");
+        return socket.emit("duplicate", "⚠️ Ye username liya hua hai");
       }
 
       const userIsAdmin = isUserAdmin(nameLower);
-      const userIsVip   = isUserVip(nameLower);
+      const userIsVip = isUserVip(nameLower);
 
       currentUser = {
         socketId: socket.id,
@@ -978,43 +986,43 @@ io.on("connection", (socket) => {
         bio,
         avatar,
         color,
-        ip:      userIP,
-        isVip:   userIsVip,
+        ip: userIP,
+        isVip: userIsVip,
         isAdmin: userIsAdmin,
-        room:    "global",
+        room: "global",
       };
 
       activeUsers[socket.id] = currentUser;
       socket.join("global");
 
-      // Chat history bhejo
+      // Load message history
       const history = await Message.find({ room: "global" })
         .sort({ createdAt: 1 })
         .limit(100)
         .lean();
 
       const normalizedHistory = history.map((m) => ({
-        id:          m._id.toString(),
-        sender:      m.senderName,
-        senderAvatar:m.senderAvatar,
+        id: m._id.toString(),
+        sender: m.senderName,
+        senderAvatar: m.senderAvatar,
         senderColor: m.senderColor,
-        message:     m.text,
-        type:        m.type || "text",
-        mediaUrl:    m.mediaUrl,
-        isVip:       m.isVip,
-        room:        m.room,
-        createdAt:   m.createdAt,
+        message: m.text,
+        type: m.type || "text",
+        mediaUrl: m.mediaUrl,
+        isVip: m.isVip,
+        room: m.room,
+        createdAt: m.createdAt,
       }));
 
       socket.emit("history", normalizedHistory);
 
-      // Join announcement
+      // Join notification
       io.to("global").emit("chat message", {
-        id:        "sys_" + Date.now(),
-        sender:    "System",
-        message:   `${name} joined the chat`,
-        type:      "system",
-        room:      "global",
+        id: "sys_" + Date.now(),
+        sender: "System",
+        message: `${name} joined`,
+        type: "system",
+        room: "global",
         createdAt: new Date(),
       });
 
@@ -1022,76 +1030,153 @@ io.on("connection", (socket) => {
       socket.emit("joined", currentUser);
       updateDiscordStatus();
 
-      sendEmbed(JOIN_LEAVE_CHANNEL_ID, {
-        color:  0x00f5a0,
-        title:  "📥 User Joined",
-        fields: [
-          { name: "Username", value: name + (userIsAdmin ? " 👑" : userIsVip ? " 💎" : ""), inline: true },
-          { name: "IP",       value: userIP, inline: true },
-        ],
-      });
-
-      // Groups list bhejo
+      // Load groups
       const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
       socket.emit(
         "groups_list",
-        groups.map((g) => ({ ...g, hasPassword: !!g.password }))
+        groups.map((g) => ({ ...g, hasPassword: !!g.password })),
       );
     } catch (err) {
       console.error("join error:", err);
-      socket.emit("error_msg", "Join failed. Dobara try karein.");
+      socket.emit("error_msg", "Join failed");
     }
   });
 
-  // ── CHAT MESSAGE ──
+  // ── CHAT MESSAGE WITH PROFANITY CHECK ──
   socket.on("chat message", async (data) => {
     if (!currentUser) return;
     try {
       const room = data.room || "global";
+      const message = data.message || "";
+
+      // 🚨 PROFANITY CHECK
+      if (containsProfanity(message)) {
+        const nameLower = currentUser.name.toLowerCase();
+        let warning = await Warning.findOne({ username: nameLower });
+
+        if (!warning) {
+          warning = new Warning({
+            username: nameLower,
+            count: 1,
+            reason: "Profanity/Abuse",
+            messages: [{ text: message, date: new Date() }],
+          });
+        } else {
+          warning.count += 1;
+          warning.messages.push({ text: message, date: new Date() });
+          warning.lastWarningAt = new Date();
+        }
+
+        await warning.save();
+
+// 🚨 3 warnings = Auto IP Ban + Username Ban
+        if (warning.count >= 3) {
+          const userIP = currentUser.ip;
+
+          bannedUsernames.add(nameLower);
+          saveBanned();
+
+          await Banned.updateOne(
+            { username: nameLower },
+            { username: nameLower, ip: userIP },
+            { upsert: true }
+          );
+
+          tempBannedIPs.set(userIP, {
+            expiry: Date.now() + 999 * 365 * 24 * 60 * 60 * 1000, 
+            reservedName: currentUser.name,
+          });
+
+          // 📢 1. Normal alert Profanity Channel mein bhej rahe hain
+          sendEmbed(PROFANITY_CHANNEL_ID, {
+            color: 0xffd60a,
+            title: "⚠️ User Crossed Warning Limit",
+            description: `**${currentUser.name}** ne 3 warnings cross kar li hain aur use ban list mein daal diya gaya hai.`
+          });
+
+          // 🚫 2. [NEW] Banned Users Wale Special Channel Mein Entry
+          sendEmbed(BANNED_LOG_CHANNEL_ID, {
+            color: 0x7289da, // Discord Blurple color ya Red
+            title: "🔒 NEW BANNED USER REGISTRY",
+            fields: [
+              { name: "👤 Username", value: `\`${currentUser.name}\``, inline: true },
+              { name: "🌐 User IP", value: `\`${userIP}\``, inline: true },
+              { name: "🕒 Banned At", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false },
+              { name: "📝 Reason", value: "Website par baar-baar abuse words/galiyan use karna (3/3 Warnings).", inline: false },
+              {
+                name: "🤬 Un-redacted Chat Log",
+                value: warning.messages
+                  .slice(-3)
+                  .map((m) => `• "${m.text}"`)
+                  .join("\n"),
+                inline: false,
+              },
+            ],
+          });
+
+          // 🖥️ 3. Frontend Action
+          io.to(socket.id).emit("force_logout", "🚫 Aap 3 baar gali dene ki wajah se PERMANENTLY IP BAN ho chuke hain!");
+          
+          setTimeout(() => {
+            const sock = io.sockets.sockets.get(socket.id);
+            if (sock) sock.disconnect(true);
+          }, 500);
+          return;
+          
+        } else {
+          // ⚠️ 3. Normal Warning (For Warning 1 and 2)
+          io.to(socket.id).emit("profanity_warning", {
+            count: warning.count,
+            message: `⚠️ WARNING ${warning.count}/3: Galiyan don't use! Next time ban hojayega!`,
+          });
+
+          // 📢 Discord Notification for Warning 1 & 2
+          sendEmbed(PROFANITY_CHANNEL_ID, {
+            color: 0xffd60a,
+            title: `⚠️ Profanity Warning #${warning.count}`,
+            fields: [
+              { name: "Username", value: `\`${currentUser.name}\``, inline: true },
+              { name: "Warnings", value: `${warning.count}/3`, inline: true },
+              { name: "Message Spoken", value: `"${message}"`, inline: false },
+            ],
+          });
+
+          return; // 👈 Message block ho gaya, aage nahi jayega
+        }
+      }
+
+      // Normal message (no profanity)
       const payload = {
-        id:          data.id || socket.id + "_" + Date.now(),
-        sender:      currentUser.name,
-        senderAvatar:currentUser.avatar,
+        id: data.id || socket.id + "_" + Date.now(),
+        sender: currentUser.name,
+        senderAvatar: currentUser.avatar,
         senderColor: currentUser.color,
-        isVip:       currentUser.isVip,
-        message:     data.message || "",
-        type:        data.type || "text",
-        mediaUrl:    data.mediaUrl || "",
-        replyTo:     data.replyTo  || null,
+        isVip: currentUser.isVip,
+        message: message,
+        type: data.type || "text",
+        mediaUrl: data.mediaUrl || "",
+        replyTo: data.replyTo || null,
         room,
-        createdAt:   new Date(),
+        createdAt: new Date(),
       };
 
       const msgDoc = new Message({
         room,
-        senderId:    socket.id,
-        senderName:  currentUser.name,
-        senderAvatar:currentUser.avatar,
+        senderId: socket.id,
+        senderName: currentUser.name,
+        senderAvatar: currentUser.avatar,
         senderColor: currentUser.color,
-        text:        data.message || "",
-        type:        data.type || "text",
-        mediaUrl:    data.mediaUrl || "",
-        isVip:       currentUser.isVip,
+        text: message,
+        type: data.type || "text",
+        mediaUrl: data.mediaUrl || "",
+        isVip: currentUser.isVip,
       });
       await msgDoc.save();
       payload._id = msgDoc._id.toString();
 
       if (!shadowBanned.has(currentUser.name.toLowerCase())) {
         io.to(room).emit("chat message", payload);
-        // Discord mein bhi bhejo
-        if (payload.type === "text" && discordReady) {
-          discordClient.channels.cache
-            .get(CHAT_CHANNEL_ID)
-            ?.send(`💬 **${currentUser.name}**: ${payload.message}`);
-        } else if (payload.type === "image") {
-          sendEmbed(MEDIA_LOG_CHANNEL_ID, {
-            color: 0x9b59b6,
-            title: `🖼️ Image from ${currentUser.name}`,
-            image: payload.mediaUrl,
-          });
-        }
       } else {
-        // Shadow ban: sirf us user ko dikhao
         socket.emit("chat message", payload);
       }
     } catch (err) {
@@ -1103,27 +1188,24 @@ io.on("connection", (socket) => {
   socket.on("delete message", async (id) => {
     try {
       await Message.findByIdAndDelete(id).catch(() => null);
-      // Fallback: senderId se bhi try karo
-      await Message.findOneAndDelete({ senderId: socket.id, _id: id }).catch(() => null);
     } catch (e) {}
-    // Sabko broadcast karo (success ho ya fail)
     io.emit("delete message", id);
   });
 
   // ── TYPING ──
   socket.on("typing", (data) => {
     if (!currentUser) return;
-    const room = (data && data.room) ? data.room : (currentUser.room || "global");
+    const room = data && data.room ? data.room : "global";
     socket.to(room).emit("typing", { user: currentUser.name });
   });
 
-  // ── PRIVATE MESSAGE ──
+  // ── PRIVATE MESSAGE (PERSISTENT STORAGE) ──
   socket.on("private message", async (data) => {
     if (!currentUser) return;
     try {
       const receiverName = data.receiver;
-      const toUser       = Object.values(activeUsers).find(
-        (u) => u.name.toLowerCase() === receiverName?.toLowerCase()
+      const toUser = Object.values(activeUsers).find(
+        (u) => u.name.toLowerCase() === receiverName?.toLowerCase(),
       );
       const channelId = getDMChannelId(currentUser.name, receiverName);
 
@@ -1135,14 +1217,16 @@ io.on("connection", (socket) => {
           messages: [],
         });
       }
+
       const msgObj = {
-        senderName:  currentUser.name,
-        senderAvatar:currentUser.avatar,
+        senderName: currentUser.name,
+        senderAvatar: currentUser.avatar,
         senderColor: currentUser.color,
-        text:        data.message,
-        type:        data.type || "text",
-        mediaUrl:    data.mediaUrl || "",
-        createdAt:   new Date(),
+        text: data.message,
+        type: data.type || "text",
+        mediaUrl: data.mediaUrl || "",
+        caption: data.caption || "",
+        createdAt: new Date(),
       };
       dmDoc.messages.push(msgObj);
       dmDoc.updatedAt = new Date();
@@ -1150,15 +1234,16 @@ io.on("connection", (socket) => {
 
       const payload = {
         channelId,
-        id:          data.id || genId(),
-        sender:      currentUser.name,
-        senderAvatar:currentUser.avatar,
+        id: data.id || genId(),
+        sender: currentUser.name,
+        senderAvatar: currentUser.avatar,
         senderColor: currentUser.color,
-        receiver:    receiverName,
-        message:     data.message,
-        type:        data.type || "text",
-        mediaUrl:    data.mediaUrl || "",
-        createdAt:   new Date(),
+        receiver: receiverName,
+        message: data.message,
+        type: data.type || "text",
+        mediaUrl: data.mediaUrl || "",
+        caption: data.caption || "",
+        createdAt: new Date(),
       };
 
       socket.emit("private message", payload);
@@ -1168,20 +1253,21 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ── DM HISTORY ──
+  // ── DM HISTORY (LOADS FROM DATABASE) ──
   socket.on("dm_history", async ({ withUser }) => {
     if (!currentUser) return;
     try {
       const channelId = getDMChannelId(currentUser.name, withUser);
-      const dmDoc     = await DM.findOne({ channelId }).lean();
-      const messages  = (dmDoc ? dmDoc.messages : []).map((m) => ({
-        sender:      m.senderName,
-        senderAvatar:m.senderAvatar,
+      const dmDoc = await DM.findOne({ channelId }).lean();
+      const messages = (dmDoc ? dmDoc.messages : []).map((m) => ({
+        sender: m.senderName,
+        senderAvatar: m.senderAvatar,
         senderColor: m.senderColor,
-        message:     m.text,
-        type:        m.type,
-        mediaUrl:    m.mediaUrl,
-        createdAt:   m.createdAt,
+        message: m.text,
+        type: m.type,
+        mediaUrl: m.mediaUrl,
+        caption: m.caption || "",
+        createdAt: m.createdAt,
       }));
       socket.emit("dm_history_data", { channelId, withUser, messages });
     } catch (err) {
@@ -1193,7 +1279,7 @@ io.on("connection", (socket) => {
   socket.on("dm_typing", ({ toUser, isTyping }) => {
     if (!currentUser) return;
     const target = Object.values(activeUsers).find(
-      (u) => u.name.toLowerCase() === toUser?.toLowerCase()
+      (u) => u.name.toLowerCase() === toUser?.toLowerCase(),
     );
     if (target) {
       io.to(target.socketId).emit("dm_typing_update", {
@@ -1207,9 +1293,9 @@ io.on("connection", (socket) => {
   socket.on("join_group", async ({ groupId, password }) => {
     try {
       const group = await Group.findById(groupId);
-      if (!group) return socket.emit("group_error", "Group nahi mila.");
+      if (!group) return socket.emit("group_error", "Group not found");
       if (group.password && group.password !== password) {
-        return socket.emit("group_error", "Wrong password.");
+        return socket.emit("group_error", "Wrong password");
       }
 
       const room = "group_" + groupId;
@@ -1221,30 +1307,7 @@ io.on("connection", (socket) => {
         .limit(100)
         .lean();
 
-      const normalizedHistory = history.map((m) => ({
-        id:          m._id.toString(),
-        sender:      m.senderName,
-        senderAvatar:m.senderAvatar,
-        senderColor: m.senderColor,
-        message:     m.text,
-        type:        m.type || "text",
-        isVip:       m.isVip,
-        room:        m.room,
-        createdAt:   m.createdAt,
-      }));
-
-      socket.emit("group_joined", { group, history: normalizedHistory });
-
-      if (currentUser) {
-        io.to(room).emit("chat message", {
-          id:        "sys_" + Date.now(),
-          sender:    "System",
-          message:   `${currentUser.name} joined ${group.name}`,
-          type:      "system",
-          room,
-          createdAt: new Date(),
-        });
-      }
+      socket.emit("group_joined", { group, history });
     } catch (err) {
       console.error("join_group error:", err);
     }
@@ -1257,10 +1320,10 @@ io.on("connection", (socket) => {
       const group = new Group({
         name,
         description: description || "",
-        password:    password    || "",
-        adminName:   currentUser.name,
-        icon:        icon        || "👥",
-        members:     [currentUser.name],
+        password: password || "",
+        adminName: currentUser.name,
+        icon: icon || "👥",
+        members: [currentUser.name],
       });
       await group.save();
       socket.emit("group_created", group);
@@ -1268,7 +1331,7 @@ io.on("connection", (socket) => {
       const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
       io.emit(
         "groups_list",
-        groups.map((g) => ({ ...g, hasPassword: !!g.password }))
+        groups.map((g) => ({ ...g, hasPassword: !!g.password })),
       );
     } catch (err) {
       console.error("create_group error:", err);
@@ -1281,7 +1344,7 @@ io.on("connection", (socket) => {
       const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
       socket.emit(
         "groups_list",
-        groups.map((g) => ({ ...g, hasPassword: !!g.password }))
+        groups.map((g) => ({ ...g, hasPassword: !!g.password })),
       );
     } catch (err) {
       console.error("get_groups error:", err);
@@ -1292,7 +1355,7 @@ io.on("connection", (socket) => {
   socket.on("report user", async (data) => {
     try {
       const device = /Mobi|Android/i.test(
-        socket.handshake.headers["user-agent"] || ""
+        socket.handshake.headers["user-agent"] || "",
       )
         ? "📱 Mobile"
         : "🖥️ Desktop";
@@ -1300,49 +1363,51 @@ io.on("connection", (socket) => {
       await new Report({
         reportedUser: data.reportedUser,
         reporterUser: data.reportedBy || data.reporterUser || currentUser?.name,
-        reporterEmail:data.email,
-        category:     data.reason,
-        reason:       data.description || data.reason,
+        reporterEmail: data.email,
+        category: data.reason,
+        reason: data.description || data.reason,
         device,
       }).save();
 
-      if (discordReady) {
-        const embed = new EmbedBuilder()
-          .setColor(0xff3c5f)
-          .setTitle("🚨 New User Report")
-          .addFields(
-            { name: "🎯 Reported",  value: `\`${data.reportedUser}\``,        inline: true },
-            { name: "👤 Reporter",  value: `\`${data.reportedBy || "—"}\``,   inline: true },
-            { name: "📱 Device",    value: device,                             inline: true },
-            { name: "📂 Category",  value: `\`${data.reason || "—"}\``,       inline: false },
-            { name: "📝 Details",   value: (data.description || "—").substring(0, 1000), inline: false },
-          )
-          .setTimestamp()
-          .setFooter({ text: "StrangerToStranger 2026" });
-
-        const ch =
-          discordClient.channels.cache.get(REPORT_CHANNEL_ID) ||
-          discordClient.channels.cache.get(MOD_LOG_CHANNEL_ID);
-        if (ch) ch.send({ embeds: [embed] });
-      }
+      sendEmbed(REPORT_CHANNEL_ID, {
+        color: 0xff3c5f,
+        title: "🚨 New Report",
+        fields: [
+          { name: "Reported", value: `\`${data.reportedUser}\``, inline: true },
+          {
+            name: "Reporter",
+            value: `\`${data.reportedBy || "—"}\``,
+            inline: true,
+          },
+          {
+            name: "Category",
+            value: `\`${data.reason || "—"}\``,
+            inline: false,
+          },
+          {
+            name: "Details",
+            value: (data.description || "—").substring(0, 1000),
+            inline: false,
+          },
+        ],
+      });
 
       socket.emit("report_success");
     } catch (err) {
-      socket.emit("report_error", "Report submit karne mein fail. Dobara try karein.");
+      socket.emit("report_error", "Report failed");
     }
   });
 
   // ── PROFILE UPDATE ──
-  const handleProfileUpdate = ({ bio, avatar, color, name }) => {
+  socket.on("update profile", ({ bio, avatar, color, name }) => {
     if (!currentUser) return;
-    if (bio    !== undefined) currentUser.bio    = bio;
+    if (bio !== undefined) currentUser.bio = bio;
     if (avatar !== undefined) currentUser.avatar = avatar;
-    if (color  !== undefined) currentUser.color  = color;
-
+    if (color !== undefined) currentUser.color = color;
     if (name && name !== currentUser.name) {
       const nameLower = name.toLowerCase();
       const dup = Object.values(activeUsers).find(
-        (u) => u.name.toLowerCase() === nameLower && u.socketId !== socket.id
+        (u) => u.name.toLowerCase() === nameLower && u.socketId !== socket.id,
       );
       if (!dup) currentUser.name = name;
     }
@@ -1350,31 +1415,19 @@ io.on("connection", (socket) => {
     activeUsers[socket.id] = currentUser;
     io.emit("user list", buildUserList());
     socket.emit("profile_updated", currentUser);
-  };
-
-  socket.on("update_profile", handleProfileUpdate);
-  socket.on("update profile", handleProfileUpdate);
+  });
 
   // ── DISCONNECT ──
   socket.on("disconnect", () => {
     if (!currentUser) return;
 
     io.emit("chat message", {
-      id:        "sys_" + Date.now(),
-      sender:    "System",
-      message:   `${currentUser.name} left the chat`,
-      type:      "system",
-      room:      currentUser.room || "global",
+      id: "sys_" + Date.now(),
+      sender: "System",
+      message: `${currentUser.name} left`,
+      type: "system",
+      room: currentUser.room || "global",
       createdAt: new Date(),
-    });
-
-    sendEmbed(JOIN_LEAVE_CHANNEL_ID, {
-      color:  0xff3c5f,
-      title:  "📤 User Left",
-      fields: [
-        { name: "Username", value: currentUser.name, inline: true },
-        { name: "IP",       value: currentUser.ip,   inline: true },
-      ],
     });
 
     delete activeUsers[socket.id];
@@ -1390,39 +1443,13 @@ app.use(express.json({ limit: "10mb" }));
 app.use(
   express.static(path.join(__dirname, "public"), {
     extensions: ["html", "htm"],
-  })
+  }),
 );
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
-app.get("/iframe-groupchatroom", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html"));
-});
-app.get("/S2s", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-app.get("/General-Chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html"));
-});
 
-// 📢 Live announcement endpoint
-app.get("/api/live-announcement", async (req, res) => {
-  try {
-    const current = await Announcement.findOne({ expiresAt: { $gt: new Date() } });
-    if (!current) {
-      return res.json({
-        active: false,
-        text:   "📢 Share this link with friends to grow our chat room!",
-      });
-    }
-    res.json({ active: true, text: current.text });
-  } catch (err) {
-    res.json({ active: false, text: "Error loading announcement" });
-  }
-});
-
-// 🚨 Report via HTTP
 app.post("/api/report", async (req, res) => {
   try {
     const device = /Mobi|Android/i.test(req.headers["user-agent"] || "")
@@ -1430,63 +1457,28 @@ app.post("/api/report", async (req, res) => {
       : "🖥️ Desktop";
     const data = { ...req.body, device };
     await new Report(data).save();
-
-    if (discordReady) {
-      const embed = new EmbedBuilder()
-        .setColor(0xff3c5f)
-        .setTitle("🚨 Report (HTTP API)")
-        .addFields(
-          { name: "🎯 Reported", value: `\`${data.reportedUser || "—"}\``,    inline: true },
-          { name: "👤 Reporter", value: `\`${data.reporterUser || "—"}\``,    inline: true },
-          { name: "📱 Device",   value: device,                               inline: true },
-          { name: "📧 Email",    value: data.reporterEmail || "Not provided", inline: false },
-          { name: "📝 Reason",   value: (data.reason || "—").substring(0, 1000), inline: false },
-        )
-        .setTimestamp()
-        .setFooter({ text: "HeyyYuki Report System" });
-
-      const ch =
-        discordClient.channels.cache.get(REPORT_CHANNEL_ID) ||
-        discordClient.channels.cache.get(MOD_LOG_CHANNEL_ID);
-      if (ch) ch.send({ embeds: [embed] });
-    }
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false });
   }
 });
 
-// ❤️ Health check
 app.get("/health", (req, res) => {
   res.json({
-    status:  "ok",
-    online:  Object.keys(activeUsers).length,
+    status: "ok",
+    online: Object.keys(activeUsers).length,
     discord: discordReady,
-    mongo:   mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-    uptime:  Math.floor(process.uptime()) + "s",
-    banned:  bannedUsernames.size,
-    vips:    vips.size,
-    admins:  admins.size,
+    mongo: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
-app.get("/sw.js", (req, res) =>
-  res.sendFile(path.resolve(__dirname, "public/sw.js"))
-);
-app.get("/manifest.json", (req, res) =>
-  res.sendFile(path.resolve(__dirname, "public/manifest.json"))
-);
-app.use(
-  "/.well-known",
-  express.static(path.join(__dirname, ".well-known"), { dotfiles: "allow" })
-);
-
 // ══════════════════════════════════════════════════════════════
-// 🚀 SERVER START
+// 🚀 START SERVER
 // ══════════════════════════════════════════════════════════════
 http.listen(PORT, () => {
-  console.log(`🚀 StrangerToStranger running on http://localhost:${PORT}`);
-  console.log(`📋 Admin: ${ADMIN_NAME} | Port: ${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📋 Admin: ${ADMIN_NAME}`);
+  console.log(`🚨 Profanity detection: ACTIVE`);
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -1494,11 +1486,14 @@ http.listen(PORT, () => {
 // ══════════════════════════════════════════════════════════════
 process.on("unhandledRejection", (err) => {
   console.error("⚠️ Unhandled Rejection:", err);
-  logToDiscordError(`💥 Unhandled Rejection:\n${String(err).substring(0, 1500)}`);
+  logToDiscordError(
+    `💥 Unhandled Rejection:\n${String(err).substring(0, 1500)}`,
+  );
 });
+
 process.on("uncaughtException", (err) => {
   console.error("⚠️ Uncaught Exception:", err);
   logToDiscordError(
-    `💥 Uncaught Exception:\n${err.message}\n${(err.stack || "").substring(0, 1000)}`
+    `💥 Uncaught Exception:\n${err.message}\n${(err.stack || "").substring(0, 1000)}`,
   );
 });
