@@ -1,17 +1,18 @@
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║   StrangerToStranger — HeyyYuki Powered Server v5.0 FINAL       ║
-// ║   /panel Master Command | VPN Detection | Full User Intel       ║
-// ║   Profanity System | Warning System | DM Persistence | 2026     ║
+// ║   StrangerToStranger — HeyyYuki Powered Server v6.0             ║
+// ║   Firebase Auth + /panel + VPN Detection + Full User Intel      ║
+// ║   Profanity | Warnings | DM Persistence | 2026                  ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
 require("dotenv").config();
-const express = require("express");
-const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http, { cors: { origin: "*" } });
-const path = require("path");
-const fs = require("fs");
-const mongoose = require("mongoose");
+const express    = require("express");
+const app        = express();
+const http       = require("http").createServer(app);
+const io         = require("socket.io")(http, { cors: { origin: "*" } });
+const path       = require("path");
+const fs         = require("fs");
+const mongoose   = require("mongoose");
+const admin      = require("firebase-admin"); // 🆕 Firebase Admin SDK
 
 const {
   Client,
@@ -29,25 +30,76 @@ const {
 const MONGO_URI =
   process.env.MONGO_URI ||
   "mongodb+srv://yashwantsingh2046_db_user:Yashu2046@db.avouoxu.mongodb.net/?appName=db";
-const CLIENT_ID = process.env.CLIENT_ID || "1478767384398528573";
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN || "";
+const CLIENT_ID    = process.env.CLIENT_ID    || "1478767384398528573";
+const DISCORD_TOKEN= process.env.DISCORD_TOKEN|| "";
 
-const CONTROL_CHANNEL_IDS = ["1506573109728247848"];
-const GUILD_ID = "1485522389403173004";
+const CONTROL_CHANNEL_IDS  = ["1506573109728247848"];
+const GUILD_ID             = "1485522389403173004";
 
-const STATUS_CHANNEL_ID   = process.env.STATUS_CHANNEL_ID   || "1506573109728247848";
-const CHAT_CHANNEL_ID     = process.env.CHAT_CHANNEL_ID     || "1506240430260621312";
-const MEDIA_LOG_CHANNEL_ID= process.env.MEDIA_LOG_CHANNEL_ID|| "1506573109728247848";
-const JOIN_LEAVE_CHANNEL_ID=process.env.JOIN_LEAVE_CHANNEL_ID||"1506240499361775707";
-const MOD_LOG_CHANNEL_ID  = process.env.MOD_LOG_CHANNEL_ID  || "1506573109728247848";
-const VIP_LOG_CHANNEL_ID  = process.env.VIP_LOG_CHANNEL_ID  || "1506573109728247848";
-const REPORT_CHANNEL_ID   = process.env.REPORT_CHANNEL_ID   || "1506573109728247848";
-const ERROR_CHANNEL_ID    = process.env.ERROR_CHANNEL_ID    || "1506240662381658162";
-const PROFANITY_CHANNEL_ID= process.env.PROFANITY_CHANNEL_ID|| REPORT_CHANNEL_ID;
-const BANNED_LOG_CHANNEL_ID=process.env.BANNED_LOG_CHANNEL_ID||"1512753547765223632";
+const STATUS_CHANNEL_ID    = process.env.STATUS_CHANNEL_ID    || "1506573109728247848";
+const CHAT_CHANNEL_ID      = process.env.CHAT_CHANNEL_ID      || "1506240430260621312";
+const MEDIA_LOG_CHANNEL_ID = process.env.MEDIA_LOG_CHANNEL_ID || "1506573109728247848";
+const JOIN_LEAVE_CHANNEL_ID= process.env.JOIN_LEAVE_CHANNEL_ID|| "1506240499361775707";
+const MOD_LOG_CHANNEL_ID   = process.env.MOD_LOG_CHANNEL_ID   || "1506573109728247848";
+const VIP_LOG_CHANNEL_ID   = process.env.VIP_LOG_CHANNEL_ID   || "1506573109728247848";
+const REPORT_CHANNEL_ID    = process.env.REPORT_CHANNEL_ID    || "1506573109728247848";
+const ERROR_CHANNEL_ID     = process.env.ERROR_CHANNEL_ID     || "1506240662381658162";
+const PROFANITY_CHANNEL_ID = process.env.PROFANITY_CHANNEL_ID || REPORT_CHANNEL_ID;
+const BANNED_LOG_CHANNEL_ID= process.env.BANNED_LOG_CHANNEL_ID|| "1512753547765223632";
 
-const ADMIN_NAME = process.env.ADMIN_NAME || "Yashwant";
-const PORT       = process.env.PORT       || 4000;
+const ADMIN_NAME    = process.env.ADMIN_NAME    || "Yashwant";
+const PORT          = process.env.PORT          || 4000;
+const PANEL_PASSWORD= process.env.PANEL_PASSWORD|| "heyuki2026";
+
+// ══════════════════════════════════════════════════════════════════
+// 🔥 FIREBASE ADMIN SDK INIT
+// ══════════════════════════════════════════════════════════════════
+// 
+// SETUP INSTRUCTIONS:
+// 1. Firebase Console → Project Settings → Service Accounts
+// 2. "Generate New Private Key" → JSON file download karo
+// 3. Us file ko "firebase-service-account.json" naam do
+//    aur is server.js ke saath same folder mein rakho
+// 4. YA phir .env mein FIREBASE_SERVICE_ACCOUNT_JSON set karo
+//    (JSON content ko single line string mein convert karke)
+//
+let firebaseAdminReady = false;
+try {
+  let serviceAccount;
+
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    // ENV variable se (production/Glitch ke liye recommended)
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  } else if (fs.existsSync(path.join(__dirname, "firebase-service-account.json"))) {
+    // Local file se
+    serviceAccount = require("./firebase-service-account.json");
+  }
+
+  if (serviceAccount) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    firebaseAdminReady = true;
+    console.log("✅ Firebase Admin SDK initialized");
+  } else {
+    console.warn("⚠️  Firebase service account not found — token verification disabled");
+    console.warn("    Place firebase-service-account.json in project root, or set FIREBASE_SERVICE_ACCOUNT_JSON env var");
+  }
+} catch (err) {
+  console.error("❌ Firebase Admin init error:", err.message);
+}
+
+// ── Firebase Token Verify Helper ─────────────────────────────────
+// Returns decoded token { uid, email, name, ... } or null
+async function verifyFirebaseToken(idToken) {
+  if (!firebaseAdminReady || !idToken) return null;
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    return decoded;
+  } catch (err) {
+    return null;
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════
 // 🧠 PROFANITY DETECTION
@@ -164,35 +216,34 @@ const AnnouncementSchema = new mongoose.Schema({
 const Announcement =
   mongoose.models.Announcement || mongoose.model("Announcement", AnnouncementSchema);
 
-// 🆕 Enhanced BanSchema — ban/unban history track karta hai
 const BanSchema = new mongoose.Schema({
-  username:   { type: String, unique: true },
-  ip:         { type: String },
-  forwardedIp:{ type: String },       // Proxy/VPN ke peeche wala original IP
-  reason:     { type: String, default: "Profanity/Abuse" },
-  country:    { type: String, default: "Unknown" },
-  banCount:   { type: Number, default: 1 },  // Kitni baar ban hua
-  unbanCount: { type: Number, default: 0 },  // Kitni baar unban hua
-  banHistory: [{                              // Puri history
-    action:    { type: String, enum: ["ban","unban"] },
-    reason:    String,
-    by:        String,
-    at:        { type: Date, default: Date.now },
+  username:    { type: String, unique: true },
+  firebaseUid: { type: String, index: true }, // 🆕 Firebase UID se ban track
+  ip:          { type: String },
+  forwardedIp: { type: String },
+  reason:      { type: String, default: "Profanity/Abuse" },
+  country:     { type: String, default: "Unknown" },
+  banCount:    { type: Number, default: 1 },
+  unbanCount:  { type: Number, default: 0 },
+  banHistory:  [{
+    action: { type: String, enum: ["ban","unban"] },
+    reason: String,
+    by:     String,
+    at:     { type: Date, default: Date.now },
   }],
 });
 const Banned = mongoose.model("Banned", BanSchema);
 
-// 🆕 UserSession Schema — browser, incognito hints, IP details save karta hai
 const SessionSchema = new mongoose.Schema({
-  username:    { type: String, index: true },
-  ip:          String,
-  forwardedFor:String,    // x-forwarded-for header (proxy/VPN detect)
-  userAgent:   String,
-  browser:     String,
-  os:          String,
-  isMobile:    Boolean,
-  // Incognito detect karna browser se 100% possible nahi hota server-side,
-  // lekin client se hint aa sakta hai — hum client se flag lenge
+  username:      { type: String, index: true },
+  firebaseUid:   { type: String, index: true },  // 🆕 Firebase UID
+  firebaseEmail: { type: String },               // 🆕 Firebase email
+  ip:            String,
+  forwardedFor:  String,
+  userAgent:     String,
+  browser:       String,
+  os:            String,
+  isMobile:      Boolean,
   incognitoHint: { type: Boolean, default: false },
   vpnDetected:   { type: Boolean, default: false },
   connectedAt:   { type: Date, default: Date.now },
@@ -211,9 +262,13 @@ const BANNED_FILE = path.join(__dirname, "banned-usernames.json");
 const VIPS_FILE   = path.join(__dirname, "vip-users.json");
 const ADMINS_FILE = path.join(__dirname, "admin-users.json");
 
+// 🆕 Firebase UID ban list (IP ban ki tarah, UID se bhi ban)
+const BANNED_UIDS_FILE = path.join(__dirname, "banned-uids.json");
+
 let bannedUsernames = new Set();
-let vips   = new Set();
-let admins = new Set();
+let bannedUids      = new Set(); // 🆕
+let vips            = new Set();
+let admins          = new Set();
 
 function loadJSON(file) {
   try { return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : []; }
@@ -221,12 +276,14 @@ function loadJSON(file) {
 }
 
 bannedUsernames = new Set(loadJSON(BANNED_FILE));
-vips   = new Set(loadJSON(VIPS_FILE));
-admins = new Set(loadJSON(ADMINS_FILE));
+bannedUids      = new Set(loadJSON(BANNED_UIDS_FILE)); // 🆕
+vips            = new Set(loadJSON(VIPS_FILE));
+admins          = new Set(loadJSON(ADMINS_FILE));
 
-function saveBanned() { fs.writeFileSync(BANNED_FILE, JSON.stringify([...bannedUsernames])); }
-function saveVips()   { fs.writeFileSync(VIPS_FILE,   JSON.stringify([...vips])); }
-function saveAdmins() { fs.writeFileSync(ADMINS_FILE, JSON.stringify([...admins])); }
+function saveBanned()     { fs.writeFileSync(BANNED_FILE,      JSON.stringify([...bannedUsernames])); }
+function saveBannedUids() { fs.writeFileSync(BANNED_UIDS_FILE, JSON.stringify([...bannedUids])); } // 🆕
+function saveVips()       { fs.writeFileSync(VIPS_FILE,        JSON.stringify([...vips])); }
+function saveAdmins()     { fs.writeFileSync(ADMINS_FILE,      JSON.stringify([...admins])); }
 
 // ══════════════════════════════════════════════════════════════════
 // 🧠 IN-MEMORY STATE
@@ -242,13 +299,6 @@ function genId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
-function getIP(socket) {
-  const raw =
-    socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
-  return (raw || "127.0.0.1").split(",")[0].trim();
-}
-
-// Sabse real IP nikalta hai (VPN/proxy ke peeche wala)
 function getAllIPs(socket) {
   const forwarded = socket.handshake.headers["x-forwarded-for"] || "";
   const real      = socket.handshake.headers["x-real-ip"] || "";
@@ -257,43 +307,30 @@ function getAllIPs(socket) {
   const forwardedList = forwarded.split(",").map(ip => ip.trim()).filter(Boolean);
   const primaryIP     = forwardedList[0] || real || direct;
   const lastHopIP     = forwardedList[forwardedList.length - 1] || direct;
+  const vpnHint       = forwardedList.length > 1;
 
-  // VPN/Proxy hint: agar forwarded chain mein 2+ IPs hain
-  const vpnHint = forwardedList.length > 1;
-
-  return {
-    primary:     primaryIP,          // Jo IP dikhti hai (client ka claimed IP)
-    lastHop:     lastHopIP,          // Last known hop (often real server-side IP)
-    allForwarded:forwardedList,
-    realHeader:  real,
-    directSocket:direct,
-    vpnHint,
-  };
+  return { primary: primaryIP, lastHop: lastHopIP, allForwarded: forwardedList, realHeader: real, directSocket: direct, vpnHint };
 }
 
-// UserAgent se browser + OS parse karta hai
 function parseUserAgent(ua = "") {
-  let browser = "Unknown";
-  let os = "Unknown";
-  let isMobile = false;
+  let browser = "Unknown", os = "Unknown", isMobile = false;
 
-  if (/Edg\//i.test(ua))         browser = "Microsoft Edge";
-  else if (/OPR\//i.test(ua))    browser = "Opera";
-  else if (/Brave/i.test(ua))    browser = "Brave";
-  else if (/Chrome/i.test(ua))   browser = "Chrome";
-  else if (/Firefox/i.test(ua))  browser = "Firefox";
-  else if (/Safari/i.test(ua))   browser = "Safari";
+  if (/Edg\//i.test(ua))             browser = "Microsoft Edge";
+  else if (/OPR\//i.test(ua))        browser = "Opera";
+  else if (/Brave/i.test(ua))        browser = "Brave";
+  else if (/Chrome/i.test(ua))       browser = "Chrome";
+  else if (/Firefox/i.test(ua))      browser = "Firefox";
+  else if (/Safari/i.test(ua))       browser = "Safari";
   else if (/MSIE|Trident/i.test(ua)) browser = "Internet Explorer";
 
-  if (/Windows/i.test(ua))       os = "Windows";
-  else if (/Android/i.test(ua))  os = "Android";
-  else if (/iPhone|iPad/i.test(ua)) os = "iOS";
+  if (/Windows/i.test(ua))           os = "Windows";
+  else if (/Android/i.test(ua))      os = "Android";
+  else if (/iPhone|iPad/i.test(ua))  os = "iOS";
   else if (/Macintosh/i.test(ua) && !/iPhone/i.test(ua)) os = "macOS";
-  else if (/Linux/i.test(ua))    os = "Linux";
-  else if (/CrOS/i.test(ua))     os = "Chrome OS";
+  else if (/Linux/i.test(ua))        os = "Linux";
+  else if (/CrOS/i.test(ua))         os = "Chrome OS";
 
   if (/Mobi|Android|iPhone|iPad/i.test(ua)) isMobile = true;
-
   return { browser, os, isMobile };
 }
 
@@ -316,8 +353,8 @@ function buildUserList() {
     const userIsVip   = isUserVip(nameLower);
     let displayName   = u.name;
 
-    if (userIsAdmin)      displayName = "👑 " + displayName;
-    else if (userIsVip)   displayName = displayName + " 💎";
+    if (userIsAdmin)    displayName = "👑 " + displayName;
+    else if (userIsVip) displayName = displayName + " 💎";
 
     return {
       socketId: u.socketId,
@@ -332,7 +369,6 @@ function buildUserList() {
   });
 }
 
-// Safe early Discord logger (Discord ready hone se pehle call ho sakta hai)
 function logToDiscordErrorSafe(msg, type = "error") {
   if (typeof logToDiscordError === "function" && discordReady) {
     logToDiscordError(msg, type);
@@ -358,115 +394,80 @@ let discordReady = false;
 const commands = [
   new SlashCommandBuilder()
     .setName("panel")
-    .setDescription("🎛️ Master Admin Panel — Sab kuch yahan se ho sakta hai")
+    .setDescription("🎛️ Master Admin Panel")
     .addSubcommand(sub =>
       sub.setName("user")
-         .setDescription("👤 Kisi bhi user ki poori details dekho (IP, VPN, browser, ban history)")
-         .addStringOption(o =>
-           o.setName("username")
-            .setDescription("Username (case insensitive)")
-            .setRequired(true)
-         )
+         .setDescription("👤 User ki poori details")
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
     )
     .addSubcommand(sub =>
       sub.setName("ban")
          .setDescription("🔨 User ko permanently ban karo")
-         .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
-         .addStringOption(o =>
-           o.setName("reason").setDescription("Ban ki wajah (optional)")
-         )
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
+         .addStringOption(o => o.setName("reason").setDescription("Reason"))
     )
     .addSubcommand(sub =>
       sub.setName("unban")
          .setDescription("✅ User ko unban karo")
-         .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
     )
     .addSubcommand(sub =>
       sub.setName("kick")
-         .setDescription("👢 Online user ko site se kick karo")
-         .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
-         .addStringOption(o =>
-           o.setName("reason").setDescription("Kick reason (optional)")
-         )
+         .setDescription("👢 Online user ko kick karo")
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
+         .addStringOption(o => o.setName("reason").setDescription("Reason"))
     )
     .addSubcommand(sub =>
       sub.setName("warn")
-         .setDescription("⚠️ User ko manually warning do")
-         .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
-         .addStringOption(o =>
-           o.setName("reason").setDescription("Warning reason").setRequired(true)
-         )
+         .setDescription("⚠️ User ko warning do")
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
+         .addStringOption(o => o.setName("reason").setDescription("Reason").setRequired(true))
     )
     .addSubcommand(sub =>
       sub.setName("clearwarn")
-         .setDescription("🧹 User ki saari warnings clear karo")
-         .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
+         .setDescription("🧹 User ki warnings clear karo")
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
     )
     .addSubcommand(sub =>
       sub.setName("list")
-         .setDescription("📋 Banned users ki list dekho")
-         .addStringOption(o =>
-           o.setName("filter").setDescription("Filter by username / IP / country (optional)")
-         )
+         .setDescription("📋 Banned users ki list")
+         .addStringOption(o => o.setName("filter").setDescription("Filter (optional)"))
     )
-    .addSubcommand(sub =>
-      sub.setName("online")
-         .setDescription("🌐 Abhi online kaun kaun hai")
-    )
-    .addSubcommand(sub =>
-      sub.setName("stats")
-         .setDescription("📊 Server ki overall stats")
-    )
+    .addSubcommand(sub => sub.setName("online").setDescription("🌐 Online users"))
+    .addSubcommand(sub => sub.setName("stats").setDescription("📊 Server stats"))
     .addSubcommand(sub =>
       sub.setName("ann")
-         .setDescription("📢 Sab users ko announcement bhejo")
-         .addStringOption(o =>
-           o.setName("message").setDescription("Announcement text").setRequired(true)
-         )
+         .setDescription("📢 Announcement bhejo")
+         .addStringOption(o => o.setName("message").setDescription("Message").setRequired(true))
     )
     .addSubcommand(sub =>
       sub.setName("vip")
-         .setDescription("💎 User ko VIP do ya lelo")
+         .setDescription("💎 VIP manage karo")
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
          .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
-         .addStringOption(o =>
-           o.setName("action")
-            .setDescription("add ya remove")
-            .setRequired(true)
-            .addChoices(
-              { name: "Add VIP", value: "add" },
-              { name: "Remove VIP", value: "remove" }
-            )
+           o.setName("action").setDescription("add/remove").setRequired(true)
+            .addChoices({ name: "Add VIP", value: "add" }, { name: "Remove VIP", value: "remove" })
          )
     )
     .addSubcommand(sub =>
       sub.setName("shadow")
-         .setDescription("👻 User ko shadow ban karo (use dikhe but dusron ko nahi)")
-         .addStringOption(o =>
-           o.setName("username").setDescription("Username").setRequired(true)
-         )
+         .setDescription("👻 Shadow ban toggle")
+         .addStringOption(o => o.setName("username").setDescription("Username").setRequired(true))
+    )
+    // 🆕 Firebase UID se ban
+    .addSubcommand(sub =>
+      sub.setName("banuid")
+         .setDescription("🔥 Firebase UID se ban karo (bypasses username change)")
+         .addStringOption(o => o.setName("uid").setDescription("Firebase UID").setRequired(true))
+         .addStringOption(o => o.setName("reason").setDescription("Reason"))
     )
 ].map(c => c.toJSON());
 
-// Register Slash Commands
 if (DISCORD_TOKEN) {
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
   (async () => {
     try {
-      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
-        body: commands,
-      });
+      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
       console.log("✅ /panel slash commands registered");
     } catch (e) {
       console.error("❌ Slash command register error:", e.message);
@@ -480,14 +481,11 @@ if (DISCORD_TOKEN) {
 discordClient.once("ready", () => {
   discordReady = true;
   console.log(`🤖 HeyyYuki online as ${discordClient.user.tag}`);
-  discordClient.user.setActivity("StrangerToStranger 🌐 | 24/7", {
-    type: ActivityType.Watching,
-  });
+  discordClient.user.setActivity("StrangerToStranger 🌐 | 24/7", { type: ActivityType.Watching });
   updateDiscordStatus();
-  logToDiscordError("🤖 HeyyYuki Bot v5.0 Started — /panel active", "info");
+  logToDiscordError("🤖 HeyyYuki Bot v6.0 Started — Firebase Auth + /panel active", "info");
 });
 
-// Discord Chat Mirror
 discordClient.on("messageCreate", (msg) => {
   if (msg.author.bot || msg.channel.id !== CHAT_CHANNEL_ID) return;
   if (msg.content.startsWith("/")) return;
@@ -508,10 +506,10 @@ discordClient.on("messageCreate", (msg) => {
 discordClient.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (!CONTROL_CHANNEL_IDS.includes(interaction.channelId)) return;
+  if (interaction.commandName !== "panel") return;
 
-  const { commandName, options } = interaction;
+  const { options } = interaction;
 
-  // Ephemeral reply helper
   const safeReply = async (content) => {
     try {
       if (interaction.replied || interaction.deferred) {
@@ -519,9 +517,7 @@ discordClient.on("interactionCreate", async (interaction) => {
       } else {
         await interaction.reply({ content: content.substring(0, 2000), flags: 64 });
       }
-    } catch (e) {
-      console.error("safeReply error:", e.message);
-    }
+    } catch (e) {}
   };
 
   const safeEmbedReply = async (embed) => {
@@ -531,272 +527,125 @@ discordClient.on("interactionCreate", async (interaction) => {
       } else {
         await interaction.reply({ embeds: [embed], flags: 64 });
       }
-    } catch (e) {
-      console.error("safeEmbedReply error:", e.message);
-    }
+    } catch (e) {}
   };
-
-  if (commandName !== "panel") return;
 
   try {
     const sub      = options.getSubcommand();
     const username = options.getString("username")?.trim().toLowerCase();
 
-    // ─────────────────────────────────────────────────────────
-    // 👤 /panel user — Poori user details
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel user ─────────────────────────────────────────────
     if (sub === "user") {
       await interaction.deferReply({ flags: 64 });
 
-      // Session data (browser, IP, VPN)
-      const session = await UserSession.findOne({
-        username: { $regex: new RegExp("^" + username + "$", "i") }
-      }).sort({ lastSeen: -1 }).lean();
+      const session    = await UserSession.findOne({ username: { $regex: new RegExp("^" + username + "$", "i") } }).sort({ lastSeen: -1 }).lean();
+      const banRecord  = await Banned.findOne({ username: { $regex: new RegExp("^" + username + "$", "i") } }).lean();
+      const warnRecord = await Warning.findOne({ username: { $regex: new RegExp("^" + username + "$", "i") } }).lean();
+      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
 
-      // Ban data
-      const banRecord = await Banned.findOne({
-        username: { $regex: new RegExp("^" + username + "$", "i") }
-      }).lean();
+      const isBanned = bannedUsernames.has(username) || !!banRecord;
+      const isOnline = !!onlineUser;
+      const isVip    = isUserVip(username);
+      const isAdmin  = isUserAdmin(username);
 
-      // Warning data
-      const warnRecord = await Warning.findOne({
-        username: { $regex: new RegExp("^" + username + "$", "i") }
-      }).lean();
-
-      // Check if currently online
-      const onlineUser = Object.values(activeUsers).find(
-        u => u.name.toLowerCase() === username
-      );
-
-      const isBanned   = bannedUsernames.has(username) || !!banRecord;
-      const isOnline   = !!onlineUser;
-      const isVip      = isUserVip(username);
-      const isAdmin    = isUserAdmin(username);
-
-      // VPN Detection logic
-      let vpnStatus = "❓ Data nahi";
-      let realIP    = "N/A";
-      let proxyIP   = "N/A";
-      let browserInfo = "N/A";
-      let osInfo      = "N/A";
-      let mobileInfo  = "N/A";
-      let incognito   = "N/A";
+      let vpnStatus = "❓ Data nahi", realIP = "N/A", proxyIP = "N/A";
+      let browserInfo = "N/A", osInfo = "N/A", mobileInfo = "N/A", incognito = "N/A";
+      let firebaseEmail = "N/A", firebaseUid = "N/A";
 
       if (session) {
-        const primaryIP    = session.ip         || "Unknown";
-        const forwardedIP  = session.forwardedFor|| "Unknown";
-
-        realIP    = primaryIP;
-        proxyIP   = forwardedIP !== primaryIP && forwardedIP !== "Unknown"
-                    ? forwardedIP
-                    : "—";
-
-        vpnStatus = session.vpnDetected
-          ? "🔴 VPN/Proxy DETECTED"
-          : session.forwardedFor && session.forwardedFor !== session.ip
-            ? "🟡 Possible Proxy (Forwarded IP alag hai)"
-            : "🟢 No VPN Detected";
-
-        browserInfo = session.browser || "Unknown";
-        osInfo      = session.os      || "Unknown";
-        mobileInfo  = session.isMobile ? "📱 Mobile" : "🖥️ Desktop";
-        incognito   = session.incognitoHint
-          ? "🕵️ Incognito/Private Mode Detected"
-          : "🌐 Normal Mode (ya detect nahi hua)";
+        realIP      = session.ip          || "Unknown";
+        proxyIP     = (session.forwardedFor && session.forwardedFor !== session.ip) ? session.forwardedFor : "—";
+        vpnStatus   = session.vpnDetected ? "🔴 VPN/Proxy DETECTED" : session.forwardedFor && session.forwardedFor !== session.ip ? "🟡 Possible Proxy" : "🟢 No VPN";
+        browserInfo = session.browser     || "Unknown";
+        osInfo      = session.os          || "Unknown";
+        mobileInfo  = session.isMobile    ? "📱 Mobile" : "🖥️ Desktop";
+        incognito   = session.incognitoHint ? "🕵️ Incognito Detected" : "🌐 Normal Mode";
+        // 🆕 Firebase data
+        firebaseEmail = session.firebaseEmail || "N/A";
+        firebaseUid   = session.firebaseUid   || "N/A";
       } else if (onlineUser) {
-        // Online hai toh live data lo
-        realIP    = onlineUser.ip || "Unknown";
-        vpnStatus = "⚠️ Session DB mein nahi — live IP only";
+        realIP          = onlineUser.ip           || "Unknown";
+        firebaseUid     = onlineUser.firebaseUid  || "N/A";
+        firebaseEmail   = onlineUser.firebaseEmail|| "N/A";
+        vpnStatus       = "⚠️ Session DB mein nahi";
       }
 
-      // Ban history format
       let banHistoryText = "Kabhi ban nahi hua";
-      if (banRecord && banRecord.banHistory && banRecord.banHistory.length > 0) {
-        banHistoryText = banRecord.banHistory
-          .slice(-5)
-          .map((h, i) =>
-            `${i + 1}. ${h.action === "ban" ? "🔨 Ban" : "✅ Unban"} — ${
-              new Date(h.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-            }${h.reason ? ` (${h.reason})` : ""}${h.by ? ` by ${h.by}` : ""}`
-          )
+      if (banRecord?.banHistory?.length) {
+        banHistoryText = banRecord.banHistory.slice(-5)
+          .map((h, i) => `${i+1}. ${h.action==="ban"?"🔨 Ban":"✅ Unban"} — ${new Date(h.at).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})}${h.reason?` (${h.reason})`:""}${h.by?` by ${h.by}`:""}`)
           .join("\n");
       }
 
-      // Warning messages format
-      let warnMsgText = "Koi profanity warning nahi";
-      if (warnRecord && warnRecord.messages && warnRecord.messages.length > 0) {
-        warnMsgText = warnRecord.messages
-          .slice(-3)
-          .map((m, i) =>
-            `${i + 1}. "${m.text}" — ${
-              new Date(m.date).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-            }`
-          )
+      let warnMsgText = "Koi warning nahi";
+      if (warnRecord?.messages?.length) {
+        warnMsgText = warnRecord.messages.slice(-3)
+          .map((m, i) => `${i+1}. "${m.text}" — ${new Date(m.date).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})}`)
           .join("\n");
       }
 
       const embed = new EmbedBuilder()
-        .setColor(
-          isBanned ? 0xff3c5f :
-          isOnline  ? 0x00f5a0 :
-          0x7289da
-        )
+        .setColor(isBanned ? 0xff3c5f : isOnline ? 0x00f5a0 : 0x7289da)
         .setTitle(`🔍 User Intelligence: ${username}`)
-        .setDescription(
-          `**Status:** ${
-            isOnline   ? "🟢 Online" :
-            isBanned   ? "🔴 Banned" :
-            "⚫ Offline"
-          } ${isAdmin ? "| 👑 Admin" : ""} ${isVip ? "| 💎 VIP" : ""}`
-        )
+        .setDescription(`**Status:** ${isOnline?"🟢 Online":isBanned?"🔴 Banned":"⚫ Offline"} ${isAdmin?"| 👑 Admin":""} ${isVip?"| 💎 VIP":""}`)
         .addFields(
-          // ── IP INTELLIGENCE ──
-          {
-            name:   "═══ 🌐 IP INTELLIGENCE ═══",
-            value:  "\u200b",
-            inline: false,
-          },
-          {
-            name:   "📍 Primary IP (Client IP)",
-            value:  `\`${realIP}\``,
-            inline: true,
-          },
-          {
-            name:   "🔀 Forwarded/Proxy IP",
-            value:  `\`${proxyIP}\``,
-            inline: true,
-          },
-          {
-            name:   "🛡️ VPN / Proxy Status",
-            value:  vpnStatus,
-            inline: false,
-          },
+          { name: "═══ 🔥 FIREBASE ACCOUNT ═══",  value: "\u200b", inline: false },
+          { name: "📧 Email",        value: firebaseEmail,  inline: true },
+          { name: "🔑 Firebase UID", value: `\`${firebaseUid}\``, inline: true },
+          { name: "🚫 UID Banned",   value: bannedUids.has(firebaseUid) ? "🔴 YES" : "🟢 No", inline: true },
 
-          // ── DEVICE / BROWSER ──
-          {
-            name:   "═══ 💻 DEVICE & BROWSER ═══",
-            value:  "\u200b",
-            inline: false,
-          },
-          {
-            name:   "🌏 Browser",
-            value:  browserInfo,
-            inline: true,
-          },
-          {
-            name:   "💾 OS",
-            value:  osInfo,
-            inline: true,
-          },
-          {
-            name:   "📱 Device Type",
-            value:  mobileInfo,
-            inline: true,
-          },
-          {
-            name:   "🕵️ Incognito / Private Mode",
-            value:  incognito,
-            inline: false,
-          },
+          { name: "═══ 🌐 IP INTELLIGENCE ═══",   value: "\u200b", inline: false },
+          { name: "📍 Primary IP",   value: `\`${realIP}\``,  inline: true },
+          { name: "🔀 Proxy IP",     value: `\`${proxyIP}\``, inline: true },
+          { name: "🛡️ VPN Status",  value: vpnStatus,         inline: false },
 
-          // ── BAN HISTORY ──
-          {
-            name:   "═══ 🔨 BAN HISTORY ═══",
-            value:  "\u200b",
-            inline: false,
-          },
-          {
-            name:   "📊 Ban/Unban Count",
-            value:  banRecord
-              ? `🔨 ${banRecord.banCount || 1} baar ban | ✅ ${banRecord.unbanCount || 0} baar unban`
-              : "Kabhi ban nahi hua",
-            inline: false,
-          },
-          {
-            name:   "📜 Ban History (last 5)",
-            value:  banHistoryText.substring(0, 1000),
-            inline: false,
-          },
+          { name: "═══ 💻 DEVICE & BROWSER ═══",  value: "\u200b", inline: false },
+          { name: "🌏 Browser",  value: browserInfo, inline: true },
+          { name: "💾 OS",       value: osInfo,      inline: true },
+          { name: "📱 Device",   value: mobileInfo,  inline: true },
+          { name: "🕵️ Incognito",value: incognito,   inline: false },
 
-          // ── WARNING HISTORY ──
-          {
-            name:   "═══ ⚠️ WARNING HISTORY ═══",
-            value:  "\u200b",
-            inline: false,
-          },
-          {
-            name:   "🔢 Total Warnings",
-            value:  warnRecord ? `${warnRecord.count}/3` : "0/3",
-            inline: true,
-          },
-          {
-            name:   "📅 Last Warning",
-            value:  warnRecord
-              ? new Date(warnRecord.lastWarningAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-              : "—",
-            inline: true,
-          },
-          {
-            name:   "💬 Flagged Messages (last 3)",
-            value:  warnMsgText.substring(0, 800),
-            inline: false,
-          },
+          { name: "═══ 🔨 BAN HISTORY ═══",        value: "\u200b", inline: false },
+          { name: "📊 Ban Count", value: banRecord ? `🔨 ${banRecord.banCount||1} baar | ✅ ${banRecord.unbanCount||0} unban` : "Kabhi ban nahi hua", inline: false },
+          { name: "📜 History",   value: banHistoryText.substring(0, 1000), inline: false },
 
-          // ── SESSION INFO ──
-          {
-            name:   "═══ 🕒 SESSION INFO ═══",
-            value:  "\u200b",
-            inline: false,
-          },
-          {
-            name:   "🔢 Total Sessions",
-            value:  session ? String(session.sessionCount || 1) : "—",
-            inline: true,
-          },
-          {
-            name:   "🕒 Last Seen",
-            value:  session
-              ? new Date(session.lastSeen).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-              : isOnline ? "🟢 Right Now" : "—",
-            inline: true,
-          },
-          {
-            name:   "📅 First Seen",
-            value:  session
-              ? new Date(session.connectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-              : "—",
-            inline: true,
-          }
+          { name: "═══ ⚠️ WARNINGS ═══",           value: "\u200b", inline: false },
+          { name: "🔢 Warnings",  value: warnRecord ? `${warnRecord.count}/3` : "0/3", inline: true },
+          { name: "📅 Last Warn", value: warnRecord ? new Date(warnRecord.lastWarningAt).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) : "—", inline: true },
+          { name: "💬 Messages",  value: warnMsgText.substring(0, 800), inline: false },
+
+          { name: "═══ 🕒 SESSION ═══",             value: "\u200b", inline: false },
+          { name: "🔢 Sessions",  value: session ? String(session.sessionCount||1) : "—", inline: true },
+          { name: "🕒 Last Seen", value: session ? new Date(session.lastSeen).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) : isOnline?"🟢 Right Now":"—", inline: true },
+          { name: "📅 First Seen",value: session ? new Date(session.connectedAt).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) : "—", inline: true },
         )
-        .setFooter({ text: `HeyyYuki Panel v5.0 — /panel user | Queried by Discord` })
+        .setFooter({ text: "HeyyYuki Panel v6.0 — Firebase Auth Integrated" })
         .setTimestamp();
 
       return safeEmbedReply(embed);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 🔨 /panel ban
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel ban ──────────────────────────────────────────────
     else if (sub === "ban") {
       const reason = options.getString("reason") || "Admin ban";
-
       bannedUsernames.add(username);
       saveBanned();
 
-      // Existing ban record update karo ya naya banao
+      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
+      const session    = await UserSession.findOne({ username: { $regex: new RegExp("^" + username + "$", "i") } }).sort({ lastSeen: -1 }).lean();
+
+      // 🆕 Firebase UID bhi ban karo agar available ho
+      const fbUid = onlineUser?.firebaseUid || session?.firebaseUid;
+      if (fbUid) {
+        bannedUids.add(fbUid);
+        saveBannedUids();
+      }
+
       let banDoc = await Banned.findOne({ username });
       if (!banDoc) {
-        // Session se IP try karo
-        const session = await UserSession.findOne({
-          username: { $regex: new RegExp("^" + username + "$", "i") }
-        }).sort({ lastSeen: -1 }).lean();
-
-        const onlineUser = Object.values(activeUsers).find(
-          u => u.name.toLowerCase() === username
-        );
-
         banDoc = new Banned({
           username,
+          firebaseUid: fbUid || null,
           ip:          onlineUser?.ip || session?.ip || "Unknown",
           forwardedIp: session?.forwardedFor || "Unknown",
           reason,
@@ -805,385 +654,280 @@ discordClient.on("interactionCreate", async (interaction) => {
           banHistory:  [{ action: "ban", reason, by: "Discord Admin", at: new Date() }],
         });
       } else {
-        banDoc.banCount  = (banDoc.banCount || 0) + 1;
-        banDoc.reason    = reason;
+        banDoc.banCount = (banDoc.banCount || 0) + 1;
+        banDoc.reason   = reason;
+        if (fbUid) banDoc.firebaseUid = fbUid;
         banDoc.banHistory = banDoc.banHistory || [];
         banDoc.banHistory.push({ action: "ban", reason, by: "Discord Admin", at: new Date() });
       }
       await banDoc.save();
 
-      // Online hai toh kick karo
-      const onlineUser = Object.values(activeUsers).find(
-        u => u.name.toLowerCase() === username
-      );
       if (onlineUser) {
-        io.to(onlineUser.socketId).emit(
-          "force_logout",
-          `🚫 Aap admin dwara ban kar diye gaye hain. Reason: ${reason}`
-        );
-        setTimeout(() => {
-          const sock = io.sockets.sockets.get(onlineUser.socketId);
-          if (sock) sock.disconnect(true);
-        }, 500);
-      }
-
-      // IP bhi ban karo agar available ho
-      if (onlineUser?.ip) {
-        tempBannedIPs.set(onlineUser.ip, {
-          expiry:       Date.now() + 999 * 365 * 24 * 60 * 60 * 1000,
-          reservedName: username,
-        });
+        io.to(onlineUser.socketId).emit("force_logout", `🚫 Aap admin dwara ban ho gaye. Reason: ${reason}`);
+        setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
+        if (onlineUser.ip) tempBannedIPs.set(onlineUser.ip, { expiry: Date.now() + 999*365*24*60*60*1000, reservedName: username });
       }
 
       sendEmbed(BANNED_LOG_CHANNEL_ID, {
         color: 0xff3c5f,
         title: "🔨 User Banned via /panel",
         fields: [
-          { name: "👤 Username", value: `\`${username}\``,         inline: true },
-          { name: "📝 Reason",   value: `\`${reason}\``,            inline: true },
-          { name: "🌐 IP",       value: `\`${banDoc.ip}\``,         inline: true },
-          { name: "🔢 Ban #",    value: `${banDoc.banCount} baar`,  inline: true },
+          { name: "👤 Username",     value: `\`${username}\``,          inline: true },
+          { name: "📝 Reason",       value: `\`${reason}\``,             inline: true },
+          { name: "🌐 IP",           value: `\`${banDoc.ip}\``,          inline: true },
+          { name: "🔥 Firebase UID", value: `\`${fbUid || "N/A"}\``,    inline: true },
+          { name: "🔢 Ban #",        value: `${banDoc.banCount} baar`,   inline: true },
         ],
       });
 
-      return safeReply(`✅ **${username}** ban ho gaya!\n📝 Reason: ${reason}\n🔢 Yeh unka ban #${banDoc.banCount} hai`);
+      return safeReply(`✅ **${username}** ban ho gaya!\n📝 ${reason}\n🔥 UID also banned: ${fbUid ? "Yes" : "No (UID not found)"}\n🔢 Ban #${banDoc.banCount}`);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // ✅ /panel unban
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel unban ────────────────────────────────────────────
     else if (sub === "unban") {
       bannedUsernames.delete(username);
       saveBanned();
 
       const banDoc = await Banned.findOne({ username });
       if (banDoc) {
+        // 🆕 UID unban bhi karo
+        if (banDoc.firebaseUid) {
+          bannedUids.delete(banDoc.firebaseUid);
+          saveBannedUids();
+        }
         banDoc.unbanCount = (banDoc.unbanCount || 0) + 1;
         banDoc.banHistory = banDoc.banHistory || [];
         banDoc.banHistory.push({ action: "unban", reason: "Admin unban", by: "Discord Admin", at: new Date() });
         await banDoc.save();
-
-        // IP ban bhi hatao
         if (banDoc.ip) tempBannedIPs.delete(banDoc.ip);
-
-        return safeReply(`✅ **${username}** unban ho gaya!\n🔢 Total unban count: ${banDoc.unbanCount}`);
+        return safeReply(`✅ **${username}** unban ho gaya!\n🔥 UID unban: ${banDoc.firebaseUid ? "Yes" : "N/A"}\n🔢 Total unban: ${banDoc.unbanCount}`);
       } else {
-        // File se toh hata diya, DB mein tha nahi
-        return safeReply(`✅ **${username}** ban list se hata diya gaya (DB record nahi tha)`);
+        return safeReply(`✅ **${username}** ban list se hata diya gaya`);
       }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 👢 /panel kick
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel kick ─────────────────────────────────────────────
     else if (sub === "kick") {
-      const reason = options.getString("reason") || "Admin kick";
+      const reason     = options.getString("reason") || "Admin kick";
+      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
+      if (!onlineUser) return safeReply(`❌ **${username}** online nahi hai.`);
 
-      const onlineUser = Object.values(activeUsers).find(
-        u => u.name.toLowerCase() === username
-      );
-
-      if (!onlineUser) {
-        return safeReply(`❌ **${username}** abhi online nahi hai. Kick nahi ho sakta.`);
-      }
-
-      io.to(onlineUser.socketId).emit(
-        "force_logout",
-        `👢 Aap admin dwara kick kar diye gaye hain. Reason: ${reason}`
-      );
-
-      setTimeout(() => {
-        const sock = io.sockets.sockets.get(onlineUser.socketId);
-        if (sock) sock.disconnect(true);
-      }, 500);
-
-      return safeReply(`👢 **${username}** ko kick kar diya gaya!\n📝 Reason: ${reason}`);
+      io.to(onlineUser.socketId).emit("force_logout", `👢 Admin ne kick kiya. Reason: ${reason}`);
+      setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
+      return safeReply(`👢 **${username}** kick ho gaya!\n📝 ${reason}`);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // ⚠️ /panel warn
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel warn ─────────────────────────────────────────────
     else if (sub === "warn") {
-      const reason = options.getString("reason") || "Admin manual warning";
+      const reason = options.getString("reason") || "Admin warning";
 
       let warning = await Warning.findOne({ username });
       if (!warning) {
-        warning = new Warning({
-          username,
-          count:   1,
-          reason,
-          messages:[{ text: `[Admin Warning] ${reason}`, date: new Date() }],
-        });
+        warning = new Warning({ username, count: 1, reason, messages: [{ text: `[Admin] ${reason}`, date: new Date() }] });
       } else {
         warning.count += 1;
-        warning.messages.push({ text: `[Admin Warning] ${reason}`, date: new Date() });
+        warning.messages.push({ text: `[Admin] ${reason}`, date: new Date() });
         warning.lastWarningAt = new Date();
       }
       await warning.save();
 
-      // Online hai toh notify karo
-      const onlineUser = Object.values(activeUsers).find(
-        u => u.name.toLowerCase() === username
-      );
-
+      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
       if (onlineUser) {
-        io.to(onlineUser.socketId).emit("profanity_warning", {
-          count:   warning.count,
-          message: `⚠️ Admin Warning ${warning.count}/3: ${reason}`,
-        });
+        io.to(onlineUser.socketId).emit("profanity_warning", { count: warning.count, message: `⚠️ Admin Warning ${warning.count}/3: ${reason}` });
       }
 
-      // Auto ban agar 3 warnings
       if (warning.count >= 3) {
         bannedUsernames.add(username);
         saveBanned();
+        const fbUid = onlineUser?.firebaseUid;
+        if (fbUid) { bannedUids.add(fbUid); saveBannedUids(); }
 
-        await Banned.updateOne(
-          { username },
-          {
-            $set:  { username, reason: "3 warnings" },
-            $inc:  { banCount: 1 },
-            $push: { banHistory: { action: "ban", reason: "3 warnings reached", by: "System Auto-ban", at: new Date() } },
-          },
-          { upsert: true }
-        );
+        await Banned.updateOne({ username }, {
+          $set: { username, reason: "3 warnings" },
+          $inc: { banCount: 1 },
+          $push: { banHistory: { action: "ban", reason: "3 warnings", by: "System", at: new Date() } },
+        }, { upsert: true });
 
         if (onlineUser) {
           io.to(onlineUser.socketId).emit("force_logout", "🚫 3 warnings ke baad auto-ban!");
-          setTimeout(() => {
-            const sock = io.sockets.sockets.get(onlineUser.socketId);
-            if (sock) sock.disconnect(true);
-          }, 500);
+          setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
         }
-
-        return safeReply(`🚫 **${username}** ko 3rd warning mili aur AUTO-BAN ho gaya!\n📝 Reason: ${reason}`);
+        return safeReply(`🚫 **${username}** 3rd warning → AUTO-BAN!\n📝 ${reason}`);
       }
 
-      return safeReply(`⚠️ **${username}** ko warning #${warning.count}/3 di gayi!\n📝 Reason: ${reason}`);
+      return safeReply(`⚠️ **${username}** warning #${warning.count}/3!\n📝 ${reason}`);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 🧹 /panel clearwarn
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel clearwarn ────────────────────────────────────────
     else if (sub === "clearwarn") {
-      const result = await Warning.deleteOne({
-        username: { $regex: new RegExp("^" + username + "$", "i") }
-      });
-
+      const result = await Warning.deleteOne({ username: { $regex: new RegExp("^" + username + "$", "i") } });
       if (result.deletedCount > 0) {
-        // Online hai toh notify karo
-        const onlineUser = Object.values(activeUsers).find(
-          u => u.name.toLowerCase() === username
-        );
-        if (onlineUser) {
-          io.to(onlineUser.socketId).emit("profanity_warning", {
-            count:   0,
-            message: "✅ Aapki saari warnings clear kar di gayi hain.",
-          });
-        }
-        return safeReply(`✅ **${username}** ki saari warnings clear ho gayi!`);
-      } else {
-        return safeReply(`❓ **${username}** ki koi warning record nahi mili DB mein.`);
+        const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
+        if (onlineUser) io.to(onlineUser.socketId).emit("profanity_warning", { count: 0, message: "✅ Aapki warnings clear ho gayi." });
+        return safeReply(`✅ **${username}** ki saari warnings clear!`);
       }
+      return safeReply(`❓ **${username}** ki koi warning nahi mili.`);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 📋 /panel list
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel list ─────────────────────────────────────────────
     else if (sub === "list") {
       await interaction.deferReply({ flags: 64 });
-
       const filter = options.getString("filter") || "";
-      const query  = filter
-        ? {
-            $or: [
-              { username: { $regex: filter, $options: "i" } },
-              { ip: filter },
-              { country: { $regex: filter, $options: "i" } },
-            ],
-          }
-        : {};
+      const query  = filter ? { $or: [{ username: { $regex: filter, $options: "i" } }, { ip: filter }] } : {};
+      const users  = await Banned.find(query).lean();
 
-      const users = await Banned.find(query).lean();
+      if (!users.length) return interaction.editReply(`📭 ${filter ? `"${filter}" mein koi nahi.` : "Banned list khali."}`);
 
-      if (!users.length) {
-        return interaction.editReply(`📭 ${filter ? `"${filter}" ke liye koi banned user nahi mila.` : "Banned list khali hai."}`);
-      }
-
-      const list = users
-        .slice(0, 25)
-        .map(
-          (u, i) =>
-            `**${i + 1}.** \`${u.username}\` | 🌐 \`${u.ip || "N/A"}\` | 🔨 ${u.banCount || 1} baar`
-        )
-        .join("\n");
+      const list = users.slice(0, 25).map((u, i) =>
+        `**${i+1}.** \`${u.username}\` | 🌐 \`${u.ip||"N/A"}\` | 🔥 \`${u.firebaseUid||"N/A"}\` | 🔨 ${u.banCount||1}x`
+      ).join("\n");
 
       const embed = new EmbedBuilder()
         .setColor(0xff3c5f)
-        .setTitle(`🔨 Banned Users List (${users.length} total)`)
+        .setTitle(`🔨 Banned Users (${users.length})`)
         .setDescription(list)
-        .setFooter({ text: `HeyyYuki Panel | Showing first 25` })
+        .setFooter({ text: "HeyyYuki Panel v6.0" })
         .setTimestamp();
 
       return interaction.editReply({ embeds: [embed] });
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 🌐 /panel online
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel online ───────────────────────────────────────────
     else if (sub === "online") {
       const users = Object.values(activeUsers);
+      if (!users.length) return safeReply("📭 Koi online nahi.");
 
-      if (!users.length) {
-        return safeReply("📭 Abhi koi online nahi hai.");
-      }
-
-      const list = users
-        .map(
-          (u, i) =>
-            `**${i + 1}.** ${u.name}${isUserAdmin(u.name.toLowerCase()) ? " 👑" : isUserVip(u.name.toLowerCase()) ? " 💎" : ""} | 🌐 \`${u.ip || "N/A"}\``
-        )
-        .join("\n");
+      const list = users.map((u, i) =>
+        `**${i+1}.** ${u.name}${isUserAdmin(u.name.toLowerCase())?" 👑":isUserVip(u.name.toLowerCase())?" 💎":""} | 🌐 \`${u.ip||"N/A"}\` | 🔥 \`${u.firebaseUid||"N/A"}\``
+      ).join("\n");
 
       const embed = new EmbedBuilder()
         .setColor(0x00f5a0)
         .setTitle(`🌐 Online Users (${users.length})`)
         .setDescription(list.substring(0, 2000))
-        .setFooter({ text: "HeyyYuki Panel" })
+        .setFooter({ text: "HeyyYuki Panel v6.0" })
         .setTimestamp();
 
       return safeEmbedReply(embed);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 📊 /panel stats
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel stats ────────────────────────────────────────────
     else if (sub === "stats") {
       await interaction.deferReply({ flags: 64 });
-
-      const [msgCount, banCount, warnCount, reportCount, dmCount, groupCount] =
-        await Promise.all([
-          Message.countDocuments(),
-          Banned.countDocuments(),
-          Warning.countDocuments(),
-          Report.countDocuments(),
-          DM.countDocuments(),
-          Group.countDocuments(),
-        ]);
+      const [msgCount, banCount, warnCount, reportCount, dmCount, groupCount] = await Promise.all([
+        Message.countDocuments(), Banned.countDocuments(), Warning.countDocuments(),
+        Report.countDocuments(), DM.countDocuments(), Group.countDocuments(),
+      ]);
 
       const embed = new EmbedBuilder()
         .setColor(0x5865f2)
-        .setTitle("📊 StrangerToStranger Server Stats")
+        .setTitle("📊 StrangerToStranger Stats")
         .addFields(
-          { name: "🟢 Online Users",   value: String(Object.keys(activeUsers).length), inline: true },
-          { name: "💬 Total Messages",  value: String(msgCount),                        inline: true },
-          { name: "🔨 Banned Users",    value: String(banCount),                        inline: true },
-          { name: "⚠️ Warned Users",    value: String(warnCount),                       inline: true },
-          { name: "🚨 Total Reports",   value: String(reportCount),                     inline: true },
-          { name: "💌 DM Channels",     value: String(dmCount),                         inline: true },
-          { name: "👥 Groups Created",  value: String(groupCount),                      inline: true },
-          { name: "🤖 Discord Status",  value: discordReady ? "✅ Online" : "❌ Offline", inline: true },
-          { name: "🗄️ MongoDB",         value: mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Down", inline: true },
+          { name: "🟢 Online",          value: String(Object.keys(activeUsers).length), inline: true },
+          { name: "💬 Messages",         value: String(msgCount),   inline: true },
+          { name: "🔨 Banned",           value: String(banCount),   inline: true },
+          { name: "🔥 UID Banned",       value: String(bannedUids.size), inline: true },
+          { name: "⚠️ Warned",           value: String(warnCount),  inline: true },
+          { name: "🚨 Reports",          value: String(reportCount),inline: true },
+          { name: "💌 DMs",             value: String(dmCount),    inline: true },
+          { name: "👥 Groups",           value: String(groupCount), inline: true },
+          { name: "🔥 Firebase Admin",   value: firebaseAdminReady ? "✅ Active" : "❌ Off", inline: true },
+          { name: "🤖 Discord",          value: discordReady ? "✅ Online" : "❌ Offline", inline: true },
+          { name: "🗄️ MongoDB",          value: mongoose.connection.readyState===1 ? "✅ Connected" : "❌ Down", inline: true },
         )
-        .setFooter({ text: "HeyyYuki Panel v5.0" })
+        .setFooter({ text: "HeyyYuki Panel v6.0" })
         .setTimestamp();
 
       return interaction.editReply({ embeds: [embed] });
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 📢 /panel ann
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel ann ──────────────────────────────────────────────
     else if (sub === "ann") {
       const message = options.getString("message");
-
-      await new Announcement({
-        text:      message,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      }).save();
-
-      io.emit("announcement", {
-        text:      message,
-        from:      "Admin",
-        createdAt: new Date(),
-      });
-
-      sendEmbed(STATUS_CHANNEL_ID, {
-        color:       0x00f5a0,
-        title:       "📢 New Announcement",
-        description: message,
-      });
-
-      return safeReply(`📢 Announcement bhej di gayi:\n> ${message}`);
+      await new Announcement({ text: message, expiresAt: new Date(Date.now() + 24*60*60*1000) }).save();
+      io.emit("announcement", { text: message, from: "Admin", createdAt: new Date() });
+      sendEmbed(STATUS_CHANNEL_ID, { color: 0x00f5a0, title: "📢 Announcement", description: message });
+      return safeReply(`📢 Bhej di:\n> ${message}`);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 💎 /panel vip
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel vip ──────────────────────────────────────────────
     else if (sub === "vip") {
       const action = options.getString("action");
-
       if (action === "add") {
-        vips.add(username);
-        saveVips();
+        vips.add(username); saveVips();
         await Vip.updateOne({ username }, { username }, { upsert: true });
-
-        const onlineUser = Object.values(activeUsers).find(
-          u => u.name.toLowerCase() === username
-        );
-        if (onlineUser) {
-          onlineUser.isVip = true;
-          io.emit("user list", buildUserList());
-        }
-
-        return safeReply(`💎 **${username}** ko VIP de diya gaya!`);
+        const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
+        if (onlineUser) { onlineUser.isVip = true; io.emit("user list", buildUserList()); }
+        return safeReply(`💎 **${username}** VIP ho gaya!`);
       } else {
-        vips.delete(username);
-        saveVips();
+        vips.delete(username); saveVips();
         await Vip.deleteOne({ username });
-
-        const onlineUser = Object.values(activeUsers).find(
-          u => u.name.toLowerCase() === username
-        );
-        if (onlineUser) {
-          onlineUser.isVip = false;
-          io.emit("user list", buildUserList());
-        }
-
-        return safeReply(`❌ **${username}** se VIP hata diya gaya.`);
+        const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username);
+        if (onlineUser) { onlineUser.isVip = false; io.emit("user list", buildUserList()); }
+        return safeReply(`❌ **${username}** se VIP hata diya.`);
       }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 👻 /panel shadow
-    // ─────────────────────────────────────────────────────────
+    // ─── /panel shadow ───────────────────────────────────────────
     else if (sub === "shadow") {
-      const nameLower = username;
-      if (shadowBanned.has(nameLower)) {
-        shadowBanned.delete(nameLower);
-        return safeReply(`👻 **${username}** ka shadow ban hata diya gaya — ab sab usse dekh sakte hain.`);
+      if (shadowBanned.has(username)) {
+        shadowBanned.delete(username);
+        return safeReply(`👻 **${username}** shadow ban hata diya.`);
       } else {
-        shadowBanned.add(nameLower);
-        return safeReply(`👻 **${username}** ko shadow ban kar diya — sirf unhe khud ke messages dikhenge.`);
+        shadowBanned.add(username);
+        return safeReply(`👻 **${username}** shadow banned.`);
       }
+    }
+
+    // ─── /panel banuid (🆕 Firebase UID se direct ban) ───────────
+    else if (sub === "banuid") {
+      const uid    = options.getString("uid")?.trim();
+      const reason = options.getString("reason") || "Admin UID ban";
+
+      if (!uid) return safeReply("❌ UID required hai.");
+
+      bannedUids.add(uid);
+      saveBannedUids();
+
+      // Online koi hai is UID se?
+      const onlineUser = Object.values(activeUsers).find(u => u.firebaseUid === uid);
+      if (onlineUser) {
+        bannedUsernames.add(onlineUser.name.toLowerCase());
+        saveBanned();
+        io.to(onlineUser.socketId).emit("force_logout", `🚫 Firebase UID ban: ${reason}`);
+        setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
+      }
+
+      await Banned.findOneAndUpdate(
+        { firebaseUid: uid },
+        { $set: { firebaseUid: uid, username: onlineUser?.name?.toLowerCase() || "uid_" + uid.substring(0,8), reason }, $inc: { banCount: 1 }, $push: { banHistory: { action: "ban", reason, by: "Discord Admin (UID)", at: new Date() } } },
+        { upsert: true }
+      );
+
+      sendEmbed(BANNED_LOG_CHANNEL_ID, {
+        color: 0xff3c5f,
+        title: "🔥 Firebase UID Ban",
+        fields: [
+          { name: "🔑 UID",    value: `\`${uid}\``,    inline: true },
+          { name: "📝 Reason", value: `\`${reason}\``, inline: true },
+          { name: "👤 User",   value: onlineUser ? `\`${onlineUser.name}\`` : "Offline tha", inline: true },
+        ],
+      });
+
+      return safeReply(`🔥 Firebase UID \`${uid}\` permanently banned!\n👤 User: ${onlineUser ? onlineUser.name : "Was offline"}`);
     }
 
   } catch (err) {
-    console.error("❌ /panel interaction error:", err);
+    console.error("❌ /panel error:", err);
     try {
-      if (interaction.replied || interaction.deferred) {
-        await interaction.editReply("❌ Kuch error aa gaya: " + err.message.substring(0, 200));
-      } else {
-        await interaction.reply({ content: "❌ Error: " + err.message.substring(0, 200), flags: 64 });
-      }
+      if (interaction.replied || interaction.deferred) await interaction.editReply("❌ Error: " + err.message.substring(0, 200));
+      else await interaction.reply({ content: "❌ Error: " + err.message.substring(0, 200), flags: 64 });
     } catch (e) {}
   }
 });
 
 if (DISCORD_TOKEN) {
-  discordClient
-    .login(DISCORD_TOKEN)
-    .catch((err) => console.error("❌ Discord login failed:", err.message));
+  discordClient.login(DISCORD_TOKEN).catch(err => console.error("❌ Discord login:", err.message));
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1192,10 +936,7 @@ if (DISCORD_TOKEN) {
 async function updateDiscordStatus() {
   if (!discordReady) return;
   try {
-    const count = Object.keys(activeUsers).length;
-    discordClient.user?.setActivity(`${count} Online 🌐`, {
-      type: ActivityType.Watching,
-    });
+    discordClient.user?.setActivity(`${Object.keys(activeUsers).length} Online 🌐`, { type: ActivityType.Watching });
   } catch (e) {}
 }
 
@@ -1242,30 +983,48 @@ io.on("connection", (socket) => {
   const { browser, os, isMobile } = parseUserAgent(userAgent);
   let currentUser = null;
 
-  // ── JOIN ──
+  // ── JOIN ─────────────────────────────────────────────────────────
   socket.on("join", async (data) => {
     try {
-      const name     = (data.name || "").trim();
-      const bio      = (data.bio || "No bio").trim();
-      const avatar   = data.avatar || "";
-      const color    = data.color  || "#00f5a0";
-      const nameLower= name.toLowerCase();
-
-      // Client se incognito hint (optional, client bhejega)
-      const incognitoHint = data.incognitoHint || false;
+      const name          = (data.name          || "").trim();
+      const bio           = (data.bio           || "No bio").trim();
+      const avatar        = data.avatar         || "";
+      const color         = data.color          || "#00f5a0";
+      const firebaseToken = data.firebaseToken  || null; // 🆕 Client se token aayega
+      const incognitoHint = data.incognitoHint  || false;
+      const nameLower     = name.toLowerCase();
 
       if (!name || name.length < 2) {
         return socket.emit("error_msg", "Username kam se kam 2 characters ka ho");
       }
 
+      // ── 🆕 FIREBASE TOKEN VERIFICATION ───────────────────────────
+      let firebaseUid   = null;
+      let firebaseEmail = null;
+
+      if (firebaseAdminReady && firebaseToken) {
+        const decoded = await verifyFirebaseToken(firebaseToken);
+        if (!decoded) {
+          // Token invalid — join block karo
+          return socket.emit("auth_error", "❌ Invalid session. Please login again.");
+        }
+        firebaseUid   = decoded.uid;
+        firebaseEmail = decoded.email || null;
+
+        // 🆕 Firebase UID ban check
+        if (bannedUids.has(firebaseUid)) {
+          return socket.emit("duplicate", "🚫 Aapka account permanently ban ho chuka hai.");
+        }
+      }
+      // Note: Agar firebaseAdminReady=false ya token nahi aaya,
+      // toh gracefully continue karte hain bina block kiye
+      // (useful for testing / fallback)
+
       // IP ban check
       if (tempBannedIPs.has(userIP)) {
         const ban = tempBannedIPs.get(userIP);
-        if (Date.now() < ban.expiry) {
-          return socket.emit("duplicate", "🚫 Aap banned hain.");
-        } else {
-          tempBannedIPs.delete(userIP);
-        }
+        if (Date.now() < ban.expiry) return socket.emit("duplicate", "🚫 Aap banned hain.");
+        else tempBannedIPs.delete(userIP);
       }
 
       // Username ban check
@@ -1273,10 +1032,8 @@ io.on("connection", (socket) => {
         return socket.emit("duplicate", "🚫 Aap permanently banned hain");
       }
 
-      // Duplicate check
-      const duplicate = Object.values(activeUsers).find(
-        (u) => u.name.toLowerCase() === nameLower,
-      );
+      // Duplicate username check
+      const duplicate = Object.values(activeUsers).find(u => u.name.toLowerCase() === nameLower);
       if (duplicate) {
         return socket.emit("duplicate", "⚠️ Ye username liya hua hai");
       }
@@ -1285,59 +1042,53 @@ io.on("connection", (socket) => {
       const userIsVip   = isUserVip(nameLower);
 
       currentUser = {
-        socketId: socket.id,
+        socketId:      socket.id,
         name,
         bio,
         avatar,
         color,
-        ip:      userIP,
-        isVip:   userIsVip,
-        isAdmin: userIsAdmin,
-        room:    "global",
+        ip:            userIP,
+        firebaseUid,           // 🆕
+        firebaseEmail,         // 🆕
+        isVip:         userIsVip,
+        isAdmin:       userIsAdmin,
+        room:          "global",
       };
 
       activeUsers[socket.id] = currentUser;
       socket.join("global");
 
-      // 🆕 Session upsert — user ki details save karo
+      // 🆕 Session upsert — Firebase data bhi save karo
       try {
         await UserSession.findOneAndUpdate(
           { username: nameLower },
           {
             $set: {
-              username:     nameLower,
-              ip:           userIP,
-              forwardedFor: ipData.allForwarded.join(", ") || userIP,
+              username:      nameLower,
+              firebaseUid,           // 🆕
+              firebaseEmail,         // 🆕
+              ip:            userIP,
+              forwardedFor:  ipData.allForwarded.join(", ") || userIP,
               userAgent,
               browser,
               os,
               isMobile,
               incognitoHint,
-              vpnDetected:  ipData.vpnHint,
-              lastSeen:     new Date(),
+              vpnDetected:   ipData.vpnHint,
+              lastSeen:      new Date(),
             },
             $setOnInsert: { connectedAt: new Date(), sessionCount: 1 },
-            $inc: { sessionCount: 0 }, // Will update below
           },
           { upsert: true, new: true }
         );
-        // Session count increment
-        await UserSession.updateOne(
-          { username: nameLower },
-          { $inc: { sessionCount: 1 } }
-        );
+        await UserSession.updateOne({ username: nameLower }, { $inc: { sessionCount: 1 } });
       } catch (sessionErr) {
-        // Session save fail ho toh chat pe asar nahi
         console.error("Session save error:", sessionErr.message);
       }
 
-      // Load message history
-      const history = await Message.find({ room: "global" })
-        .sort({ createdAt: 1 })
-        .limit(100)
-        .lean();
-
-      const normalizedHistory = history.map((m) => ({
+      // Message history load
+      const history = await Message.find({ room: "global" }).sort({ createdAt: 1 }).limit(100).lean();
+      const normalizedHistory = history.map(m => ({
         id:          m._id.toString(),
         sender:      m.senderName,
         senderAvatar:m.senderAvatar,
@@ -1365,51 +1116,46 @@ io.on("connection", (socket) => {
       socket.emit("joined", currentUser);
       updateDiscordStatus();
 
-      // Load groups
+      // Groups load
       const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
-      socket.emit(
-        "groups_list",
-        groups.map((g) => ({ ...g, hasPassword: !!g.password })),
-      );
+      socket.emit("groups_list", groups.map(g => ({ ...g, hasPassword: !!g.password })));
 
-      // Join/Leave log
+      // Join/Leave Discord log
       sendEmbed(JOIN_LEAVE_CHANNEL_ID, {
         color: 0x00f5a0,
         title: "🟢 User Joined",
         fields: [
-          { name: "👤 Name",    value: `\`${name}\``,    inline: true },
-          { name: "🌐 IP",      value: `\`${userIP}\``,  inline: true },
-          { name: "🌏 Browser", value: browser,           inline: true },
-          { name: "💾 OS",      value: os,                inline: true },
-          { name: "📱 Device",  value: isMobile ? "Mobile" : "Desktop", inline: true },
-          { name: "🛡️ VPN",    value: ipData.vpnHint ? "⚠️ Possible" : "No", inline: true },
+          { name: "👤 Name",           value: `\`${name}\``,              inline: true },
+          { name: "🌐 IP",             value: `\`${userIP}\``,            inline: true },
+          { name: "🔥 Firebase UID",   value: `\`${firebaseUid||"N/A"}\``,inline: true },
+          { name: "📧 Email",          value: firebaseEmail||"N/A",        inline: true },
+          { name: "🌏 Browser",        value: browser,                     inline: true },
+          { name: "💾 OS",             value: os,                          inline: true },
+          { name: "📱 Device",         value: isMobile?"Mobile":"Desktop", inline: true },
+          { name: "🛡️ VPN",           value: ipData.vpnHint?"⚠️ Possible":"No", inline: true },
         ],
       });
+
     } catch (err) {
       console.error("join error:", err);
       socket.emit("error_msg", "Join failed");
     }
   });
 
-  // ── CHAT MESSAGE WITH PROFANITY CHECK ──
+  // ── CHAT MESSAGE ────────────────────────────────────────────────
   socket.on("chat message", async (data) => {
     if (!currentUser) return;
     try {
       const room    = data.room    || "global";
       const message = data.message || "";
 
-      // 🚨 PROFANITY CHECK
+      // Profanity check
       if (containsProfanity(message)) {
         const nameLower = currentUser.name.toLowerCase();
         let warning     = await Warning.findOne({ username: nameLower });
 
         if (!warning) {
-          warning = new Warning({
-            username: nameLower,
-            count:    1,
-            reason:   "Profanity/Abuse",
-            messages: [{ text: message, date: new Date() }],
-          });
+          warning = new Warning({ username: nameLower, count: 1, reason: "Profanity", messages: [{ text: message, date: new Date() }] });
         } else {
           warning.count += 1;
           warning.messages.push({ text: message, date: new Date() });
@@ -1417,93 +1163,63 @@ io.on("connection", (socket) => {
         }
         await warning.save();
 
-        // 3 warnings = Auto IP + Username Ban
         if (warning.count >= 3) {
           bannedUsernames.add(nameLower);
           saveBanned();
 
-          // Enhanced ban record
+          // 🆕 Firebase UID bhi ban karo
+          if (currentUser.firebaseUid) {
+            bannedUids.add(currentUser.firebaseUid);
+            saveBannedUids();
+          }
+
           await Banned.findOneAndUpdate(
             { username: nameLower },
             {
               $set: {
                 username:    nameLower,
+                firebaseUid: currentUser.firebaseUid || null,
                 ip:          currentUser.ip,
                 forwardedIp: ipData.allForwarded.join(", "),
                 reason:      "3x Profanity Auto-Ban",
               },
               $inc:  { banCount: 1 },
-              $push: {
-                banHistory: {
-                  action: "ban",
-                  reason: "3 profanity warnings — auto ban",
-                  by:     "System",
-                  at:     new Date(),
-                },
-              },
+              $push: { banHistory: { action: "ban", reason: "3 profanity warnings", by: "System", at: new Date() } },
             },
             { upsert: true }
           );
 
-          tempBannedIPs.set(currentUser.ip, {
-            expiry:       Date.now() + 999 * 365 * 24 * 60 * 60 * 1000,
-            reservedName: currentUser.name,
-          });
-
-          sendEmbed(PROFANITY_CHANNEL_ID, {
-            color:       0xffd60a,
-            title:       "⚠️ User Auto-Banned (3 Warnings)",
-            description: `**${currentUser.name}** ne 3 warnings cross ki aur auto-ban ho gaya.`,
-          });
+          tempBannedIPs.set(currentUser.ip, { expiry: Date.now() + 999*365*24*60*60*1000, reservedName: currentUser.name });
 
           sendEmbed(BANNED_LOG_CHANNEL_ID, {
             color: 0x7289da,
-            title: "🔒 AUTO-BANNED USER",
+            title: "🔒 AUTO-BANNED (Profanity)",
             fields: [
-              { name: "👤 Username",        value: `\`${currentUser.name}\``,                           inline: true },
-              { name: "🌐 IP",              value: `\`${currentUser.ip}\``,                             inline: true },
-              { name: "🛡️ VPN Hint",        value: ipData.vpnHint ? "⚠️ Yes" : "No",                   inline: true },
-              { name: "🌏 Browser",         value: browser,                                              inline: true },
-              { name: "📱 Device",          value: isMobile ? "Mobile" : "Desktop",                     inline: true },
-              { name: "🕒 Banned At",       value: `<t:${Math.floor(Date.now() / 1000)}:F>`,            inline: false },
-              { name: "📝 Reason",          value: "3/3 Profanity Warnings",                            inline: false },
-              {
-                name:   "🤬 Flagged Messages",
-                value:  warning.messages.slice(-3).map(m => `• "${m.text}"`).join("\n").substring(0, 800),
-                inline: false,
-              },
+              { name: "👤 Username",     value: `\`${currentUser.name}\``,             inline: true },
+              { name: "🌐 IP",           value: `\`${currentUser.ip}\``,               inline: true },
+              { name: "🔥 Firebase UID", value: `\`${currentUser.firebaseUid||"N/A"}\``,inline: true },
+              { name: "📧 Email",        value: currentUser.firebaseEmail||"N/A",       inline: true },
+              { name: "📝 Reason",       value: "3/3 Profanity",                       inline: false },
+              { name: "🤬 Messages",     value: warning.messages.slice(-3).map(m=>`• "${m.text}"`).join("\n").substring(0,800), inline: false },
             ],
           });
 
-          io.to(socket.id).emit(
-            "force_logout",
-            "🚫 Aap 3 baar gali dene ki wajah se PERMANENTLY IP BAN ho chuke hain!"
-          );
-
-          setTimeout(() => {
-            const sock = io.sockets.sockets.get(socket.id);
-            if (sock) sock.disconnect(true);
-          }, 500);
+          io.to(socket.id).emit("force_logout", "🚫 3 baar gali — PERMANENTLY IP & UID BAN!");
+          setTimeout(() => { const s = io.sockets.sockets.get(socket.id); if (s) s.disconnect(true); }, 500);
           return;
 
         } else {
-          // Warning 1 ya 2
-          io.to(socket.id).emit("profanity_warning", {
-            count:   warning.count,
-            message: `⚠️ WARNING ${warning.count}/3: Galiyan mat use karo! Agli baar ban!`,
-          });
-
+          io.to(socket.id).emit("profanity_warning", { count: warning.count, message: `⚠️ WARNING ${warning.count}/3: Galiyan mat use karo!` });
           sendEmbed(PROFANITY_CHANNEL_ID, {
             color: 0xffd60a,
             title: `⚠️ Profanity Warning #${warning.count}`,
             fields: [
-              { name: "Username",        value: `\`${currentUser.name}\``,  inline: true },
-              { name: "Warnings",        value: `${warning.count}/3`,        inline: true },
-              { name: "Message",         value: `"${message}"`,              inline: false },
+              { name: "Username", value: `\`${currentUser.name}\``, inline: true },
+              { name: "Warnings", value: `${warning.count}/3`,       inline: true },
+              { name: "Message",  value: `"${message}"`,             inline: false },
             ],
           });
-
-          return; // Message block
+          return;
         }
       }
 
@@ -1516,6 +1232,7 @@ io.on("connection", (socket) => {
         isVip:       currentUser.isVip,
         message,
         type:        data.type    || "text",
+        caption:     data.caption || "",
         mediaUrl:    data.mediaUrl|| "",
         replyTo:     data.replyTo || null,
         room,
@@ -1542,13 +1259,10 @@ io.on("connection", (socket) => {
         socket.emit("chat message", payload);
       }
 
-      // Discord mirror
       if (room === "global") {
         try {
           const ch = discordClient.channels.cache.get(CHAT_CHANNEL_ID);
-          if (ch && discordReady) {
-            ch.send(`**${currentUser.name}:** ${message.substring(0, 1900)}`);
-          }
+          if (ch && discordReady) ch.send(`**${currentUser.name}:** ${message.substring(0, 1900)}`);
         } catch (e) {}
       }
     } catch (err) {
@@ -1556,36 +1270,43 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ── DELETE MESSAGE ──
+  // ── DELETE MESSAGE ───────────────────────────────────────────────
   socket.on("delete message", async (id) => {
     try { await Message.findByIdAndDelete(id).catch(() => null); } catch (e) {}
     io.emit("delete message", id);
   });
 
-  // ── TYPING ──
+  // ── CLEAR ALL CHATS (Admin command) ─────────────────────────────
+  socket.on("manual_clear_all", async () => {
+    if (!currentUser || !isUserAdmin(currentUser.name.toLowerCase())) {
+      return socket.emit("error_msg", "Only admin can clear messages.");
+    }
+    try {
+      await Message.deleteMany({ room: "global" });
+      io.emit("messages_cleared", { room: "global" });
+    } catch (err) {
+      socket.emit("error_msg", "Clear failed.");
+    }
+  });
+
+  // ── TYPING ──────────────────────────────────────────────────────
   socket.on("typing", (data) => {
     if (!currentUser) return;
-    const room = data && data.room ? data.room : "global";
+    const room = data?.room || "global";
     socket.to(room).emit("typing", { user: currentUser.name });
   });
 
-  // ── PRIVATE MESSAGE (PERSISTENT) ──
+  // ── PRIVATE MESSAGE ─────────────────────────────────────────────
   socket.on("private message", async (data) => {
     if (!currentUser) return;
     try {
       const receiverName = data.receiver;
-      const toUser       = Object.values(activeUsers).find(
-        (u) => u.name.toLowerCase() === receiverName?.toLowerCase(),
-      );
-      const channelId = getDMChannelId(currentUser.name, receiverName);
+      const toUser       = Object.values(activeUsers).find(u => u.name.toLowerCase() === receiverName?.toLowerCase());
+      const channelId    = getDMChannelId(currentUser.name, receiverName);
 
       let dmDoc = await DM.findOne({ channelId });
       if (!dmDoc) {
-        dmDoc = new DM({
-          channelId,
-          participantNames: [currentUser.name, receiverName],
-          messages:         [],
-        });
+        dmDoc = new DM({ channelId, participantNames: [currentUser.name, receiverName], messages: [] });
       }
 
       const msgObj = {
@@ -1623,13 +1344,13 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ── DM HISTORY ──
+  // ── DM HISTORY ──────────────────────────────────────────────────
   socket.on("dm_history", async ({ withUser }) => {
     if (!currentUser) return;
     try {
       const channelId = getDMChannelId(currentUser.name, withUser);
       const dmDoc     = await DM.findOne({ channelId }).lean();
-      const messages  = (dmDoc ? dmDoc.messages : []).map((m) => ({
+      const messages  = (dmDoc?.messages || []).map(m => ({
         sender:      m.senderName,
         senderAvatar:m.senderAvatar,
         senderColor: m.senderColor,
@@ -1645,84 +1366,62 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ── DM TYPING ──
+  // ── DM TYPING ───────────────────────────────────────────────────
   socket.on("dm_typing", ({ toUser, isTyping }) => {
     if (!currentUser) return;
-    const target = Object.values(activeUsers).find(
-      (u) => u.name.toLowerCase() === toUser?.toLowerCase(),
-    );
-    if (target) {
-      io.to(target.socketId).emit("dm_typing_update", {
-        fromUser: currentUser.name,
-        isTyping,
-      });
-    }
+    const target = Object.values(activeUsers).find(u => u.name.toLowerCase() === toUser?.toLowerCase());
+    if (target) io.to(target.socketId).emit("dm_typing_update", { fromUser: currentUser.name, isTyping });
   });
 
-  // ── JOIN GROUP ──
+  // ── GROUP JOIN ──────────────────────────────────────────────────
   socket.on("join_group", async ({ groupId, password }) => {
     try {
       const group = await Group.findById(groupId);
       if (!group) return socket.emit("group_error", "Group not found");
-      if (group.password && group.password !== password) {
-        return socket.emit("group_error", "Wrong password");
-      }
+      if (group.password && group.password !== password) return socket.emit("group_error", "Wrong password");
 
       const room = "group_" + groupId;
       socket.join(room);
       if (currentUser) currentUser.room = room;
 
-      const history = await Message.find({ room })
-        .sort({ createdAt: 1 })
-        .limit(100)
-        .lean();
-
+      const history = await Message.find({ room }).sort({ createdAt: 1 }).limit(100).lean();
       socket.emit("group_joined", { group, history });
     } catch (err) {
       console.error("join_group error:", err);
     }
   });
 
-  // ── CREATE GROUP ──
+  // ── GROUP CREATE ─────────────────────────────────────────────────
   socket.on("create_group", async ({ name, description, password, icon }) => {
     if (!currentUser) return;
     try {
-      const group = new Group({
-        name,
-        description: description || "",
-        password:    password    || "",
-        adminName:   currentUser.name,
-        icon:        icon        || "👥",
-        members:     [currentUser.name],
-      });
+      const group = new Group({ name, description: description||"", password: password||"", adminName: currentUser.name, icon: icon||"👥", members: [currentUser.name] });
       await group.save();
       socket.emit("group_created", group);
-
       const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
-      io.emit("groups_list", groups.map((g) => ({ ...g, hasPassword: !!g.password })));
+      io.emit("groups_list", groups.map(g => ({ ...g, hasPassword: !!g.password })));
     } catch (err) {
       console.error("create_group error:", err);
     }
   });
 
-  // ── GET GROUPS ──
+  // ── GET GROUPS ───────────────────────────────────────────────────
   socket.on("get_groups", async () => {
     try {
       const groups = await Group.find({}).sort({ createdAt: -1 }).lean();
-      socket.emit("groups_list", groups.map((g) => ({ ...g, hasPassword: !!g.password })));
+      socket.emit("groups_list", groups.map(g => ({ ...g, hasPassword: !!g.password })));
     } catch (err) {
       console.error("get_groups error:", err);
     }
   });
 
-  // ── REPORT USER ──
+  // ── REPORT USER ─────────────────────────────────────────────────
   socket.on("report user", async (data) => {
     try {
       const device = isMobile ? "📱 Mobile" : "🖥️ Desktop";
-
       await new Report({
         reportedUser:  data.reportedUser,
-        reporterUser:  data.reportedBy || data.reporterUser || currentUser?.name,
+        reporterUser:  data.reportedBy || currentUser?.name,
         reporterEmail: data.email,
         category:      data.reason,
         reason:        data.description || data.reason,
@@ -1733,20 +1432,19 @@ io.on("connection", (socket) => {
         color: 0xff3c5f,
         title: "🚨 New Report",
         fields: [
-          { name: "Reported",  value: `\`${data.reportedUser}\``,        inline: true },
-          { name: "Reporter",  value: `\`${data.reportedBy || "—"}\``,  inline: true },
-          { name: "Category",  value: `\`${data.reason || "—"}\``,      inline: false },
-          { name: "Details",   value: (data.description || "—").substring(0, 1000), inline: false },
+          { name: "Reported",  value: `\`${data.reportedUser}\``,       inline: true },
+          { name: "Reporter",  value: `\`${data.reportedBy||"—"}\``,   inline: true },
+          { name: "Category",  value: `\`${data.reason||"—"}\``,       inline: false },
+          { name: "Details",   value: (data.description||"—").substring(0,1000), inline: false },
         ],
       });
-
       socket.emit("report_success");
     } catch (err) {
       socket.emit("report_error", "Report failed");
     }
   });
 
-  // ── PROFILE UPDATE ──
+  // ── PROFILE UPDATE ───────────────────────────────────────────────
   socket.on("update profile", ({ bio, avatar, color, name }) => {
     if (!currentUser) return;
     if (bio    !== undefined) currentUser.bio    = bio;
@@ -1754,21 +1452,17 @@ io.on("connection", (socket) => {
     if (color  !== undefined) currentUser.color  = color;
     if (name && name !== currentUser.name) {
       const nameLower = name.toLowerCase();
-      const dup = Object.values(activeUsers).find(
-        (u) => u.name.toLowerCase() === nameLower && u.socketId !== socket.id,
-      );
+      const dup = Object.values(activeUsers).find(u => u.name.toLowerCase() === nameLower && u.socketId !== socket.id);
       if (!dup) currentUser.name = name;
     }
-
     activeUsers[socket.id] = currentUser;
     io.emit("user list", buildUserList());
     socket.emit("profile_updated", currentUser);
   });
 
-  // ── DISCONNECT ──
+  // ── DISCONNECT ───────────────────────────────────────────────────
   socket.on("disconnect", () => {
     if (!currentUser) return;
-
     io.emit("chat message", {
       id:        "sys_" + Date.now(),
       sender:    "System",
@@ -1777,13 +1471,7 @@ io.on("connection", (socket) => {
       room:      currentUser.room || "global",
       createdAt: new Date(),
     });
-
-    // Session last seen update
-    UserSession.updateOne(
-      { username: currentUser.name.toLowerCase() },
-      { $set: { lastSeen: new Date() } }
-    ).catch(() => {});
-
+    UserSession.updateOne({ username: currentUser.name.toLowerCase() }, { $set: { lastSeen: new Date() } }).catch(() => {});
     delete activeUsers[socket.id];
     io.emit("user list", buildUserList());
     updateDiscordStatus();
@@ -1794,271 +1482,164 @@ io.on("connection", (socket) => {
 // 🌐 REST API
 // ══════════════════════════════════════════════════════════════════
 app.use(express.json({ limit: "10mb" }));
-app.use(
-  express.static(path.join(__dirname, "public"), {
-    extensions: ["html", "htm"],
-  }),
-);
+app.use(express.static(path.join(__dirname, "public"), { extensions: ["html", "htm"] }));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 app.post("/api/report", async (req, res) => {
   try {
-    const device = /Mobi|Android/i.test(req.headers["user-agent"] || "")
-      ? "📱 Mobile"
-      : "🖥️ Desktop";
-    const data = { ...req.body, device };
-    await new Report(data).save();
+    const device = /Mobi|Android/i.test(req.headers["user-agent"] || "") ? "📱 Mobile" : "🖥️ Desktop";
+    await new Report({ ...req.body, device }).save();
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ ok: false });
-  }
+  } catch (err) { res.status(500).json({ ok: false }); }
 });
 
-app.get("/health", (req, res) => {
-  res.json({
-    status:  "ok",
-    online:  Object.keys(activeUsers).length,
-    discord: discordReady,
-    mongo:   mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-  });
-});
+app.get("/health", (req, res) => res.json({
+  status:          "ok",
+  online:          Object.keys(activeUsers).length,
+  discord:         discordReady,
+  mongo:           mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+  firebaseAdmin:   firebaseAdminReady,
+}));
 
-// User session API
 app.get("/api/session/:username", async (req, res) => {
   try {
-    const session = await UserSession.findOne({
-      username: { $regex: new RegExp("^" + req.params.username + "$", "i") },
-    }).lean();
+    const session = await UserSession.findOne({ username: { $regex: new RegExp("^" + req.params.username + "$", "i") } }).lean();
     if (!session) return res.status(404).json({ error: "Not found" });
     res.json(session);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
-// 🎛️ ADMIN PANEL REST API
-// Password middleware
+// 🎛️ WEB ADMIN PANEL REST API
 // ══════════════════════════════════════════════════════════════════
-const PANEL_PASSWORD = process.env.PANEL_PASSWORD || "heyuki2026";
-
 function requireAdmin(req, res, next) {
   const token = req.headers["x-admin-token"] || req.query.token;
-  if (token !== PANEL_PASSWORD) {
-    return res.status(401).json({ error: "Unauthorized — Wrong password" });
-  }
+  if (token !== PANEL_PASSWORD) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
 
-// Serve admin panel HTML
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
-});
+app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "public", "admin.html")));
 
-// GET /api/admin/stats
 app.get("/api/admin/stats", requireAdmin, async (req, res) => {
   try {
-    const [msgCount, banCount, warnCount, reportCount, dmCount, groupCount] =
-      await Promise.all([
-        Message.countDocuments(),
-        Banned.countDocuments(),
-        Warning.countDocuments(),
-        Report.countDocuments(),
-        DM.countDocuments(),
-        Group.countDocuments(),
-      ]);
+    const [msgCount, banCount, warnCount, reportCount, dmCount, groupCount] = await Promise.all([
+      Message.countDocuments(), Banned.countDocuments(), Warning.countDocuments(),
+      Report.countDocuments(), DM.countDocuments(), Group.countDocuments(),
+    ]);
     res.json({
-      online:    Object.keys(activeUsers).length,
-      messages:  msgCount,
-      banned:    banCount,
-      warned:    warnCount,
-      reports:   reportCount,
-      dms:       dmCount,
-      groups:    groupCount,
-      discord:   discordReady,
-      mongo:     mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+      online: Object.keys(activeUsers).length, messages: msgCount, banned: banCount,
+      bannedUids: bannedUids.size, warned: warnCount, reports: reportCount,
+      dms: dmCount, groups: groupCount, discord: discordReady, firebaseAdmin: firebaseAdminReady,
+      mongo: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/admin/online
 app.get("/api/admin/online", requireAdmin, (req, res) => {
-  const users = Object.values(activeUsers).map(u => ({
-    name:     u.name,
-    ip:       u.ip,
-    isVip:    u.isVip,
-    isAdmin:  u.isAdmin,
-    room:     u.room,
-    socketId: u.socketId,
-  }));
-  res.json(users);
+  res.json(Object.values(activeUsers).map(u => ({
+    name: u.name, ip: u.ip, firebaseUid: u.firebaseUid, firebaseEmail: u.firebaseEmail,
+    isVip: u.isVip, isAdmin: u.isAdmin, room: u.room, socketId: u.socketId,
+  })));
 });
 
-// GET /api/admin/banned
 app.get("/api/admin/banned", requireAdmin, async (req, res) => {
   try {
     const filter = req.query.filter || "";
-    const query  = filter
-      ? { $or: [
-          { username: { $regex: filter, $options: "i" } },
-          { ip: filter },
-          { country: { $regex: filter, $options: "i" } },
-        ]}
-      : {};
-    const users = await Banned.find(query).sort({ _id: -1 }).limit(100).lean();
-    res.json(users);
+    const query  = filter ? { $or: [{ username: { $regex: filter, $options: "i" } }, { ip: filter }, { firebaseUid: filter }] } : {};
+    res.json(await Banned.find(query).sort({ _id: -1 }).limit(100).lean());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/admin/warnings
-app.get("/api/admin/warnings", requireAdmin, async (req, res) => {
-  try {
-    const warnings = await Warning.find({}).sort({ count: -1 }).limit(50).lean();
-    res.json(warnings);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+app.get("/api/admin/warnings",  requireAdmin, async (req, res) => { try { res.json(await Warning.find({}).sort({ count: -1 }).limit(50).lean()); } catch (e) { res.status(500).json({ error: e.message }); } });
+app.get("/api/admin/reports",   requireAdmin, async (req, res) => { try { res.json(await Report.find({}).sort({ createdAt: -1 }).limit(50).lean()); } catch (e) { res.status(500).json({ error: e.message }); } });
+app.get("/api/admin/messages",  requireAdmin, async (req, res) => { try { res.json((await Message.find({ room: "global" }).sort({ createdAt: -1 }).limit(50).lean()).reverse()); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// GET /api/admin/reports
-app.get("/api/admin/reports", requireAdmin, async (req, res) => {
-  try {
-    const reports = await Report.find({}).sort({ createdAt: -1 }).limit(50).lean();
-    res.json(reports);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// GET /api/admin/user/:username — full user intel
 app.get("/api/admin/user/:username", requireAdmin, async (req, res) => {
   try {
-    const uname  = req.params.username.toLowerCase();
-    const regex  = new RegExp("^" + uname + "$", "i");
+    const uname = req.params.username.toLowerCase();
+    const regex = new RegExp("^" + uname + "$", "i");
     const [session, banRecord, warnRecord] = await Promise.all([
       UserSession.findOne({ username: regex }).sort({ lastSeen: -1 }).lean(),
       Banned.findOne({ username: regex }).lean(),
       Warning.findOne({ username: regex }).lean(),
     ]);
-    const onlineUser = Object.values(activeUsers).find(
-      u => u.name.toLowerCase() === uname
-    );
+    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
     res.json({
-      username: uname,
-      online:   !!onlineUser,
-      isVip:    isUserVip(uname),
-      isAdmin:  isUserAdmin(uname),
+      username: uname, online: !!onlineUser,
+      isVip: isUserVip(uname), isAdmin: isUserAdmin(uname),
       isBanned: bannedUsernames.has(uname) || !!banRecord,
-      session:  session   || null,
-      ban:      banRecord || null,
-      warning:  warnRecord|| null,
-      liveData: onlineUser ? { ip: onlineUser.ip, room: onlineUser.room } : null,
+      isUidBanned: session?.firebaseUid ? bannedUids.has(session.firebaseUid) : false,
+      session: session || null, ban: banRecord || null, warning: warnRecord || null,
+      liveData: onlineUser ? { ip: onlineUser.ip, room: onlineUser.room, firebaseUid: onlineUser.firebaseUid, firebaseEmail: onlineUser.firebaseEmail } : null,
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/ban
 app.post("/api/admin/ban", requireAdmin, async (req, res) => {
   try {
     const { username, reason = "Admin ban" } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
-    const uname = username.toLowerCase();
-
-    bannedUsernames.add(uname);
-    saveBanned();
+    const uname      = username.toLowerCase();
+    bannedUsernames.add(uname); saveBanned();
 
     const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
     const session    = await UserSession.findOne({ username: { $regex: new RegExp("^" + uname + "$", "i") } }).lean();
+    const fbUid      = onlineUser?.firebaseUid || session?.firebaseUid;
+    if (fbUid) { bannedUids.add(fbUid); saveBannedUids(); }
 
     await Banned.findOneAndUpdate(
       { username: uname },
-      {
-        $set:  { username: uname, ip: onlineUser?.ip || session?.ip || "Unknown", reason },
-        $inc:  { banCount: 1 },
-        $push: { banHistory: { action: "ban", reason, by: "Web Panel", at: new Date() } },
-      },
+      { $set: { username: uname, ip: onlineUser?.ip || session?.ip || "Unknown", reason, firebaseUid: fbUid || null }, $inc: { banCount: 1 }, $push: { banHistory: { action: "ban", reason, by: "Web Panel", at: new Date() } } },
       { upsert: true }
     );
 
     if (onlineUser) {
-      io.to(onlineUser.socketId).emit("force_logout", `🚫 Aap admin panel dwara ban ho gaye. Reason: ${reason}`);
-      setTimeout(() => {
-        const sock = io.sockets.sockets.get(onlineUser.socketId);
-        if (sock) sock.disconnect(true);
-      }, 500);
-      if (onlineUser.ip) {
-        tempBannedIPs.set(onlineUser.ip, {
-          expiry: Date.now() + 999 * 365 * 24 * 60 * 60 * 1000,
-          reservedName: uname,
-        });
-      }
+      io.to(onlineUser.socketId).emit("force_logout", `🚫 Ban: ${reason}`);
+      setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
+      if (onlineUser.ip) tempBannedIPs.set(onlineUser.ip, { expiry: Date.now() + 999*365*24*60*60*1000, reservedName: uname });
     }
-
-    sendEmbed(BANNED_LOG_CHANNEL_ID, {
-      color: 0xff3c5f,
-      title: "🔨 Ban via Web Panel",
-      fields: [
-        { name: "👤 Username", value: `\`${uname}\``,   inline: true },
-        { name: "📝 Reason",   value: `\`${reason}\``,  inline: true },
-        { name: "🌐 By",       value: "Web Admin Panel", inline: true },
-      ],
-    });
-
-    res.json({ ok: true, message: `${username} banned successfully` });
+    res.json({ ok: true, uidAlsoBanned: !!fbUid });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/unban
 app.post("/api/admin/unban", requireAdmin, async (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
-    const uname = username.toLowerCase();
-
-    bannedUsernames.delete(uname);
-    saveBanned();
+    const uname  = username.toLowerCase();
+    bannedUsernames.delete(uname); saveBanned();
 
     const banDoc = await Banned.findOne({ username: uname });
     if (banDoc) {
+      if (banDoc.firebaseUid) { bannedUids.delete(banDoc.firebaseUid); saveBannedUids(); }
       banDoc.unbanCount = (banDoc.unbanCount || 0) + 1;
       banDoc.banHistory = banDoc.banHistory || [];
-      banDoc.banHistory.push({ action: "unban", reason: "Web Panel unban", by: "Web Admin Panel", at: new Date() });
+      banDoc.banHistory.push({ action: "unban", reason: "Web Panel", by: "Web Admin Panel", at: new Date() });
       await banDoc.save();
       if (banDoc.ip) tempBannedIPs.delete(banDoc.ip);
-    } else {
-      await Banned.deleteOne({ username: uname });
     }
-
-    res.json({ ok: true, message: `${username} unbanned successfully` });
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/kick
 app.post("/api/admin/kick", requireAdmin, (req, res) => {
   try {
     const { username, reason = "Admin kick" } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
-    const uname = username.toLowerCase();
-
-    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
-    if (!onlineUser) return res.status(404).json({ error: `${username} is not online` });
-
-    io.to(onlineUser.socketId).emit("force_logout", `👢 Admin panel se kick: ${reason}`);
-    setTimeout(() => {
-      const sock = io.sockets.sockets.get(onlineUser.socketId);
-      if (sock) sock.disconnect(true);
-    }, 500);
-
-    res.json({ ok: true, message: `${username} kicked` });
+    const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username.toLowerCase());
+    if (!onlineUser) return res.status(404).json({ error: "Not online" });
+    io.to(onlineUser.socketId).emit("force_logout", `👢 Kick: ${reason}`);
+    setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/warn
 app.post("/api/admin/warn", requireAdmin, async (req, res) => {
   try {
     const { username, reason = "Admin warning" } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
     const uname = username.toLowerCase();
-
     let warning = await Warning.findOne({ username: uname });
     if (!warning) {
       warning = new Warning({ username: uname, count: 1, reason, messages: [{ text: `[Admin] ${reason}`, date: new Date() }] });
@@ -2070,112 +1651,105 @@ app.post("/api/admin/warn", requireAdmin, async (req, res) => {
     await warning.save();
 
     const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
-    if (onlineUser) {
-      io.to(onlineUser.socketId).emit("profanity_warning", {
-        count: warning.count,
-        message: `⚠️ Admin Warning ${warning.count}/3: ${reason}`,
-      });
-    }
+    if (onlineUser) io.to(onlineUser.socketId).emit("profanity_warning", { count: warning.count, message: `⚠️ Warning ${warning.count}/3: ${reason}` });
 
     if (warning.count >= 3) {
-      bannedUsernames.add(uname);
-      saveBanned();
-      await Banned.findOneAndUpdate(
-        { username: uname },
-        { $set: { username: uname, reason: "3 warnings" }, $inc: { banCount: 1 }, $push: { banHistory: { action: "ban", reason: "Auto: 3 warnings", by: "System", at: new Date() } } },
-        { upsert: true }
-      );
+      bannedUsernames.add(uname); saveBanned();
+      const fbUid = onlineUser?.firebaseUid;
+      if (fbUid) { bannedUids.add(fbUid); saveBannedUids(); }
+      await Banned.findOneAndUpdate({ username: uname }, { $set: { username: uname, reason: "3 warnings", firebaseUid: fbUid||null }, $inc: { banCount: 1 }, $push: { banHistory: { action: "ban", reason: "Auto: 3 warnings", by: "System", at: new Date() } } }, { upsert: true });
       if (onlineUser) {
-        io.to(onlineUser.socketId).emit("force_logout", "🚫 3 warnings ke baad auto-ban!");
-        setTimeout(() => { const sock = io.sockets.sockets.get(onlineUser.socketId); if (sock) sock.disconnect(true); }, 500);
+        io.to(onlineUser.socketId).emit("force_logout", "🚫 3 warnings — auto-ban!");
+        setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
       }
-      return res.json({ ok: true, autoBanned: true, message: `${username} got 3rd warning and was auto-banned` });
+      return res.json({ ok: true, autoBanned: true });
     }
-
-    res.json({ ok: true, autoBanned: false, count: warning.count, message: `Warning #${warning.count}/3 given to ${username}` });
+    res.json({ ok: true, autoBanned: false, count: warning.count });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/clearwarn
 app.post("/api/admin/clearwarn", requireAdmin, async (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
     await Warning.deleteOne({ username: username.toLowerCase() });
     const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === username.toLowerCase());
-    if (onlineUser) {
-      io.to(onlineUser.socketId).emit("profanity_warning", { count: 0, message: "✅ Aapki saari warnings clear ho gayi." });
-    }
-    res.json({ ok: true, message: `Warnings cleared for ${username}` });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/admin/announce
-app.post("/api/admin/announce", requireAdmin, async (req, res) => {
-  try {
-    const { message } = req.body;
-    if (!message) return res.status(400).json({ error: "Message required" });
-    await new Announcement({ text: message, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }).save();
-    io.emit("announcement", { text: message, from: "Admin", createdAt: new Date() });
-    sendEmbed(STATUS_CHANNEL_ID, { color: 0x00f5a0, title: "📢 Web Panel Announcement", description: message });
+    if (onlineUser) io.to(onlineUser.socketId).emit("profanity_warning", { count: 0, message: "✅ Warnings clear." });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/vip
+app.post("/api/admin/announce", requireAdmin, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message required" });
+    await new Announcement({ text: message, expiresAt: new Date(Date.now() + 24*60*60*1000) }).save();
+    io.emit("announcement", { text: message, from: "Admin", createdAt: new Date() });
+    sendEmbed(STATUS_CHANNEL_ID, { color: 0x00f5a0, title: "📢 Announcement", description: message });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post("/api/admin/vip", requireAdmin, async (req, res) => {
   try {
     const { username, action } = req.body;
-    if (!username || !action) return res.status(400).json({ error: "username and action required" });
+    if (!username || !action) return res.status(400).json({ error: "username & action required" });
     const uname = username.toLowerCase();
     if (action === "add") {
       vips.add(uname); saveVips();
       await Vip.updateOne({ username: uname }, { username: uname }, { upsert: true });
-      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
-      if (onlineUser) { onlineUser.isVip = true; io.emit("user list", buildUserList()); }
-      res.json({ ok: true, message: `${username} is now VIP` });
+      const u = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+      if (u) { u.isVip = true; io.emit("user list", buildUserList()); }
     } else {
       vips.delete(uname); saveVips();
       await Vip.deleteOne({ username: uname });
-      const onlineUser = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
-      if (onlineUser) { onlineUser.isVip = false; io.emit("user list", buildUserList()); }
-      res.json({ ok: true, message: `VIP removed from ${username}` });
+      const u = Object.values(activeUsers).find(u => u.name.toLowerCase() === uname);
+      if (u) { u.isVip = false; io.emit("user list", buildUserList()); }
     }
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/shadow
 app.post("/api/admin/shadow", requireAdmin, (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
     const uname = username.toLowerCase();
-    if (shadowBanned.has(uname)) {
-      shadowBanned.delete(uname);
-      res.json({ ok: true, shadow: false, message: `Shadow ban removed from ${username}` });
-    } else {
-      shadowBanned.add(uname);
-      res.json({ ok: true, shadow: true, message: `${username} is now shadow banned` });
-    }
+    if (shadowBanned.has(uname)) { shadowBanned.delete(uname); res.json({ ok: true, shadow: false }); }
+    else { shadowBanned.add(uname); res.json({ ok: true, shadow: true }); }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/deletemsgs
 app.post("/api/admin/deletemsgs", requireAdmin, async (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: "Username required" });
     const result = await Message.deleteMany({ senderName: { $regex: new RegExp("^" + username + "$", "i") } });
     io.emit("reload_messages");
-    res.json({ ok: true, deleted: result.deletedCount, message: `${result.deletedCount} messages deleted` });
+    res.json({ ok: true, deleted: result.deletedCount });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/admin/messages (recent)
-app.get("/api/admin/messages", requireAdmin, async (req, res) => {
+// 🆕 Ban by Firebase UID via REST
+app.post("/api/admin/banuid", requireAdmin, async (req, res) => {
   try {
-    const msgs = await Message.find({ room: "global" }).sort({ createdAt: -1 }).limit(50).lean();
-    res.json(msgs.reverse());
+    const { uid, reason = "Admin UID ban" } = req.body;
+    if (!uid) return res.status(400).json({ error: "UID required" });
+    bannedUids.add(uid); saveBannedUids();
+
+    const onlineUser = Object.values(activeUsers).find(u => u.firebaseUid === uid);
+    if (onlineUser) {
+      bannedUsernames.add(onlineUser.name.toLowerCase()); saveBanned();
+      io.to(onlineUser.socketId).emit("force_logout", `🚫 UID Ban: ${reason}`);
+      setTimeout(() => { const s = io.sockets.sockets.get(onlineUser.socketId); if (s) s.disconnect(true); }, 500);
+    }
+
+    await Banned.findOneAndUpdate(
+      { firebaseUid: uid },
+      { $set: { firebaseUid: uid, username: onlineUser?.name?.toLowerCase() || "uid_" + uid.substring(0,8), reason }, $inc: { banCount: 1 }, $push: { banHistory: { action: "ban", reason, by: "Web Panel (UID)", at: new Date() } } },
+      { upsert: true }
+    );
+    res.json({ ok: true, userWasOnline: !!onlineUser });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2185,8 +1759,9 @@ app.get("/api/admin/messages", requireAdmin, async (req, res) => {
 http.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📋 Admin: ${ADMIN_NAME}`);
+  console.log(`🔥 Firebase Admin: ${firebaseAdminReady ? "ACTIVE" : "DISABLED (add service account)"}`);
   console.log(`🚨 Profanity detection: ACTIVE`);
-  console.log(`🎛️  /panel command: ACTIVE (all-in-one admin panel)`);
+  console.log(`🎛️  /panel command: ACTIVE`);
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -2199,5 +1774,5 @@ process.on("unhandledRejection", (err) => {
 
 process.on("uncaughtException", (err) => {
   console.error("⚠️ Uncaught Exception:", err);
-  logToDiscordError(`💥 Uncaught Exception:\n${err.message}\n${(err.stack || "").substring(0, 1000)}`);
+  logToDiscordError(`💥 Uncaught Exception:\n${err.message}\n${(err.stack||"").substring(0, 1000)}`);
 });
