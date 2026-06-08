@@ -12,6 +12,7 @@
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  
   <style>
     *,
     *::before,
@@ -64,7 +65,7 @@
       z-index: 9999;
       background: #0a0c14;
       /* Pure static dark overlay */
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       padding: 16px;
@@ -2647,21 +2648,16 @@
 
 
     // ── Auto-login logic update ──────────────────────────────────
-    const savedUser = localStorage.getItem('chatUsername');
-    const savedBio = localStorage.getItem('chatBio') || '';
+const savedUser = localStorage.getItem('chatUsername');
+const savedBio = localStorage.getItem('chatBio') || '';
 
-    if (savedUser) {
-      currentUser = savedUser;
-      currentBio = savedBio;
+if (savedUser) {
+  document.getElementById('loginOverlay').style.display = 'none';
+  socket.emit('join', { name: savedUser, bio: savedBio, isRejoining: true });
+} else {
+  window.location.href = 'login.html';  // seedha redirect
+}
 
-      const formFields = document.getElementById('loginFormFields');
-      const loadingState = document.getElementById('loginLoadingState');
-      if (formFields) formFields.style.display = 'none';
-      if (loadingState) loadingState.style.display = 'block';
-
-      // Yahan 'rejoined' true bhej rahe hain
-      socket.emit('join', { name: savedUser, bio: savedBio, isRejoining: true });
-    }
 
     // ── Duplicate Session Handler (Agar auto-login fail ho jaye to wapas form dikhao) ──
     socket.on('duplicate', msg => {
@@ -3754,28 +3750,22 @@ socket.on('PERMANENT_FIREWALL_KICK', (data) => {
       if (modal) modal.classList.remove('open');
     }
 
-    function confirmCustomLogout() {
-      // 1. Reload hone se pehle current login username ko database list me ban karein
-      if (currentUser) {
-        try {
-          let expiredList = JSON.parse(localStorage.getItem('expiredUsernames')) || [];
-
-          // Case-insensitive double check mapping
-          if (!expiredList.includes(currentUser.toLowerCase())) {
-            expiredList.push(currentUser.toLowerCase());
-          }
-
-          localStorage.setItem('expiredUsernames', JSON.stringify(expiredList));
-        } catch (e) {
-          console.error("Error updating expired list", e);
-        }
+// NAYA:
+function confirmCustomLogout() {
+  if (currentUser) {
+    try {
+      let expiredList = JSON.parse(localStorage.getItem('expiredUsernames')) || [];
+      if (!expiredList.includes(currentUser.toLowerCase())) {
+        expiredList.push(currentUser.toLowerCase());
       }
-
-      // 2. Clear clean parameters sessions
-      localStorage.removeItem('chatUsername');
-      localStorage.removeItem('chatBio');
-      location.reload();
-    }
+      localStorage.setItem('expiredUsernames', JSON.stringify(expiredList));
+    } catch (e) {}
+  }
+  localStorage.removeItem('chatUsername');
+  localStorage.removeItem('chatBio');
+  localStorage.removeItem('s2s_session');
+  window.location.href = 'login.html';
+}
 
     // ── Mobile Tab Switching ────────────────────────────────────────────────────────
     function switchTab(tab) {
