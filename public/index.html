@@ -19,6 +19,24 @@
             --glow: rgba(108, 99, 255, 0.35);
         }
 
+
+
+
+        #loading-screen {
+    position: fixed;
+    inset: 0;
+    background: #080b10; /* Tumhari site ka background color */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    color: #00f5a0; /* Tumhara accent color */
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.5rem;
+        }
+
+
+        
         [data-theme="dark"] {
             --bg: #0a0a0f;
             --surface: #12121a;
@@ -1322,6 +1340,16 @@
 
 <body>
 
+
+
+
+
+    div id="loading-screen">
+  <div>CONNECTING...</div>
+</div>
+
+    
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -2163,7 +2191,13 @@
 
 
 
-
+window.addEventListener("load", function() {
+    const loader = document.getElementById("loading-screen");
+    loader.style.opacity = "0";
+    setTimeout(() => {
+      loader.style.display = "none";
+    }, 500); // 0.5 second mein smooth fade out hoga
+  });
 
 
 
