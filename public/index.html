@@ -1,292 +1,2187 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StrangerToStranger Chat</title>
+    <title>StrangerToStranger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
-    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Roboto", sans-serif; }
-        body { background-color: #f4f4f9; color: #333; }
+        /* ===== THEME VARIABLES ===== */
+        :root {
+            --accent: #6c63ff;
+            --accent2: #ff6584;
+            --accent3: #43e97b;
+            --glow: rgba(108, 99, 255, 0.35);
+        }
 
-        /* --- Navbar --- */
+        [data-theme="dark"] {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --card: #1a1a2e;
+            --navbar: rgba(10, 10, 15, 0.95);
+            --text: #f0f0f5;
+            --text-muted: #7a7a99;
+            --border: rgba(108, 99, 255, 0.2);
+            --input-bg: #12121a;
+            --overlay: rgba(0, 0, 0, 0.75);
+        }
+
+        [data-theme="light"] {
+            --bg: #f0f0f8;
+            --surface: #e8e8f5;
+            --card: #ffffff;
+            --navbar: rgba(255, 255, 255, 0.95);
+            --text: #1a1a2e;
+            --text-muted: #6a6a88;
+            --border: rgba(108, 99, 255, 0.25);
+            --input-bg: #f0f0f8;
+            --overlay: rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="amoled"] {
+            --bg: #000000;
+            --surface: #0d0d0d;
+            --card: #111111;
+            --navbar: rgba(0, 0, 0, 0.98);
+            --text: #ffffff;
+            --text-muted: #666;
+            --border: rgba(108, 99, 255, 0.15);
+            --input-bg: #0d0d0d;
+            --overlay: rgba(0, 0, 0, 0.85);
+        }
+
+        [data-theme="ocean"] {
+            --bg: #0b1628;
+            --surface: #0f2040;
+            --card: #142848;
+            --navbar: rgba(11, 22, 40, 0.95);
+            --text: #e0f0ff;
+            --text-muted: #6090b0;
+            --border: rgba(64, 160, 255, 0.25);
+            --accent: #40a0ff;
+            --input-bg: #0f2040;
+            --overlay: rgba(0, 0, 0, 0.75);
+        }
+
+        [data-theme="forest"] {
+            --bg: #0a1a0f;
+            --surface: #0f2015;
+            --card: #152a1b;
+            --navbar: rgba(10, 26, 15, 0.95);
+            --text: #e0f5e0;
+            --text-muted: #60906a;
+            --border: rgba(67, 233, 123, 0.2);
+            --accent: #43e97b;
+            --input-bg: #0f2015;
+            --overlay: rgba(0, 0, 0, 0.75);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ===== NAVBAR ===== */
         .navbar {
-            background-color: #111;
-            height: 60px;
+            background: var(--navbar);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            height: 64px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 20px;
-            color: white;
-            border-bottom: 2px solid #3f51b5;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
             position: sticky;
             top: 0;
             z-index: 1000;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
         }
 
-        .logo img { height: 62px; width: auto; margin-left: -20px; vertical-align: middle; }
-
-        .nav-items { display: flex; list-style: none; align-items: center; }
-        .nav-items li { position: relative; }
-        .nav-items li a {
-            color: white; text-decoration: none;
-            margin-left: 20px; padding: 10px 5px; cursor: pointer;
-            font-size: 14px;
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
         }
 
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #222;
-            min-width: 160px;
-            top: 45px;
-            left: 10px;
-            border-radius: 4px;
-            border: 1px solid #333;
-            box-shadow: 0px 8px 16px rgba(0,0,0,0.5);
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 4px 12px var(--glow);
         }
 
-        .dropdown-content.show { display: block; }
-        .dropdown-content a {
-            color: #ccc !important; padding: 12px 16px !important;
-            margin-left: 0 !important; display: block; border-bottom: 1px solid #333;
+        .logo-text {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.5px;
         }
 
-        /* --- Sidebar --- */
-        .my-sidebar {
-            height: 100%; width: 0; position: fixed;
-            z-index: 5000; top: 0; right: 0;
-            background-color: #1a1a1a; overflow-x: hidden;
-            transition: 0.3s; padding-top: 60px;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+        .logo-text span {
+            color: var(--accent);
         }
 
-        .my-sidebar a {
-            padding: 15px 25px; text-decoration: none;
-            font-size: 18px; color: #ccc; display: block;
-            border-bottom: 1px solid #333;
+        /* Nav Links */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            list-style: none;
+            gap: 4px;
         }
 
-        .sidebar-dropdown-container { display: none; background-color: #111; }
-        .sidebar-dropdown-container a { padding-left: 50px; font-size: 16px; border-bottom: 1px solid #222; }
-
-        .open-btn { font-size: 22px; cursor: pointer; display: none; color: white; }
-        .bg-overlay {
-            display: none; position: fixed; width: 100%; height: 100%;
-            top: 0; left: 0; background-color: rgba(0,0,0,0.7); z-index: 4000;
-        }
-
-        /* --- Main Content --- */
-        .main-container { text-align: center; padding: 20px; }
-        
-        .chat-main-btn {
-            display: inline-block; 
-            background-color: #3f51b5; 
-            color: #ffffff; 
-            padding: 10px 25px; 
-            font-size: 15px; 
-            font-weight: bold; 
-            text-decoration: none; 
-            border-radius: 8px; 
-            transition: 0.3s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            margin-bottom: 20px;
-        }
-
-        .multiple-rooms {
-            background-color: #337ab7; 
-            padding: 20px; 
-            text-align: center; 
-            max-width: 500px; 
-            margin: 0 auto; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 8px 14px;
             border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-links a:hover {
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--text);
+        }
+
+        .nav-links a.active {
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--accent);
+        }
+
+        /* Rooms Dropdown */
+        .nav-dropdown {
+            position: relative;
+        }
+
+        .nav-dropdown-btn {
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .nav-dropdown-btn:hover {
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--text);
+        }
+
+        .nav-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 12px);
+            left: 0;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            min-width: 200px;
+            padding: 8px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transform: translateY(-8px);
+            pointer-events: none;
+            transition: all 0.2s;
+        }
+
+        .nav-dropdown.open .nav-dropdown-menu {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        .nav-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+
+        .nav-dropdown-menu a:hover {
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--text);
+        }
+
+        .nav-dropdown-menu a .badge {
+            margin-left: auto;
+            font-size: 9px;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+
+        .badge.live {
+            background: rgba(67, 233, 123, 0.15);
+            color: var(--accent3);
+        }
+
+        .badge.soon {
+            background: rgba(255, 101, 132, 0.15);
+            color: var(--accent2);
+        }
+
+        /* ===== PROFILE DROPDOWN ===== */
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notif-btn {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .notif-btn:hover {
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--accent);
+        }
+
+        .notif-dot {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 7px;
+            height: 7px;
+            background: var(--accent2);
+            border-radius: 50%;
+            border: 2px solid var(--bg);
+        }
+
+        .profile-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px 12px 6px 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .profile-btn:hover {
+            border-color: var(--accent);
+            background: rgba(108, 99, 255, 0.08);
+        }
+
+        .profile-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            overflow: hidden;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-name-nav {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .profile-caret {
+            font-size: 11px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        /* Profile Dropdown Panel */
+        .profile-dropdown {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            width: 300px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2000;
+            overflow: hidden;
+        }
+
+        .profile-dropdown.open {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        .profile-dropdown-header {
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(108, 99, 255, 0.15), rgba(255, 101, 132, 0.1));
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .profile-big-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .avatar-edit-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 16px;
+        }
+
+        .profile-big-avatar:hover .avatar-edit-overlay {
+            opacity: 1;
+        }
+
+        .profile-big-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-info-header h4 {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .profile-info-header p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .user-badge-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--accent);
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-top: 5px;
+            font-weight: 600;
+        }
+
+        .profile-dropdown-body {
+            padding: 8px;
+        }
+
+        .pd-section-title {
+            padding: 8px 12px 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .pd-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .pd-item:hover {
+            background: rgba(108, 99, 255, 0.08);
+        }
+
+        .pd-item-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .pd-item-text {
+            flex: 1;
+        }
+
+        .pd-item-text span {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .pd-item .arrow {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .pd-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 6px 12px;
+        }
+
+        .pd-item.danger {
+            color: #ff6060;
+        }
+
+        .pd-item.danger .pd-item-icon {
+            background: rgba(255, 77, 77, 0.1);
+            color: #ff6060;
+        }
+
+        /* Online status */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent3);
+            display: inline-block;
+            margin-right: 4px;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ===== MODAL SYSTEM ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--overlay);
+            z-index: 5000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
+            padding: 20px;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-overlay.open .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            padding: 22px 22px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            background: var(--surface);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 100, 100, 0.15);
+            color: #ff6060;
+        }
+
+        .modal-body {
+            padding: 20px 22px 22px;
+        }
+
+        /* Profile Photo section in modal */
+        .photo-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            background: var(--surface);
+            border-radius: 14px;
+            margin-bottom: 18px;
+        }
+
+        .photo-preview {
+            width: 90px;
+            height: 90px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: white;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid var(--border);
+        }
+
+        .photo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .photo-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .photo-btn:hover {
+            border-color: var(--accent);
+            background: rgba(108, 99, 255, 0.08);
+        }
+
+        .photo-btn.danger:hover {
+            border-color: #ff6060;
+            background: rgba(255, 77, 77, 0.08);
+            color: #ff6060;
+        }
+
+        /* Form inputs in modal */
+        .field-group {
+            margin-bottom: 14px;
+        }
+
+        .field-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .field-group input,
+        .field-group textarea,
+        .field-group select {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 11px 14px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .field-group input:focus,
+        .field-group textarea:focus,
+        .field-group select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.12);
+        }
+
+        .field-group textarea {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        .field-group select option {
+            background: var(--card);
+        }
+
+        .modal-save-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 6px;
+            box-shadow: 0 4px 16px var(--glow);
+        }
+
+        .modal-save-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Theme Grid */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .theme-card {
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .theme-card.selected {
+            border-color: var(--accent);
+        }
+
+        .theme-preview {
+            height: 48px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-card span {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-wrap {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeIn 0.6s ease both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(28px, 5vw, 48px);
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            margin-bottom: 12px;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 15px;
+            max-width: 450px;
+            margin: 0 auto 28px;
+        }
+
+        .hero-quick-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 6px 24px var(--glow);
+            transition: all 0.2s;
+        }
+
+        .hero-quick-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 32px var(--glow);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-item .num {
+            font-family: 'Syne', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .stat-item .lbl {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Rooms Section */
+        .section-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .rooms-grid {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+            margin-bottom: 40px;
         }
 
-        /* Individual Button Styling */
-        .room-link {
-            display: inline-flex; 
-            align-items: center; 
-            padding: 6px 10px; 
-            text-decoration: none; 
-            border-radius: 4px; 
-            font-weight: normal; 
-            font-size: 12px; 
-            border: 1px solid rgba(0,0,0,0.1); 
-            width: auto; 
-            height: auto;
+        .room-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: var(--text);
+            display: block;
+            animation: cardIn 0.5s ease both;
         }
 
-        .room-link i { color: black; margin-right: 5px; }
+        @keyframes cardIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
 
-        @media screen and (max-width: 800px) {
-            .nav-items { display: none; }
-            .open-btn { display: block; }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .room-card:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+
+        .room-card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .room-card:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+
+        .room-card:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+
+        .room-card:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+
+        .room-card:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        .room-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--room-color, rgba(108, 99, 255, 0.05)), transparent);
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .room-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .room-card:hover::before {
+            opacity: 1;
+        }
+
+        .room-card.inactive {
+            cursor: default;
+        }
+
+        .room-card.inactive:hover {
+            transform: none;
+            border-color: var(--border);
+            box-shadow: none;
+        }
+
+        .room-icon-wrap {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 14px;
+        }
+
+        .room-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .room-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .room-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .room-status.live {
+            background: rgba(67, 233, 123, 0.12);
+            color: var(--accent3);
+        }
+
+        .room-status.offline {
+            background: rgba(255, 101, 132, 0.1);
+            color: #ff8888;
+        }
+
+        .room-status.live::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent3);
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        .room-users {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Activity Feed */
+        .activity-feed {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 32px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            animation: fadeIn 0.4s ease both;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .activity-text {
+            flex: 1;
+        }
+
+        .activity-text strong {
+            font-size: 13px;
+        }
+
+        .activity-text p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .activity-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Mobile sidebar */
+        .hamburger {
+            display: none;
+            width: 38px;
+            height: 38px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+
+        .mobile-sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: 280px;
+            background: var(--card);
+            border-left: 1px solid var(--border);
+            z-index: 4000;
+            padding: 70px 16px 24px;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+        }
+
+        .mobile-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .mobile-sidebar a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 2px;
+            transition: all 0.15s;
+        }
+
+        .mobile-sidebar a:hover {
+            background: rgba(108, 99, 255, 0.1);
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+            min-width: 250px;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.exit {
+            animation: toastOut 0.3s ease forwards;
+        }
+
+        @keyframes toastOut {
+            to {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+        }
+
+        .toast-icon {
+            font-size: 16px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        @media (max-width: 700px) {
+
+            .nav-links,
+            .nav-dropdown {
+                display: none;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .profile-name-nav {
+                display: none;
+            }
+
+            .rooms-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stats-bar {
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .rooms-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Live chat ticker */
+        .live-ticker {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .ticker-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent3);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ticker-scroll {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ticker-inner {
+            display: flex;
+            gap: 40px;
+            animation: ticker 20s linear infinite;
+            white-space: nowrap;
+        }
+
+        @keyframes ticker {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        .ticker-item {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ticker-item strong {
+            color: var(--text);
+        }
+
+        /* Online users pill */
+        .online-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(67, 233, 123, 0.1);
+            border: 1px solid rgba(67, 233, 123, 0.2);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            color: var(--accent3);
+            font-weight: 600;
+            margin-left: 8px;
         }
     </style>
 </head>
+
 <body>
 
-<div id="overlay" class="bg-overlay" onclick="closeNav()"></div>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
-<div class="navbar">
-    <div class="logo">
-        <a href="/"><img src="assets/imgs/icon.png" alt="Logo"></a>
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;background:var(--overlay);z-index:3500"
+        onclick="closeSidebar()"></div>
+
+    <!-- Mobile Sidebar -->
+    <div id="mobileSidebar" class="mobile-sidebar">
+        <a href="#"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="#"><i class="fa-solid fa-users"></i> Group Chat <span class="badge live"
+                style="margin-left:auto">LIVE</span></a>
+        <a href="#"><i class="fa-solid fa-shuffle"></i> Random Chat</a>
+        <a href="#"><i class="fa-solid fa-microphone"></i> Voice Chat</a>
+        <a href="#"><i class="fa-solid fa-globe"></i> International Chat</a>
+        <div style="height:1px;background:var(--border);margin:10px 0"></div>
+        <a href="#" onclick="openModal('profileModal')"><i class="fa-solid fa-user-circle"></i> My Profile</a>
+        <a href="#" onclick="openModal('settingsModal')"><i class="fa-solid fa-gear"></i> Settings</a>
+        <a href="#" onclick="handleLogout()" style="color:#ff6060"><i class="fa-solid fa-right-from-bracket"></i>
+            Logout</a>
     </div>
 
-    <ul class="nav-items">
-        <li><a href="#">Home</a></li>
-        <li class="dropdown">
-            <a onclick="toggleNavbarDropdown(event)">Rooms <i class="fa-solid fa-caret-down"></i></a>
-            <div id="navbarDropdown" class="dropdown-content">
-                <a href="#">Global Chat</a>
-                <a href="#">International Chat</a>
-                <a href="call.html">Voice Chat</a>
-            </div>
-        </li>
-        <li><a href="#">About</a></li>
-    </ul>
-
-    <div class="open-btn" onclick="openNav()"><i class="fa-solid fa-bars"></i></div>
-</div>
-
-<div id="sideMenu" class="my-sidebar">
-    <div class="close-sidebar" onclick="closeNav()" style="position:absolute; top:15px; left:20px; font-size:30px; color:white; cursor:pointer;">&times;</div>
-    
-    <a href="#"><i class="fa-solid fa-user"></i> My Profile</a>
-    
-    <a href="javascript:void(0)" onclick="toggleSidebarDropdown()">
-        <i class="fa-solid fa-comments"></i> Rooms <i class="fa-solid fa-caret-down" style="float:right;"></i>
-    </a>
-    <div id="sidebarDropdown" class="sidebar-dropdown-container">
-        <a href="#">Global Chat</a>
-        <a href="#">International Chat</a>
-        <a href="call.html">Voice Chat</a>
-    </div>
-
-    <a href="#"><i class="fa-solid fa-gear"></i> App Settings</a>
-    <a href="#" style="color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-
-    <p style="color: #555; font-size: 12px; text-align: center; margin-top: 50px;">Made by Yashwant Singh</p>
-</div>
-
-<main class="main-container">
-    <p style="font-size: 20px; margin-bottom: 10px;">Free Chat Rooms</p>
-    
-    <a href="#" class="chat-main-btn">
-       Free online chat without registration
-    </a>
-
-<div class="multiple-rooms" 
-     style="background-color: #337ab7; 
-            padding: 20px; 
-            text-align: center; 
-            max-width: 550px; 
-            margin: 20px auto; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            font-family: Arial, sans-serif;">
-
-    <h3 style="color: white; margin-bottom: 15px; font-size: 16px; font-weight: normal;">Select a Chat Link</h3>
-
-    <div class="rooms-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
-        
-        <a href="" class="room-link" style="display: inline-flex; align-items: center; background-color: #5cb85c; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 12px; border: 1px solid rgba(0,0,0,0.1); width: auto; height: auto;">
-            <i class="fa-regular fa-comment-dots" style="color: black; margin-right: 6px; font-size: 16px;"></i>
-            <div style="display: flex; flex-direction: column; text-align: left;">
-                link1
-                <span style="font-size: 9px; color: #8b0000; margin-top: 1px; font-weight: bold;">Not Active</span>
-            </div>
-        </a>
-        
-        <a href="" class="room-link" style="display: inline-flex; align-items: center; background-color: #d9534f; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 12px; border: 1px solid rgba(0,0,0,0.1); width: auto; height: auto;">
-            <i class="fa-regular fa-comment-dots" style="color: black; margin-right: 6px; font-size: 16px;"></i>
-            <div style="display: flex; flex-direction: column; text-align: left;">
-                link2
-                <span style="font-size: 9px; color: #8b0000; margin-top: 1px; font-weight: bold;">Not Active</span>
-            </div>
+    <!-- ===== NAVBAR ===== -->
+    <nav class="navbar">
+        <a href="#" class="logo-area">
+            <div class="logo-icon"><i class="fa-solid fa-comments"></i></div>
+            <div class="logo-text">Stranger<span>2</span>Stranger</div>
         </a>
 
-        <!-- NAYA — sahi route -->
-<a href="/iframe-groupchatroom" class="room-link" style="display: inline-flex; align-items: center; background-color: #5bc0de; color: black; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 12px; border: 1px solid rgba(0,0,0,0.1); width: auto; height: auto;">
-    <i class="fa-solid fa-users" style="color: black; margin-right: 6px; font-size: 16px;"></i>
-    <div style="display: flex; flex-direction: column; text-align: left;">
-        Group-ChatRoom
-        <span style="font-size: 9px; color: #006400; margin-top: 1px; font-weight: bold;">Active Now</span>
+        <ul class="nav-links">
+            <li><a href="#" class="active"><i class="fa-solid fa-house"></i> Home</a></li>
+            <li class="nav-dropdown" id="roomsDropdown">
+                <button class="nav-dropdown-btn" onclick="toggleDropdown('roomsDropdown')">
+                    <i class="fa-solid fa-comments"></i> Rooms <i class="fa-solid fa-caret-down"></i>
+                </button>
+                <div class="nav-dropdown-menu">
+                    <a href="#"><i class="fa-solid fa-users"></i> Group Chat <span class="badge live">LIVE</span></a>
+                    <a href="#"><i class="fa-solid fa-globe"></i> International Chat <span
+                            class="badge soon">Soon</span></a>
+                    <a href="#"><i class="fa-solid fa-shuffle"></i> Random Chat <span class="badge soon">Soon</span></a>
+                    <a href="#"><i class="fa-solid fa-microphone"></i> Voice Chat <span
+                            class="badge soon">Soon</span></a>
+                </div>
+            </li>
+        </ul>
+
+        <div class="nav-right">
+            <div class="notif-btn" onclick="showToast('🔔 No new notifications', 'info')">
+                <i class="fa-solid fa-bell"></i>
+                <div class="notif-dot" id="notifDot"></div>
+            </div>
+
+            <!-- Profile Button + Dropdown -->
+            <div style="position:relative" id="profileDropdownWrap">
+                <div class="profile-btn" onclick="toggleDropdown('profileDropdownWrap')">
+                    <div class="profile-avatar" id="navAvatar"></div>
+                    <span class="profile-name-nav" id="navUsername">User</span>
+                    <i class="fa-solid fa-caret-down profile-caret" id="profileCaret"></i>
+                </div>
+
+                <div class="profile-dropdown" id="profileDropdown">
+                    <div class="profile-dropdown-header">
+                        <div class="profile-big-avatar" id="dropdownAvatar" onclick="triggerAvatarUpload()">
+                            <div class="avatar-edit-overlay"><i class="fa-solid fa-camera"></i></div>
+                        </div>
+                        <div class="profile-info-header">
+                            <h4 id="dropdownName">Username</h4>
+                            <p id="dropdownEmail">user@example.com</p>
+                            <div class="user-badge-tag" id="dropdownBadge">
+                                <i class="fa-solid fa-star"></i> New Member
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-dropdown-body">
+                        <div class="pd-section-title">Account</div>
+
+                        <div class="pd-item" onclick="openModal('profileModal')">
+                            <div class="pd-item-icon" style="background:rgba(108,99,255,0.1);color:var(--accent)">
+                                <i class="fa-solid fa-user-pen"></i>
+                            </div>
+                            <div class="pd-item-text">
+                                Edit Profile
+                                <span>Change name, bio, photo</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="pd-item" onclick="openModal('accountModal')">
+                            <div class="pd-item-icon" style="background:rgba(255,101,132,0.1);color:var(--accent2)">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div class="pd-item-text">
+                                Account Security
+                                <span>Email, password, username</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="pd-section-title">Preferences</div>
+
+                        <div class="pd-item" onclick="openModal('themeModal')">
+                            <div class="pd-item-icon" style="background:rgba(67,233,123,0.1);color:var(--accent3)">
+                                <i class="fa-solid fa-palette"></i>
+                            </div>
+                            <div class="pd-item-text">
+                                Themes & Appearance
+                                <span>Dark, light, custom colors</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="pd-item" onclick="openModal('settingsModal')">
+                            <div class="pd-item-icon" style="background:rgba(240,173,78,0.1);color:#f0ad4e">
+                                <i class="fa-solid fa-gear"></i>
+                            </div>
+                            <div class="pd-item-text">
+                                Settings
+                                <span>Notifications, privacy</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="pd-divider"></div>
+
+                        <div class="pd-item danger" onclick="handleLogout()">
+                            <div class="pd-item-icon">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </div>
+                            <div class="pd-item-text">Sign Out</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hamburger" onclick="openSidebar()">
+                <i class="fa-solid fa-bars"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-wrap">
+
+        <!-- Hero -->
+        <div class="hero">
+            <h1>Chat with <span class="gradient-text">Strangers</span><br>Around the World</h1>
+            <p>Connect anonymously, meet new people, have real conversations. No judgment, just vibes.</p>
+            <!-- <a href="#" class="room-card" onclick="goToChat(event)" style="--room-color:rgba(108,99,255,0.08)">
+                <i class="fa-solid fa-bolt"></i> Start Chatting Now
+            </a> -->
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="num" id="onlineCount">1,247</div>
+                <div class="lbl"><span class="status-dot"></span>Online Now</div>
+            </div>
+            <div class="stat-item">
+                <div class="num">24K+</div>
+                <div class="lbl">Messages Today</div>
+            </div>
+            <div class="stat-item">
+                <div class="num">180+</div>
+                <div class="lbl">Countries</div>
+            </div>
+            <div class="stat-item">
+                <div class="num">99.9%</div>
+                <div class="lbl">Uptime</div>
+            </div>
+        </div>
+
+        <!-- Live Ticker -->
+        <div class="live-ticker">
+            <div class="ticker-label"><span class="status-dot"></span> LIVE</div>
+            <div class="ticker-scroll">
+                <div class="ticker-inner" id="tickerInner"></div>
+            </div>
+        </div>
+
+        <!-- Rooms -->
+        <div class="section-title">
+            <i class="fa-solid fa-door-open" style="color:var(--accent)"></i> Chat Rooms
+            <div class="online-pill"><span class="status-dot"></span> 1 room live</div>
+        </div>
+
+        <div class="rooms-grid">
+<a href="#" onclick="goToChat(event)" class="room-card" style="--room-color:rgba(108,99,255,0.08)">
+    <div class="room-icon-wrap" style="background:rgba(108,99,255,0.15);color:var(--accent)">
+        <i class="fa-solid fa-users"></i>
     </div>
+    <div class="room-users"><i class="fa-solid fa-eye"></i> 42</div>
+    <div class="room-name">Group ChatRoom</div>
+    <div class="room-desc">Join a public room with strangers from around the world. Just hop in and talk!</div>
+    <div class="room-status live">Live Now</div>
 </a>
 
-        <a href="" class="room-link" style="display: inline-flex; align-items: center; background-color: #5cb85c; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 12px; border: 1px solid rgba(0,0,0,0.1); width: auto; height: auto;">
-            <i class="fa-solid fa-shuffle" style="color: black; margin-right: 6px; font-size: 16px;"></i>
-            <div style="display: flex; flex-direction: column; text-align: left;">
-                Random Chat
-                <span style="font-size: 9px; color: #8b0000; margin-top: 1px; font-weight: bold;">Not Active</span>
+            <div class="room-card inactive" style="--room-color:rgba(255,101,132,0.05)">
+                <div class="room-icon-wrap" style="background:rgba(255,101,132,0.1);color:var(--accent2)">
+                    <i class="fa-solid fa-globe"></i>
+                </div>
+                <div class="room-name">International Chat</div>
+                <div class="room-desc">Chat with people from different countries and cultures. Language no barrier!
+                </div>
+                <div class="room-status offline">Coming Soon</div>
             </div>
-        </a>
-        
-        <a href="" class="room-link" style="display: inline-flex; align-items: center; background-color: #5bc0de; color: black; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 12px; border: 1px solid rgba(0,0,0,0.1); width: auto; height: auto;">
-            <i class="fa-solid fa-microphone" style="color: black; margin-right: 6px; font-size: 16px;"></i>
-            <div style="display: flex; flex-direction: column; text-align: left;">
-                Voice Chat
-                <span style="font-size: 9px; color: #8b0000; margin-top: 1px; font-weight: bold;">Not Active</span>
+
+            <div class="room-card inactive" style="--room-color:rgba(67,233,123,0.05)">
+                <div class="room-icon-wrap" style="background:rgba(67,233,123,0.1);color:var(--accent3)">
+                    <i class="fa-solid fa-shuffle"></i>
+                </div>
+                <div class="room-name">Random Chat</div>
+                <div class="room-desc">Get matched with a random stranger for a 1-on-1 conversation. Who will you
+                    meet?
+                </div>
+                <div class="room-status offline">Coming Soon</div>
             </div>
-        </a>
-        
-        <a href="" class="room-link" style="display: inline-flex; align-items: center; background-color: #f0ad4e; color: black; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 12px; border: 1px solid rgba(0,0,0,0.1); width: auto; height: auto;">
-            <i class="fa-solid fa-comments" style="color: black; margin-right: 6px; font-size: 16px;"></i>
-            <div style="display: flex; flex-direction: column; text-align: left;">
-                Talk to Stranger
-                <span style="font-size: 9px; color: #8b0000; margin-top: 1px; font-weight: bold;">Not Active</span>
+
+            <div class="room-card inactive" style="--room-color:rgba(240,173,78,0.05)">
+                <div class="room-icon-wrap" style="background:rgba(240,173,78,0.1);color:#f0ad4e">
+                    <i class="fa-solid fa-microphone"></i>
+                </div>
+                <div class="room-name">Voice Chat</div>
+                <div class="room-desc">Speak directly with strangers using your microphone. Real voices, real
+                    connections.</div>
+                <div class="room-status offline">Coming Soon</div>
             </div>
-        </a>
+
+            <div class="room-card inactive" style="--room-color:rgba(91,192,222,0.05)">
+                <div class="room-icon-wrap" style="background:rgba(91,192,222,0.1);color:#5bc0de">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <div class="room-name">Talk to Stranger</div>
+                <div class="room-desc">Classic 1-on-1 text chat. Simple, fast, anonymous. Just like the old days.
+                </div>
+                <div class="room-status offline">Coming Soon</div>
+            </div>
+
+            <div class="room-card inactive" style="--room-color:rgba(255,165,0,0.05)">
+                <div class="room-icon-wrap" style="background:rgba(255,165,0,0.1);color:orange">
+                    <i class="fa-solid fa-fire"></i>
+                </div>
+                <div class="room-name">Hot Topics</div>
+                <div class="room-desc">Discuss trending topics, memes, news and anything going on in the world right
+                    now.</div>
+                <div class="room-status offline">Coming Soon</div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="section-title">
+            <i class="fa-solid fa-bolt" style="color:var(--accent2)"></i> Live Activity
+        </div>
+        <div class="activity-feed" id="activityFeed">
+            <!-- Populated by JS -->
+        </div>
+
+    </main>
+
+    <!-- ===== HIDDEN FILE INPUT ===== -->
+    <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(this)">
+
+    <!-- ===== PROFILE MODAL ===== -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-pen" style="color:var(--accent);margin-right:8px"></i>Edit Profile</h3>
+                <button class="modal-close" onclick="closeModal('profileModal')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="photo-section">
+                    <div class="photo-preview" id="photoPreview"></div>
+                    <div class="photo-actions">
+                        <button class="photo-btn" onclick="triggerAvatarUpload()"><i class="fa-solid fa-upload"></i>
+                            Upload Photo</button>
+                        <button class="photo-btn danger" onclick="removeAvatar()"><i class="fa-solid fa-trash"></i>
+                            Remove</button>
+                    </div>
+                    <p style="font-size:11px;color:var(--text-muted)">JPG, PNG or GIF · Max 5MB</p>
+                </div>
+
+                <div class="field-group">
+                    <label>Display Name</label>
+                    <input type="text" id="editDisplayName" placeholder="Your display name">
+                </div>
+
+                <div class="field-group">
+                    <label>Bio</label>
+                    <textarea id="editBio" placeholder="Tell people something about yourself..."></textarea>
+                </div>
+
+                <div class="field-group">
+                    <label>Location</label>
+                    <input type="text" id="editLocation" placeholder="e.g. Mumbai, India">
+                </div>
+
+                <button class="modal-save-btn" onclick="saveProfile()">
+                    <i class="fa-solid fa-floppy-disk" style="margin-right:8px"></i>Save Changes
+                </button>
+            </div>
+        </div>
     </div>
-</div>
-</main>
 
-<script>
-    /* Navbar Dropdown Toggle */
-    function toggleNavbarDropdown(event) {
-        event.stopPropagation();
-        document.getElementById("navbarDropdown").classList.toggle("show");
-    }
+    <!-- ===== ACCOUNT SECURITY MODAL ===== -->
+    <div class="modal-overlay" id="accountModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved" style="color:var(--accent2);margin-right:8px"></i>Account
+                    Security</h3>
+                <button class="modal-close" onclick="closeModal('accountModal')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="field-group">
+                    <label>Username</label>
+                    <input type="text" id="editUsername" placeholder="Change username">
+                </div>
+                <div class="field-group">
+                    <label>Email Address</label>
+                    <input type="email" id="editEmail" placeholder="Change email">
+                </div>
+                <div style="height:1px;background:var(--border);margin:16px 0"></div>
+                <p
+                    style="font-size:12px;color:var(--text-muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
+                    Change Password</p>
+                <div class="field-group">
+                    <label>Current Password</label>
+                    <input type="password" id="currentPass" placeholder="Enter current password">
+                </div>
+                <div class="field-group">
+                    <label>New Password</label>
+                    <input type="password" id="newPass" placeholder="Enter new password">
+                </div>
+                <div class="field-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="confirmNewPass" placeholder="Repeat new password">
+                </div>
+                <button class="modal-save-btn" onclick="saveAccount()"
+                    style="background:linear-gradient(135deg,var(--accent2),#ff9a9e)">
+                    <i class="fa-solid fa-floppy-disk" style="margin-right:8px"></i>Update Account
+                </button>
+            </div>
+        </div>
+    </div>
 
-    /* Sidebar Dropdown Toggle */
-    function toggleSidebarDropdown() {
-        var dropdown = document.getElementById("sidebarDropdown");
-        dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
-    }
+    <!-- ===== THEME MODAL ===== -->
+    <div class="modal-overlay" id="themeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-palette" style="color:var(--accent3);margin-right:8px"></i>Themes & Appearance
+                </h3>
+                <button class="modal-close" onclick="closeModal('themeModal')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Choose a theme that matches your
+                    vibe ✨</p>
+                <div class="theme-grid">
+                    <div class="theme-card" id="tc-dark" onclick="applyTheme('dark')">
+                        <div class="theme-preview" style="background:linear-gradient(135deg,#0a0a0f,#1a1a2e)">
+                            <div style="height:8px;background:rgba(108,99,255,0.5);margin:8px 8px 0;border-radius:3px">
+                            </div>
+                        </div>
+                        <span>🌙 Dark</span>
+                    </div>
+                    <div class="theme-card" id="tc-light" onclick="applyTheme('light')">
+                        <div class="theme-preview" style="background:linear-gradient(135deg,#f0f0f8,#e8e8f5)">
+                            <div style="height:8px;background:rgba(108,99,255,0.4);margin:8px 8px 0;border-radius:3px">
+                            </div>
+                        </div>
+                        <span>☀️ Light</span>
+                    </div>
+                    <div class="theme-card" id="tc-amoled" onclick="applyTheme('amoled')">
+                        <div class="theme-preview" style="background:#000">
+                            <div style="height:8px;background:rgba(108,99,255,0.6);margin:8px 8px 0;border-radius:3px">
+                            </div>
+                        </div>
+                        <span>⚫ AMOLED</span>
+                    </div>
+                    <div class="theme-card" id="tc-ocean" onclick="applyTheme('ocean')">
+                        <div class="theme-preview" style="background:linear-gradient(135deg,#0b1628,#142848)">
+                            <div style="height:8px;background:rgba(64,160,255,0.5);margin:8px 8px 0;border-radius:3px">
+                            </div>
+                        </div>
+                        <span>🌊 Ocean</span>
+                    </div>
+                    <div class="theme-card" id="tc-forest" onclick="applyTheme('forest')">
+                        <div class="theme-preview" style="background:linear-gradient(135deg,#0a1a0f,#152a1b)">
+                            <div style="height:8px;background:rgba(67,233,123,0.4);margin:8px 8px 0;border-radius:3px">
+                            </div>
+                        </div>
+                        <span>🌿 Forest</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    /* General Sidebar Controls */
-    function openNav() {
-        document.getElementById("sideMenu").style.width = "260px";
-        document.getElementById("overlay").style.display = "block";
-    }
+    <!-- ===== SETTINGS MODAL ===== -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-gear" style="color:#f0ad4e;margin-right:8px"></i>Settings</h3>
+                <button class="modal-close" onclick="closeModal('settingsModal')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div
+                        style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--surface);border-radius:12px">
+                        <div>
+                            <div style="font-size:13px;font-weight:600">Desktop Notifications</div>
+                            <div style="font-size:11px;color:var(--text-muted)">Get notified of new messages</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div
+                        style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--surface);border-radius:12px">
+                        <div>
+                            <div style="font-size:13px;font-weight:600">Sound Effects</div>
+                            <div style="font-size:11px;color:var(--text-muted)">Play sounds on messages</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soundToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div
+                        style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--surface);border-radius:12px">
+                        <div>
+                            <div style="font-size:13px;font-weight:600">Show Online Status</div>
+                            <div style="font-size:11px;color:var(--text-muted)">Let others see you're online</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="onlineToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div
+                        style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--surface);border-radius:12px">
+                        <div>
+                            <div style="font-size:13px;font-weight:600">Anonymous Mode</div>
+                            <div style="font-size:11px;color:var(--text-muted)">Hide your username in rooms</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="anonToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <button class="modal-save-btn" onclick="saveSettings()"
+                    style="background:linear-gradient(135deg,#f0ad4e,#ff9a3c);margin-top:18px">
+                    <i class="fa-solid fa-floppy-disk" style="margin-right:8px"></i>Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
 
-    function closeNav() {
-        document.getElementById("sideMenu").style.width = "0";
-        document.getElementById("overlay").style.display = "none";
-        document.getElementById("navbarDropdown").classList.remove("show");
-    }
+    <style>
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
 
-    /* Close dropdown when clicking outside */
-    window.onclick = function(event) {
-        if (!event.target.matches('.dropdown a')) {
-            var dropdowns = document.getElementsByClassName("dropdown-content");
-            for (var i = 0; i < dropdowns.length; i++) {
-                var openDropdown = dropdowns[i];
-                if (openDropdown.classList.contains('show')) {
-                    openDropdown.classList.remove('show');
-                }
+        .toggle-switch input {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            top: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: var(--accent);
+        }
+
+        .toggle-switch input:checked+.toggle-slider::before {
+            transform: translateX(20px);
+        }
+    </style>
+
+    <script>
+        // ===== SESSION & USER DATA =====
+        let session = null;
+        let users = {};
+
+        function loadSession() {
+            const s = localStorage.getItem('s2s_session');
+            if (!s) {
+                window.location.href = 'login.html';
+                return;
+            }
+            session = JSON.parse(s);
+            users = JSON.parse(localStorage.getItem('s2s_users') || '{}');
+            updateUI();
+        }
+
+        function updateUI() {
+            if (!session) return;
+            const name = session.displayName || session.username || 'User';
+            const initial = name[0].toUpperCase();
+
+            // Nav avatar
+            const navAv = document.getElementById('navAvatar');
+            if (session.avatar) {
+                navAv.innerHTML = `<img src="${session.avatar}" style="width:100%;height:100%;object-fit:cover">`;
+            } else {
+                navAv.textContent = initial;
+            }
+
+            document.getElementById('navUsername').textContent = name;
+
+            // Dropdown header
+            const dropAv = document.getElementById('dropdownAvatar');
+            if (session.avatar) {
+                dropAv.innerHTML = `<img src="${session.avatar}"><div class="avatar-edit-overlay" onclick="triggerAvatarUpload()"><i class="fa-solid fa-camera"></i></div>`;
+            } else {
+                dropAv.innerHTML = `${initial}<div class="avatar-edit-overlay" onclick="triggerAvatarUpload()"><i class="fa-solid fa-camera"></i></div>`;
+            }
+
+            document.getElementById('dropdownName').textContent = session.displayName || session.username;
+            document.getElementById('dropdownEmail').textContent = session.email || '';
+            document.getElementById('dropdownBadge').innerHTML = `<i class="fa-solid fa-star"></i> ${session.badge || 'Member'}`;
+
+            // Photo preview
+            const pp = document.getElementById('photoPreview');
+            if (session.avatar) {
+                pp.innerHTML = `<img src="${session.avatar}">`;
+            } else {
+                pp.textContent = initial;
+            }
+
+            // Pre-fill edit forms
+            document.getElementById('editDisplayName').value = session.displayName || '';
+            document.getElementById('editBio').value = session.bio || '';
+            document.getElementById('editLocation').value = session.location || '';
+            document.getElementById('editUsername').value = session.username || '';
+            document.getElementById('editEmail').value = session.email || '';
+
+            // Theme
+            applyTheme(session.theme || 'dark', false);
+        }
+
+        // ===== DROPDOWN TOGGLES =====
+        function toggleDropdown(id) {
+            const wrap = document.getElementById(id);
+            const wasOpen = wrap.classList.contains('open');
+            document.querySelectorAll('.nav-dropdown.open, [id$="DropdownWrap"].open').forEach(el => el.classList.remove('open'));
+            if (!wasOpen) wrap.classList.add('open');
+
+            const caret = document.getElementById('profileCaret');
+            if (caret) caret.style.transform = wrap.classList.contains('open') ? 'rotate(180deg)' : '';
+            const pd = document.getElementById('profileDropdown');
+            if (pd) pd.classList.toggle('open', wrap.classList.contains('open'));
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#profileDropdownWrap') && !e.target.closest('#roomsDropdown')) {
+                document.querySelectorAll('.nav-dropdown, #profileDropdownWrap').forEach(el => el.classList.remove('open'));
+                const pd = document.getElementById('profileDropdown');
+                if (pd) pd.classList.remove('open');
+                const c = document.getElementById('profileCaret');
+                if (c) c.style.transform = '';
+            }
+        });
+
+        // ===== MODAL SYSTEM =====
+        function openModal(id) {
+            document.getElementById(id).classList.add('open');
+            document.getElementById('profileDropdown').classList.remove('open');
+            document.getElementById('profileDropdownWrap').classList.remove('open');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function (e) {
+                if (e.target === this) closeModal(this.id);
+            });
+        });
+
+        // ===== AVATAR UPLOAD =====
+        function triggerAvatarUpload() {
+            document.getElementById('avatarInput').click();
+        }
+
+        function handleAvatarUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { showToast('❌ File too large (max 5MB)', 'error'); return; }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                session.avatar = e.target.result;
+                saveSessionAndUsers();
+                updateUI();
+                showToast('✅ Photo updated!', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeAvatar() {
+            session.avatar = null;
+            saveSessionAndUsers();
+            updateUI();
+            showToast('🗑️ Photo removed', 'info');
+        }
+
+        // ===== SAVE PROFILE =====
+        function saveProfile() {
+            session.displayName = document.getElementById('editDisplayName').value.trim() || session.username;
+            session.bio = document.getElementById('editBio').value.trim();
+            session.location = document.getElementById('editLocation').value.trim();
+
+            // Level up badge
+            if (session.bio && session.bio.length > 20) session.badge = 'Active Member';
+
+            saveSessionAndUsers();
+            updateUI();
+            closeModal('profileModal');
+            showToast('✅ Profile updated!', 'success');
+        }
+
+        // ===== SAVE ACCOUNT =====
+        function saveAccount() {
+            const newUser = document.getElementById('editUsername').value.trim();
+            const newEmail = document.getElementById('editEmail').value.trim();
+            const curPass = document.getElementById('currentPass').value;
+            const newPass = document.getElementById('newPass').value;
+            const confirmPass = document.getElementById('confirmNewPass').value;
+
+            // Validate password change if attempted
+            if (newPass || curPass) {
+                if (!curPass) { showToast('❌ Enter your current password', 'error'); return; }
+                if (session.password !== btoa(curPass)) { showToast('❌ Current password is wrong', 'error'); return; }
+                if (newPass !== confirmPass) { showToast('❌ New passwords do not match', 'error'); return; }
+                if (newPass.length < 6) { showToast('❌ Password too short (min 6 chars)', 'error'); return; }
+                session.password = btoa(newPass);
+            }
+
+            // Update username/email
+            const oldKey = session.username;
+            if (newUser && newUser !== oldKey) {
+                if (users[newUser]) { showToast('❌ Username already taken', 'error'); return; }
+                users[newUser] = users[oldKey];
+                delete users[oldKey];
+                session.username = newUser;
+            }
+
+            if (newEmail) session.email = newEmail;
+
+            saveSessionAndUsers();
+            updateUI();
+            closeModal('accountModal');
+            showToast('✅ Account updated!', 'success');
+
+            // Clear password fields
+            ['currentPass', 'newPass', 'confirmNewPass'].forEach(id => document.getElementById(id).value = '');
+        }
+
+        // ===== THEME =====
+        function applyTheme(theme, save = true) {
+            document.documentElement.setAttribute('data-theme', theme);
+
+            document.querySelectorAll('.theme-card').forEach(tc => tc.classList.remove('selected'));
+            const tc = document.getElementById('tc-' + theme);
+            if (tc) tc.classList.add('selected');
+
+            if (save) {
+                session.theme = theme;
+                saveSessionAndUsers();
+                showToast(`🎨 Theme changed to ${theme}!`, 'success');
             }
         }
+
+        // ===== SETTINGS =====
+        function saveSettings() {
+            const settings = {
+                notifications: document.getElementById('notifToggle').checked,
+                sounds: document.getElementById('soundToggle').checked,
+                showOnline: document.getElementById('onlineToggle').checked,
+                anonymous: document.getElementById('anonToggle').checked
+            };
+            session.settings = settings;
+            saveSessionAndUsers();
+            closeModal('settingsModal');
+            showToast('✅ Settings saved!', 'success');
+        }
+
+        // ===== LOGOUT =====
+        function handleLogout() {
+            localStorage.removeItem('s2s_session');
+            showToast('👋 See you again!', 'info');
+            setTimeout(() => { window.location.href = 'login.html'; }, 800);
+        }
+
+        // ===== SAVE DATA =====
+        function saveSessionAndUsers() {
+            if (session.username && users[session.username]) {
+                Object.assign(users[session.username], session);
+                localStorage.setItem('s2s_users', JSON.stringify(users));
+            }
+            localStorage.setItem('s2s_session', JSON.stringify(session));
+        }
+
+        // ===== TOAST =====
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+
+            const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+            toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span> ${msg}`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ===== MOBILE SIDEBAR =====
+        function openSidebar() {
+            document.getElementById('mobileSidebar').classList.add('open');
+            document.getElementById('sidebarOverlay').style.display = 'block';
+        }
+
+        function closeSidebar() {
+            document.getElementById('mobileSidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').style.display = 'none';
+        }
+
+        // ===== LIVE TICKER =====
+        const tickerMessages = [
+            { user: 'Rahul', msg: 'joined Group Chat' },
+            { user: 'Priya', msg: 'sent a message in Group Chat' },
+            { user: 'Alex', msg: 'joined from USA 🇺🇸' },
+            { user: 'Yuki', msg: 'joined from Japan 🇯🇵' },
+            { user: 'Carlos', msg: 'is now online 🟢' },
+            { user: 'Emma', msg: 'left the room' },
+            { user: 'Dev', msg: 'joined Group Chat' },
+            { user: 'Sofia', msg: 'joined from Spain 🇪🇸' },
+        ];
+
+        function buildTicker() {
+            const inner = document.getElementById('tickerInner');
+            const msgs = [...tickerMessages, ...tickerMessages];
+            inner.innerHTML = msgs.map(m =>
+                `<span class="ticker-item"><strong>${m.user}</strong> ${m.msg}</span>`
+            ).join('');
+        }
+
+        // ===== LIVE ACTIVITY FEED =====
+        const activities = [
+            { user: 'Rahul_98', action: 'joined Group Chat', time: 'Just now', color: '#6c63ff' },
+            { user: 'Ananya_xyz', action: 'sent 5 messages 💬', time: '1 min ago', color: '#ff6584' },
+            { user: 'GlobalUser42', action: 'joined from Germany 🇩🇪', time: '3 min ago', color: '#43e97b' },
+            { user: 'MisterX', action: 'logged in', time: '5 min ago', color: '#f0ad4e' },
+            { user: 'CoolGal22', action: 'updated their profile 📸', time: '8 min ago', color: '#5bc0de' },
+        ];
+
+        function buildActivityFeed() {
+            const feed = document.getElementById('activityFeed');
+            feed.innerHTML = activities.map(a => `
+        <div class="activity-item">
+            <div class="activity-avatar" style="background:linear-gradient(135deg,${a.color},${a.color}88)">
+                ${a.user[0].toUpperCase()}
+            </div>
+            <div class="activity-text">
+                <strong>${a.user}</strong>
+                <p>${a.action}</p>
+            </div>
+            <div class="activity-time">${a.time}</div>
+        </div>
+    `).join('');
+        }
+
+        // ===== LIVE ONLINE COUNT =====
+        function animateOnlineCount() {
+            const el = document.getElementById('onlineCount');
+            let base = 1247;
+            setInterval(() => {
+                base += Math.floor(Math.random() * 5) - 2;
+                if (base < 1200) base = 1200;
+                el.textContent = base.toLocaleString();
+            }, 3000);
+        }
+
+        // ===== INIT =====
+        loadSession();
+        buildTicker();
+        buildActivityFeed();
+        animateOnlineCount();
+
+        // Simulate real-time new activity
+        setInterval(() => {
+            const names = ['Stranger_' + Math.floor(Math.random() * 999), 'User_' + Math.floor(Math.random() * 999)];
+            const actions = ['joined Group Chat 💬', 'is now online 🟢', 'left the chat 👋', 'from India 🇮🇳'];
+            const newActivity = {
+                user: names[Math.floor(Math.random() * names.length)],
+                action: actions[Math.floor(Math.random() * actions.length)],
+                time: 'Just now',
+                color: ['#6c63ff', '#ff6584', '#43e97b', '#f0ad4e'][Math.floor(Math.random() * 4)]
+            };
+
+            // Update times
+            activities.unshift(newActivity);
+            if (activities.length > 5) activities.pop();
+            buildActivityFeed();
+        }, 8000);
+
+
+
+
+
+
+
+
+
+
+
+
+function goToChat(e) {
+    e.preventDefault();
+    const s = localStorage.getItem('s2s_session');
+    if (s) {
+        const user = JSON.parse(s);
+        localStorage.setItem('chatUsername', user.username || user.displayName);
+        localStorage.setItem('chatBio', user.bio || '');
     }
-</script>
-<script src="security-guard.js"></script>
+    window.location.href = 'Group-Chatroom.html';
+}
+    </script>
 </body>
+
 </html>
