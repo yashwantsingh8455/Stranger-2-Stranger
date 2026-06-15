@@ -32,7 +32,7 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            visibility: hidden; /* Auth check hone tak hidden */
+            visibility: hidden;
         }
 
         .wrapper {
@@ -70,7 +70,6 @@
         }
 
         .brand-name span { color: var(--accent); }
-
         .brand-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 
         .card {
@@ -226,24 +225,28 @@
             cursor: pointer;
             transition: opacity 0.2s, transform 0.15s;
             box-shadow: 0 4px 16px var(--glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn:hover { opacity: 0.9; transform: translateY(-1px); }
         .btn:active { transform: scale(0.98); }
-        .btn.loading { pointer-events: none; opacity: 0.8; }
+        .btn:disabled { pointer-events: none; opacity: 0.7; }
 
-        .btn.loading::before {
-            content: '';
-            display: inline-block;
+        .btn .spinner {
             width: 14px;
             height: 14px;
             border: 2px solid rgba(255,255,255,0.35);
             border-top-color: white;
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
+            display: none;
         }
+
+        .btn.loading .spinner { display: block; }
+        .btn.loading .btn-text { opacity: 0.8; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -277,14 +280,14 @@
             margin-bottom: 14px;
         }
 
-        .alert.error {
+        .alert.show-error {
             display: flex;
             background: rgba(255,77,77,0.1);
             border: 1px solid rgba(255,77,77,0.25);
             color: #ff8080;
         }
 
-        .alert.success {
+        .alert.show-success {
             display: flex;
             background: rgba(67,233,123,0.1);
             border: 1px solid rgba(67,233,123,0.25);
@@ -335,12 +338,17 @@
 </head>
 <body>
 
-    <!-- ══════════════════════════════════════
-         🔥 FIREBASE — Module Script
-         ══════════════════════════════════════ -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import {
+            getAuth,
+            onAuthStateChanged,
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            sendPasswordResetEmail,
+            updateProfile
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey:            "AIzaSyDA7ml6mEMjxmzF7SNy58zMO4qEholTlEg",
@@ -354,25 +362,26 @@
         const app  = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // Global scope expose
-        window._firebaseAuth  = auth;
-        window._signIn        = signInWithEmailAndPassword;
-        window._signUp        = createUserWithEmailAndPassword;
-        window._resetPass     = sendPasswordResetEmail;
-        window._updateProfile = updateProfile;
-
-        // Auth check — logged in hai to redirect, warna page dikhao
-        auth.onAuthStateChanged(user => {
+        // ── Auth state check: already logged in → go home ──────────
+        onAuthStateChanged(auth, user => {
             if (user) {
-                window.location.href = 'index.html';
+                // Already logged in, go to home/dashboard
+                window.location.replace('index.html');
             } else {
+                // Not logged in, show the page
                 document.body.style.visibility = 'visible';
             }
         });
+
+        // ── Expose to non-module scripts ────────────────────────────
+        window._fbAuth          = auth;
+        window._fbSignIn        = signInWithEmailAndPassword;
+        window._fbSignUp        = createUserWithEmailAndPassword;
+        window._fbResetPass     = sendPasswordResetEmail;
+        window._fbUpdateProfile = updateProfile;
     </script>
 
     <div class="wrapper">
-
         <div class="brand">
             <div class="brand-icon"><i class="fa-solid fa-comments"></i></div>
             <div class="brand-name">Stranger<span>2</span>Stranger</div>
@@ -380,13 +389,12 @@
         </div>
 
         <div class="card">
-
             <div class="tabs" id="authTabs">
                 <button class="tab active" onclick="switchTab('login')">Sign In</button>
                 <button class="tab" onclick="switchTab('register')">Create Account</button>
             </div>
 
-            <!-- ── LOGIN ── -->
+            <!-- LOGIN -->
             <div id="loginPanel" class="form-panel active">
                 <div id="loginAlert" class="alert"></div>
 
@@ -394,7 +402,7 @@
                     <label>Email</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-envelope fi"></i>
-                        <input type="email" id="loginUser" placeholder="your@email.com">
+                        <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
                     </div>
                 </div>
 
@@ -402,7 +410,7 @@
                     <label>Password</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-lock fi"></i>
-                        <input type="password" id="loginPass" placeholder="••••••••">
+                        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
                         <i class="fa-solid fa-eye eye-btn" onclick="togglePass('loginPass', this)"></i>
                     </div>
                 </div>
@@ -414,12 +422,13 @@
                     <span class="forgot" onclick="switchTab('forgot')">Forgot password?</span>
                 </div>
 
-                <button class="btn" onclick="handleLogin(this)">
-                    <i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:7px"></i>Sign In
+                <button class="btn" id="loginBtn" onclick="handleLogin()">
+                    <div class="spinner"></div>
+                    <span class="btn-text"><i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In</span>
                 </button>
             </div>
 
-            <!-- ── REGISTER ── -->
+            <!-- REGISTER -->
             <div id="registerPanel" class="form-panel">
                 <div id="registerAlert" class="alert"></div>
 
@@ -427,7 +436,7 @@
                     <label>Username</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-at fi"></i>
-                        <input type="text" id="regUsername" placeholder="Choose a username">
+                        <input type="text" id="regUsername" placeholder="Choose a username" autocomplete="username">
                     </div>
                 </div>
 
@@ -435,7 +444,7 @@
                     <label>Email</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-envelope fi"></i>
-                        <input type="email" id="regEmail" placeholder="your@email.com">
+                        <input type="email" id="regEmail" placeholder="your@email.com" autocomplete="email">
                     </div>
                 </div>
 
@@ -443,7 +452,8 @@
                     <label>Password</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-lock fi"></i>
-                        <input type="password" id="regPass" placeholder="Create a password" oninput="checkStrength(this.value)">
+                        <input type="password" id="regPass" placeholder="Create a password" autocomplete="new-password"
+                               oninput="checkStrength(this.value)">
                         <i class="fa-solid fa-eye eye-btn" onclick="togglePass('regPass', this)"></i>
                     </div>
                     <div class="strength-bar">
@@ -458,18 +468,18 @@
                     <label>Confirm Password</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-shield-halved fi"></i>
-                        <input type="password" id="regConfirm" placeholder="Repeat password">
+                        <input type="password" id="regConfirm" placeholder="Repeat password" autocomplete="new-password">
                     </div>
                 </div>
 
-                <button class="btn" onclick="handleRegister(this)" style="margin-top:4px">
-                    <i class="fa-solid fa-user-plus" style="margin-right:7px"></i>Create Account
+                <button class="btn" id="registerBtn" onclick="handleRegister()" style="margin-top:4px">
+                    <div class="spinner"></div>
+                    <span class="btn-text"><i class="fa-solid fa-user-plus"></i> Create Account</span>
                 </button>
             </div>
 
-            <!-- ── FORGOT PASSWORD ── -->
+            <!-- FORGOT PASSWORD -->
             <div id="forgotPanel" class="form-panel">
-
                 <span class="back-link" onclick="switchTab('login')">
                     <i class="fa-solid fa-arrow-left"></i> Back to Sign In
                 </span>
@@ -477,7 +487,7 @@
                 <div id="forgotAlert" class="alert"></div>
 
                 <div id="forgotStep1">
-                    <p class="panel-desc">Enter your registered email address and we'll send you a password reset link.</p>
+                    <p class="panel-desc">Enter your registered email and we'll send you a password reset link.</p>
 
                     <div class="field">
                         <label>Email Address</label>
@@ -487,15 +497,14 @@
                         </div>
                     </div>
 
-                    <button class="btn" id="forgotBtn" onclick="handleForgotPassword(this)">
-                        <i class="fa-solid fa-paper-plane" style="margin-right:7px"></i>Send Reset Link
+                    <button class="btn" id="forgotBtn" onclick="handleForgotPassword()">
+                        <div class="spinner"></div>
+                        <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Send Reset Link</span>
                     </button>
                 </div>
 
                 <div class="email-sent-box" id="emailSentBox">
-                    <div class="email-sent-icon">
-                        <i class="fa-solid fa-envelope-circle-check"></i>
-                    </div>
+                    <div class="email-sent-icon"><i class="fa-solid fa-envelope-circle-check"></i></div>
                     <div class="email-sent-title">Check Your Inbox 📬</div>
                     <div class="email-sent-desc">
                         A password reset link has been sent to<br>
@@ -506,32 +515,27 @@
                         <i class="fa-solid fa-rotate-right" style="margin-right:5px"></i>Resend Email
                     </span>
                 </div>
-
             </div>
-
         </div>
     </div>
 
     <script>
+        'use strict';
         let _lastResetEmail = '';
 
         function switchTab(tab) {
-            document.getElementById('authTabs').style.display = tab === 'forgot' ? 'none' : 'flex';
-
-            ['loginPanel','registerPanel','forgotPanel'].forEach(id => {
-                document.getElementById(id).classList.remove('active');
+            document.getElementById('authTabs').style.display = (tab === 'forgot') ? 'none' : 'flex';
+            ['login','register','forgot'].forEach(t => {
+                document.getElementById(t + 'Panel').classList.toggle('active', t === tab);
             });
-            document.getElementById(tab + 'Panel').classList.add('active');
-
-            document.querySelectorAll('.tab').forEach((t, i) => {
-                t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+            document.querySelectorAll('.tab').forEach((btn, i) => {
+                btn.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
             });
-
             if (tab === 'forgot') {
                 document.getElementById('forgotStep1').style.display = 'block';
                 document.getElementById('emailSentBox').classList.remove('visible');
                 document.getElementById('forgotEmail').value = '';
-                document.getElementById('forgotAlert').className = 'alert';
+                hideAlert('forgotAlert');
                 _lastResetEmail = '';
             }
         }
@@ -543,12 +547,10 @@
             icon.className = `fa-solid fa-eye${shown ? '' : '-slash'} eye-btn`;
         }
 
-        function checkStrength(pass) { _doStrength(pass, ['s1','s2','s3','s4']); }
-
-        function _doStrength(pass, ids) {
-            const segs = ids.map(id => document.getElementById(id));
+        function checkStrength(pass) {
+            const segs = ['s1','s2','s3','s4'].map(id => document.getElementById(id));
             let score = 0;
-            if (pass.length >= 6) score++;
+            if (pass.length >= 6)  score++;
             if (pass.length >= 10) score++;
             if (/[A-Z]/.test(pass) && /[0-9]/.test(pass)) score++;
             if (/[^A-Za-z0-9]/.test(pass)) score++;
@@ -567,110 +569,130 @@
                 'auth/weak-password':          'Password must be at least 6 characters.',
                 'auth/too-many-requests':      'Too many attempts. Please try again later.',
                 'auth/invalid-credential':     'Incorrect email or password.',
-                'auth/network-request-failed': 'Network error. Please check your internet connection.',
+                'auth/network-request-failed': 'Network error. Please check your connection.',
                 'auth/operation-not-allowed':  'This sign-in method is not enabled.',
-                'auth/popup-closed-by-user':   'Sign-in popup was closed. Please try again.',
             };
             return map[code] || 'Something went wrong. Please try again.';
         }
 
-        async function handleLogin(btn) {
-            const email = document.getElementById('loginUser').value.trim();
+        function showAlert(id, type, msg) {
+            const el = document.getElementById(id);
+            el.className = 'alert ' + (type === 'error' ? 'show-error' : 'show-success');
+            el.innerHTML = `<i class="fa-solid fa-${type === 'error' ? 'circle-exclamation' : 'circle-check'}"></i> ${msg}`;
+        }
+
+        function hideAlert(id) {
+            const el = document.getElementById(id);
+            el.className = 'alert';
+            el.innerHTML = '';
+        }
+
+        function setLoading(btnId, loading) {
+            const btn = document.getElementById(btnId);
+            btn.classList.toggle('loading', loading);
+            btn.disabled = loading;
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
             const pass  = document.getElementById('loginPass').value;
-            if (!email || !pass) { showAlert('loginAlert', 'error', 'Please enter your email and password.'); return; }
-
-            btn.classList.add('loading');
-            btn.textContent = 'Signing in...';
-
+            hideAlert('loginAlert');
+            if (!email || !pass) {
+                showAlert('loginAlert', 'error', 'Please enter your email and password.');
+                return;
+            }
+            setLoading('loginBtn', true);
             try {
-                await window._signIn(window._firebaseAuth, email, pass);
+                await window._fbSignIn(window._fbAuth, email, pass);
+                // onAuthStateChanged will fire and redirect to index.html
             } catch(e) {
-                btn.classList.remove('loading');
-                btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:7px"></i>Sign In';
+                setLoading('loginBtn', false);
                 showAlert('loginAlert', 'error', firebaseError(e.code));
             }
         }
 
-        async function handleRegister(btn) {
+        async function handleRegister() {
             const username = document.getElementById('regUsername').value.trim();
             const email    = document.getElementById('regEmail').value.trim();
             const pass     = document.getElementById('regPass').value;
             const confirm  = document.getElementById('regConfirm').value;
+            hideAlert('registerAlert');
 
-            if (!username || !email || !pass || !confirm) { showAlert('registerAlert', 'error', 'Please fill in all fields.'); return; }
-            if (pass !== confirm) { showAlert('registerAlert', 'error', 'Passwords do not match.'); return; }
-            if (pass.length < 6)  { showAlert('registerAlert', 'error', 'Password must be at least 6 characters.'); return; }
-
-            btn.classList.add('loading');
-            btn.textContent = 'Creating account...';
-
+            if (!username || !email || !pass || !confirm) {
+                showAlert('registerAlert', 'error', 'Please fill in all fields.');
+                return;
+            }
+            if (username.length < 2) {
+                showAlert('registerAlert', 'error', 'Username must be at least 2 characters.');
+                return;
+            }
+            if (pass !== confirm) {
+                showAlert('registerAlert', 'error', 'Passwords do not match.');
+                return;
+            }
+            if (pass.length < 6) {
+                showAlert('registerAlert', 'error', 'Password must be at least 6 characters.');
+                return;
+            }
+            setLoading('registerBtn', true);
             try {
-                const cred = await window._signUp(window._firebaseAuth, email, pass);
-                await window._updateProfile(cred.user, { displayName: username });
+                const cred = await window._fbSignUp(window._fbAuth, email, pass);
+                await window._fbUpdateProfile(cred.user, { displayName: username });
                 showAlert('registerAlert', 'success', '✓ Account created! Redirecting...');
+                // onAuthStateChanged fires → redirect to index.html
             } catch(e) {
-                btn.classList.remove('loading');
-                btn.innerHTML = '<i class="fa-solid fa-user-plus" style="margin-right:7px"></i>Create Account';
+                setLoading('registerBtn', false);
                 showAlert('registerAlert', 'error', firebaseError(e.code));
             }
         }
 
-        async function handleForgotPassword(btn) {
+        async function handleForgotPassword() {
             const email = document.getElementById('forgotEmail').value.trim();
-            if (!email) { showAlert('forgotAlert', 'error', 'Please enter your email address.'); return; }
-
-            const originalHTML = btn.innerHTML;
-            btn.classList.add('loading');
-            btn.textContent = 'Sending...';
-
+            hideAlert('forgotAlert');
+            if (!email) {
+                showAlert('forgotAlert', 'error', 'Please enter your email address.');
+                return;
+            }
+            setLoading('forgotBtn', true);
             try {
-                await window._resetPass(window._firebaseAuth, email);
+                await window._fbResetPass(window._fbAuth, email);
                 _lastResetEmail = email;
                 document.getElementById('forgotStep1').style.display = 'none';
                 document.getElementById('sentToEmail').textContent = email;
                 document.getElementById('emailSentBox').classList.add('visible');
-                document.getElementById('forgotAlert').className = 'alert';
             } catch(e) {
-                btn.classList.remove('loading');
-                btn.innerHTML = originalHTML;
-                showAlert('forgotAlert', 'error', e.code === 'auth/user-not-found'
-                    ? 'No account found with this email address.'
-                    : firebaseError(e.code));
+                setLoading('forgotBtn', false);
+                showAlert('forgotAlert', 'error',
+                    e.code === 'auth/user-not-found'
+                        ? 'No account found with this email address.'
+                        : firebaseError(e.code)
+                );
             }
         }
 
         async function resendResetEmail() {
             if (!_lastResetEmail) return;
             try {
-                await window._resetPass(window._firebaseAuth, _lastResetEmail);
-                const box = document.getElementById('emailSentBox');
-                const desc = box.querySelector('.email-sent-desc');
-                const oldHTML = desc.innerHTML;
+                await window._fbResetPass(window._fbAuth, _lastResetEmail);
+                const desc = document.querySelector('#emailSentBox .email-sent-desc');
+                const orig = desc.innerHTML;
                 desc.innerHTML = '✓ Email resent successfully!';
-                setTimeout(() => { desc.innerHTML = oldHTML; }, 3000);
+                setTimeout(() => { desc.innerHTML = orig; }, 3000);
             } catch(e) {
                 alert('Error: ' + firebaseError(e.code));
             }
         }
 
-        function showAlert(id, type, msg) {
-            const el = document.getElementById(id);
-            el.className = `alert ${type}`;
-            el.innerHTML = `<i class="fa-solid fa-${type === 'error' ? 'circle-exclamation' : 'circle-check'}"></i> ${msg}`;
-        }
-
+        // Enter key support
         document.addEventListener('keydown', e => {
             if (e.key !== 'Enter') return;
-            if (document.getElementById('loginPanel').classList.contains('active')) {
-                handleLogin(document.querySelector('#loginPanel .btn'));
-            } else if (document.getElementById('registerPanel').classList.contains('active')) {
-                handleRegister(document.querySelector('#registerPanel .btn'));
-            } else if (document.getElementById('forgotPanel').classList.contains('active')) {
-                if (document.getElementById('emailSentBox').classList.contains('visible')) return;
-                handleForgotPassword(document.querySelector('#forgotStep1 .btn'));
-            }
+            const activePanel = document.querySelector('.form-panel.active');
+            if (!activePanel) return;
+            const id = activePanel.id;
+            if (id === 'loginPanel') handleLogin();
+            else if (id === 'registerPanel') handleRegister();
+            else if (id === 'forgotPanel' && !document.getElementById('emailSentBox').classList.contains('visible')) handleForgotPassword();
         });
     </script>
-
 </body>
 </html>
