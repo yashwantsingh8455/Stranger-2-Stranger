@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StrangerToStranger</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #dfdfdf;
+      color: rgb(53, 53, 53);
+      font-family: sans-serif;
+    }
+
+.top-marquee-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 30px;
+  z-index: 1001;
+}
+
+    .top-marquee-bar marquee {
+      width: 100%;
+      cursor: pointer;
+    }
+
+.top-navbar-div {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  background-color: #23272a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  box-sizing: border-box;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  z-index: 1000;
+}
+
+    /* LEFT: Logo */
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-text {
+      font-size: 17px;
+      font-weight: bold;
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    /* RIGHT: Buttons */
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 🏠 HOME BUTTON */
+    .back-home-btn {
+      background: linear-gradient(135deg, #3a3f44, #2c2f33);
+      color: #ffffff;
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid rgba(255,255,255,0.18);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .back-home-btn:hover {
+      background: linear-gradient(135deg, #4a4f55, #3a3f44);
+      border-color: rgba(255,255,255,0.35);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .back-home-btn:active {
+      transform: translateY(0);
+    }
+
+    .back-home-btn svg {
+      flex-shrink: 0;
+    }
+
+    /* 💎 VIP BUTTON */
+    .vip-mail-btn {
+      background-color: #5865F2;
+      color: white;
+      text-decoration: none;
+      padding: 8px 14px;
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(88,101,242,0.4);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+    }
+
+    .vip-mail-btn:hover {
+      background-color: #4752C4;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(88,101,242,0.5);
+    }
+
+    .vip-mail-btn:active {
+      transform: translateY(0);
+    }
+
+    .vip-mail-btn svg {
+      width: 15px;
+      height: 15px;
+      fill: white;
+      flex-shrink: 0;
+    }
+
+    /* IFRAME */
+.chat-iframe {
+  display: block;
+  margin-top: 56px;
+  width: 100%;
+  height: calc(100vh - 56px);
+  border: none;
+}
+
+    /* MAIN CONTENT */
+    main {
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    main h1, main h2 { margin-top: 24px; margin-bottom: 10px; }
+    main p, main ul  { line-height: 1.7; margin-bottom: 12px; }
+    main ul          { padding-left: 22px; }
+
+    .faq-block       { margin-bottom: 16px; }
+    .faq-question    { font-weight: bold; margin-bottom: 4px; }
+    .faq-answer      { margin: 0; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 600px) {
+      .top-navbar-div {
+        height: 50px;
+        padding: 0 12px;
+      }
+
+      .logo-text {
+        font-size: 14px;
+      }
+
+      .back-home-btn {
+        padding: 7px 11px;
+        font-size: 12px;
+        gap: 5px;
+        border-radius: 7px;
+      }
+
+      /* Mobile par text hide karo, sirf icon dikhao */
+      .back-home-btn .btn-label {
+        display: none;
+      }
+
+      .vip-mail-btn {
+        padding: 7px 11px;
+        font-size: 12px;
+        border-radius: 7px;
+      }
+
+      .vip-mail-btn .btn-label {
+        display: none;
+      }
+
+      .chat-iframe {
+        margin-top: 50px;
+        height: calc(100vh - 50px);
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/white-sky-ui.css">
+</head>
+
+<body class="s2s-iframe">
+
+  <!-- MARQUEE BAR -->
+  <div id="marqueeContainer" class="top-marquee-bar" style="display: none;">
+    <marquee id="liveNotice" behavior="scroll" direction="left" scrollamount="6"
+      onmouseover="this.stop();" onmouseout="this.start();">
+      📢 Loading latest updates...
+    </marquee>
+  </div>
+
+  <!-- NAVBAR -->
+  <div id="navbarDiv" class="top-navbar-div">
+
+    <!-- Left: Logo -->
+    <div class="navbar-left">
+      <p class="logo-text">StrangerToStranger</p>
+    </div>
+
+    <!-- Right: Buttons -->
+    <div class="navbar-right">
+
+      <!-- 🏠 HOME BUTTON -->
+      <button class="back-home-btn" onclick="window.location.href='index.html'" title="Back to Home">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="white">
+          <path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z"/>
+        </svg>
+        <span class="btn-label">Home</span>
+      </button>
+
+      <!-- 💎 VIP BUTTON -->
+      <button class="vip-mail-btn" onclick="openSmartVipMail()" title="Get VIP">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+        </svg>
+        <span class="btn-label">Get VIP</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- CHAT IFRAME -->
+  <iframe id="chatIframe" src="Group-Chatroom.html" class="chat-iframe"></iframe>
+
+  <main>
+    <h1>🛡️ Why Stranger to Stranger is Your Safe Gateway to Free Online Conversations</h1>
+    <p>Connecting with people online is no longer just about standard voice calls or social media texting. Today, secure online chat platforms are changing the way we make real connections across the globe. At StrangerToStranger, we offer a completely free, premium chat environment designed for people who want to make friends, share ideas, and have meaningful conversations without any hidden subscription charges or data traps. What makes our platform unique and 100% real is our strict commitment to user protection and absolute anonymity. Unlike complex web applications that force you through long registration processes or sell your private information, here you can instantly plug in as a guest, allocate your username, and experience lag-free text chats, rich media sharing, or dynamic direct messages.</p><br>
+
+    <h1>🌐 Experience the Ultimate Revolution of Free Online Chats</h1>
+    <p>The evolution of global internet protocols has completely transformed how we interact, making free chat rooms, instant video modules, and anonymous group channels highly popular worldwide. Today, chat enthusiasts expect a smooth environment where they can converse comfortably without worrying about hidden paywalls, premium credits, or subscription traps. Rather than sticking to outdated frameworks or generic scripts, Stranger to Stranger brings a fresh, user-centric perspective to the online chatting realm.</p>
+
+    <h1>❓ Decoding Free Online Chat: Types, Modes, and Global Connections</h1>
+    <p>Free online chat is a modern communication protocol that allows global web users to send texts, launch media streams, or exchange voice files without any registration fees or premium subscription blockades.</p>
+
+    <ul>
+      <li><strong>Secure Public Chat Rooms:</strong> Shared digital lobbies where hundreds of random strangers gather to discuss specific interests, gaming setups, trending topics, or general casual banter simultaneously.</li>
+      <li><strong>Encrypted Online Chat:</strong> The standard, highly optimized text module used to quickly trade micro-messages without lagging, catching bots, or leaking device configurations.</li>
+      <li><strong>Direct Audio Streams:</strong> Voice-focused chat paths where users can drop high-speed voice notes or initiate audio talk lines.</li>
+      <li><strong>Fluid Visual Connections:</strong> Video features that allow users to have face-to-face conversations from their webcams.</li>
+    </ul>
+
+    <h2>⚙️ How Free Chat Platforms Operate</h2>
+    <p>Modern free chat sites focus heavily on clean, friction-free user interfaces. The main goal is to let you jump straight into a live conversation with absolute minimum time and zero effort. <strong>StrangerToStranger</strong> breaks those barriers by offering a direct, fully functional guest login system.</p>
+
+    <h2>✨ What Makes Free Chat Rooms So Attractive</h2>
+    <ul>
+      <li><strong>Absolute Zero Cost:</strong> Complete financial freedom — no sneaky premium subscriptions or hidden in-app purchases.</li>
+      <li><strong>Hyper-Focused Theme Rooms:</strong> Dedicated hubs for gaming, music, tech debates, or global politics.</li>
+      <li><strong>Borderless Cultural Exchange:</strong> Chat seamlessly with people from entirely different geographical backgrounds.</li>
+      <li><strong>No Commitment or Profiles:</strong> Enter active pools anonymously, have a great conversation, and leave whenever you want.</li>
+      <li><strong>Instantaneous Live Responses:</strong> Live, rapid-fire communication — drop a text and get answered right then and there.</li>
+    </ul>
+
+    <h2>💎 Core Advantages of Free Chat Rooms</h2>
+    <ul>
+      <li><strong>Unrestricted Free Communication:</strong> Full functionality without any financial barrier.</li>
+      <li><strong>Global Communication Gaps Eliminated:</strong> Physical borders melt away the moment you connect.</li>
+      <li><strong>Absolute Anonymity & Data Protection:</strong> Connect without revealing your real-world identity.</li>
+      <li><strong>Fluid Media & Dynamic Chat Modes:</strong> Public lobbies, private messages, webcam windows, and audio streams.</li>
+      <li><strong>Instant Universal Accessibility:</strong> Works on smartphones, tablets, and computers — no software setup needed.</li>
+      <li><strong>Knowledge Sharing & Personal Growth:</strong> Trade technical feedback, debate international politics, share educational resources.</li>
+    </ul>
+
+    <h2>⚠️ Understanding the Risks (Safe Practices)</h2>
+    <ul>
+      <li><strong>The Double-Edged Sword of Anonymity:</strong> <strong>StrangerToStranger</strong> deploys constant automated moderation to keep discussion pools clean.</li>
+      <li><strong>Basic Security Threats:</strong> Never click on unverified external links shared by strangers in text pools.</li>
+      <li><strong>Social Engineering & Online Scams:</strong> Always trust your gut instincts — keep your identity completely hidden.</li>
+    </ul>
+
+    <h2>❓ Frequently Asked Questions</h2>
+
+    <div class="faq-block">
+      <div class="faq-question">Q1: What exactly is a free online chat room?</div>
+      <p class="faq-answer">A free chat room is an open internet-based discussion node that allows global web users to connect and share texts without paying subscription or entrance fees.</p>
+    </div>
+    <div class="faq-block">
+      <div class="faq-question">Q2: Is it mandatory to create an account to start chatting?</div>
+      <p class="faq-answer">Not at all! On <strong>StrangerToStranger</strong>, you can enter a temporary nickname and instantly start messaging without creating any permanent profiles.</p>
+    </div>
+    <div class="faq-block">
+      <div class="faq-question">Q3: How secure are anonymous chat platforms?</div>
+      <p class="faq-answer">Highly secure if users practice smart data habits — hide your real name, avoid suspicious links, and never share passwords or financial data.</p>
+    </div>
+    <div class="faq-block">
+      <div class="faq-question">Q4: Can I access chat rooms from my smartphone?</div>
+      <p class="faq-answer">Yes! Our interface is fully responsive and works smoothly across all Android devices, iPhones, iPads, and desktop browsers.</p>
+    </div>
+    <div class="faq-block">
+      <div class="faq-question">Q5: Is there a time limit on my active conversations?</div>
+      <p class="faq-answer">No — our servers are up 24/7. Stay as long as you want without facing sudden disconnects or forced timeouts.</p>
+    </div>
+
+    <h2>🏁 Summary & Conclusion</h2>
+    <p>Modern open chat hubs like <strong>StrangerToStranger</strong> have redefined how digital interactions take place across the globe. By stripping away heavy premium boundaries and mandatory verifications, we provide an all-in-one ecosystem where you can comfortably dive into text rooms, voice streams, or webcam sharing instantly. Our secure portal will always be here to give you a real, premium, and fully authentic connecting experience.</p>
+  </main>
+
+  <script>
+    async function updateLiveAnnouncement() {
+      try {
+        const response = await fetch('/api/live-announcement');
+        const data = await response.json();
+
+        const marqueeContainer = document.getElementById('marqueeContainer');
+        const liveNotice       = document.getElementById('liveNotice');
+        const navbarDiv        = document.getElementById('navbarDiv');
+        const chatIframe       = document.getElementById('chatIframe');
+
+if (data && data.active) {
+  marqueeContainer.style.display = "flex";
+  navbarDiv.style.top    = "30px";   // marquee ke neeche
+  chatIframe.style.marginTop = "86px"; // 30 + 56
+} else {
+  marqueeContainer.style.display = "none";
+  navbarDiv.style.top    = "0px";
+  chatIframe.style.marginTop = "56px";
+}
+      } catch (err) {
+        console.error("Live announcement fetch error:", err);
+      }
+    }
+
+    updateLiveAnnouncement();
+    setInterval(updateLiveAnnouncement, 5000);
+
+    function openSmartVipMail() {
+      const email   = "strangertostranger.official@gmail.com";
+      const subject = "Requesting VIP Role - StrangerToStranger";
+      const body    = "Hello Admin,\n\nPlease grant me the VIP Blue Tick role.\n\nMy Discord Username: [Enter Username Here]\nMy Website Chat Username: [Enter Name Here]\nReason for requesting the VIP role: [Enter your reason here]\n\nThank You!";
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      } else {
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        const width = 700, height = 600;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top  = (window.screen.height / 2) - (height / 2);
+        window.open(gmailUrl, 'Gmail', `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no`);
+      }
+    }
+  </script>
+
+</body>
+</html>
