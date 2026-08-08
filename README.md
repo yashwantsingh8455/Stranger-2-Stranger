@@ -136,3 +136,7 @@ npm start
 ## UI
 
 The base visual system is in `public/white-sky-ui.css`. Discover-specific White + Sky Blue components are in `public/social.css`.
+
+## Admin registered email registry
+
+Open `/mail.html` and authenticate with the same `PANEL_PASSWORD` used by the admin console. The page reads registered Firebase Authentication email accounts through the admin-only `/api/admin/emails` endpoint. If Firebase Admin is unavailable, it falls back to email addresses already synced to MongoDB `UserProfile` documents. Guest accounts never expose or require an email address.
