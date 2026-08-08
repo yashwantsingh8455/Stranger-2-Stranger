@@ -1,7 +1,7 @@
 {
   "name": "stranger-2-stranger-main",
-  "version": "1.0.0",
-  "description": "Real-time social chat platform with optional Firebase accounts, secure guest sessions, moderation, groups, DMs and calls",
+  "version": "2.0.0",
+  "description": "Real-time social discovery platform with optional accounts, guest sessions, interest matching, topic rooms, communities, friends, safety and calls",
   "main": "server.js",
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -19,10 +19,13 @@
   },
   "keywords": [
     "chat",
+    "social-discovery",
     "socket.io",
-    "firebase",
     "mongodb",
-    "realtime"
+    "firebase",
+    "matchmaking",
+    "communities",
+    "pwa"
   ],
   "author": "",
   "license": "ISC"

@@ -34,3 +34,12 @@
 - Standardized typography to a system UI stack for a more natural production-app feel.
 - Kept functional element IDs and JavaScript flows unchanged.
 - Locked the visible appearance to the White Sky design even if an older theme value exists in local storage.
+
+## Social Discovery Edition additions
+- Added `/discover.html` White + Sky Blue discovery hub.
+- Added MongoDB-backed SocialProfile, friends, blocks, mutes, social reports, temporary matches, topic messages, communities, threads, events, polls, notifications, endorsements and voice-room records.
+- Added strict same-age-band 1-to-1 matchmaking and voice-room gates.
+- Added legacy DM enforcement for block/mute/DM policy and teen/adult boundaries.
+- Added Smart Safety duplicate/rate/scam/abuse checks for Discover messages.
+- Added shareable `/rooms/:slug` and `/community/:slug` landing pages, sitemap and robots routes.
+- Added PWA install shortcuts and safer service-worker caching (authenticated API responses are never cached).

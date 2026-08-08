@@ -1,52 +1,85 @@
-# Stranger 2 Stranger — Account + Guest Build
+# Stranger 2 Stranger — Social Discovery Edition
 
-Stranger 2 Stranger is a real-time social chat platform built with Node.js, Express, Socket.IO, MongoDB/Mongoose and optional Firebase Authentication. Users can either sign in/create a normal Firebase account **or continue as a Guest using username + country + date of birth**. It includes global chat, private DMs, persistent profiles, password-protected groups, moderation/admin tools, reports, VIP roles, media/voice messages, Jitsi-based voice/video rooms, optional Discord integration and PWA support.
+Stranger 2 Stranger is a real-time social discovery and chat platform built with **Node.js, Express, Socket.IO, MongoDB/Mongoose, optional Firebase Authentication, Jitsi Meet and optional Discord integration**. Users can sign in with a Firebase account or continue as a Guest using username + country + DOB.
+
+This edition keeps the White + Sky Blue UI and adds a new `/discover.html` product hub for interest-based matching, topic rooms, communities, friends, reputation and safety controls.
+
+## New social features
+
+- Interest profile and language preferences
+- Instant stranger matching by shared interests
+- **Strict same-age-band matching:** 13–17 only matches 13–17; 18+ only matches 18+
+- 10 / 15 / 20 / 30 / 60 minute temporary conversations
+- Temporary match message content is cleared when the conversation ends/expires
+- Match-again invitations for recent conversations when both users are online
+- Friend requests and accepted-friend list
+- Positive reputation: Helpful, Friendly, Respectful
+- Daily streaks and achievement badges
+- Block, mute and report safety controls
+- DM policy: Everyone / Friends only / Nobody
+- Legacy private DMs also honor block, mute, teen/adult boundaries and DM policy
+- Smart Safety fallback for spam-like, abusive and scam-like text plus rate limiting
+- Topic rooms: Coding, Study, Gaming, Movies, Music, Anime, Sports, India and age-separated lounges
+- Real-time topic messages, reactions, presence and polls
+- Daily Question with community answers
+- Public communities with member lists/counts
+- Community chat, reactions and pinned messages
+- Community threads + replies
+- Community events + RSVP
+- Community polls
+- Community conversation summary (built-in extractive summary; no paid AI API required)
+- Short-lived voice rooms with server-side age-band access verification
+- Shareable SEO landing pages for topics and communities
+- Dynamic `/sitemap.xml` and `/robots.txt`
+- Real trending-room ranking from online presence + recent message activity
+- In-app notifications and browser/PWA notification alerts while the app is active
+- PWA install prompt and app shortcuts
+- English / Hinglish UI toggle hooks
+- Conversation starters based on shared interests
 
 ## Authentication modes
 
-### 1. Guest mode — works without Firebase Admin
+### Guest mode
 Guest registration asks for:
 - Username
 - Country
 - Date of birth
 
-The server validates the details, requires age 13+, creates a random guest ID and returns a high-entropy guest session token. DOB is used only to verify age during registration; the exact DOB is **not stored** in MongoDB and is not returned in profiles, user lists or chat messages. Guest sessions last for `GUEST_SESSION_DAYS` (default 30) and can be resumed in the same browser. Explicit logout deletes the temporary guest identity so the username can be used again.
+The exact DOB is used to validate age and is **not stored**. The server stores only the derived age band (`teen` = 13–17, `adult` = 18+) plus an age-verification timestamp. Guest sessions use a high-entropy token whose SHA-256 hash is stored in MongoDB.
 
-Guest users can chat, use DMs/groups, edit their guest profile and open calls. Guests can **never become admin**; admin privileges remain Firebase-UID based.
+### Firebase account mode
+Firebase email/password accounts remain optional. A Firebase account that wants to use Discover/matching verifies DOB once inside Discover; only the derived age band is stored, not the exact DOB.
 
-### 2. Firebase account mode — optional
-Email/password login and account creation continue to work when Firebase is configured. Firebase Admin is only required for server-side verification of Firebase account tokens. If Firebase Admin is not configured, Guest mode still works.
+## Safety model
 
-## Important security note
+The social-discovery features are designed to avoid adult/minor 1-to-1 matching:
 
-The original archive contained credentials/webhooks in source code. This build removes them, but removing them from code does not invalidate credentials that were already exposed. Before deployment, rotate the old MongoDB password, Discord webhooks/tokens and any admin password that appeared in the original project.
+- Teen and adult users cannot be matched together.
+- Teen/adult private DMs are blocked.
+- Teen private messaging requires configured Discover safety profiles.
+- Voice rooms are age-band restricted and re-check access inside `call.html`.
+- Guests can never become admin.
+- Block rules are enforced server-side for matching and private DMs.
+- Mute suppresses real-time DM delivery and hides muted users in Discover room rendering.
+- Smart Safety applies duplicate-spam, message-rate, abusive-language, unsafe-request and scam-like checks to Discover conversations.
+- Repeated blocked messages can trigger a short temporary messaging restriction.
+- Reports are stored for admin review and merged into the existing admin reports endpoint.
+
+No safety filter is perfect. A real public launch should still have human moderation, clear community rules, abuse escalation, and appropriate legal/privacy review.
 
 ## Setup
 
 1. Install Node.js 20+.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
-4. For Guest mode, set at minimum:
-   - `MONGO_URI`
-   - `PANEL_PASSWORD`
-   - `ALLOW_GUEST_AUTH=true`
-5. Optional Firebase account login:
-   - `FIREBASE_SERVICE_ACCOUNT_JSON`
-   - `ADMIN_FIREBASE_UIDS` for in-chat administrators
-6. Set `ALLOWED_ORIGIN` to your deployed HTTPS origin.
-7. Run `npm start`.
+4. Set `MONGO_URI`.
+5. Set `PANEL_PASSWORD`.
+6. For Guest mode keep `ALLOW_GUEST_AUTH=true`.
+7. Optional Firebase account login: add `FIREBASE_SERVICE_ACCOUNT_JSON` and `ADMIN_FIREBASE_UIDS`.
+8. Set `ALLOWED_ORIGIN` to your deployed HTTPS origin.
+9. Run `npm start`.
 
-MongoDB is required for secure guest sessions because the guest token is verified against a hashed server-side session record.
-
-## Render deployment
-
-- Root directory: repository root, not `public/`
-- Build command: `npm install`
-- Start command: `npm start`
-- Add values from `.env.example` in Render Environment Variables.
-- Do not upload `.env` or `firebase-service-account.json` to GitHub.
-
-### Minimum Render environment for Guest-only mode
+### Minimum Render environment
 
 ```env
 MONGO_URI=your_mongodb_connection_string
@@ -56,39 +89,40 @@ GUEST_SESSION_DAYS=30
 ALLOWED_ORIGIN=https://your-domain.example
 ```
 
-Firebase service-account configuration is not required if you only want Guest mode.
-
 ## Main routes
 
-- `/` — dashboard for account or guest users
-- `/login.html` — Sign In / Create Account / Guest options
-- `/Group-Chatroom.html` — global chat, groups and DMs
-- `/call.html` — call interface for verified account or guest sessions
-- `/admin` — server-authorized moderation panel
-- `/health` — safe live status including Firebase and Guest availability
+- `/` — homepage/dashboard
+- `/login.html` — Sign In / Create Account / Guest
+- `/discover.html` — social discovery hub
+- `/discover.html#match` — instant matching
+- `/discover.html#topics` — topic rooms
+- `/discover.html#communities` — communities
+- `/Group-Chatroom.html` — existing global chat, groups and DMs
+- `/call.html` — Jitsi call interface
+- `/rooms/:slug` — SEO topic landing pages
+- `/community/:slug` — SEO community landing pages
+- `/voice/:roomKey` — age-gated temporary voice room entry
+- `/admin` — moderation console
+- `/health` — server status
+- `/sitemap.xml` — dynamic SEO sitemap
+- `/robots.txt` — crawler rules
 
-## Guest API
+## Important notification note
 
-- `POST /api/guest/register` — create guest session from username, country, DOB
-- `GET /api/guest/profile` — fetch guest profile using `X-Guest-Token`
-- `PUT /api/guest/profile` — update guest profile using `X-Guest-Token`
-- `POST /api/guest/logout` — delete the temporary guest identity
+This build includes the notification center, real-time Socket.IO notifications, browser notifications and a service-worker `push` handler. **True closed-app server push delivery still requires a Web Push/FCM provider plus VAPID/push-subscription delivery configuration.** The project does not hard-code a third-party push private key.
 
-## Security and privacy behavior
+## Smart Safety / AI note
 
-- Guest joins require a server-issued token; arbitrary unsigned Socket.IO joins are rejected.
-- Guest tokens are stored as SHA-256 hashes in MongoDB, not plaintext.
-- Exact DOB is validated and then discarded; only an age-verification timestamp is stored.
-- Admin role is only granted through the Firebase UID allowlist.
-- Guest users cannot claim admin privileges through their username.
-- Message deletion checks ownership/admin permission and uses MongoDB IDs.
-- Group passwords are bcrypt-hashed and are never returned in group lists.
-- Public session-intelligence endpoints are protected.
-- Chat media is size-limited; use object storage for production-scale media.
+The project includes a built-in Smart Safety fallback and extractive community summaries so it works without a paid AI API. It is intentionally not marketed in code as a guaranteed AI moderator. If you later connect an LLM moderation provider, keep the existing server-side rules as a fallback and never send private credentials to the browser.
 
-## Calls and privacy
+## Deployment security
 
-`call.html` accepts either a valid Firebase account session or valid Guest session. It uses public `meet.jit.si`. Random high-entropy room names are generated for private links, but a public Jitsi room is not equivalent to a self-hosted/JWT-protected meeting. For strict call authorization, deploy JWT-secured/self-hosted Jitsi.
+- Never commit `.env`.
+- Never commit `firebase-service-account.json`.
+- Rotate any MongoDB/Discord/admin secrets that were previously exposed.
+- Use a restricted MongoDB Atlas user and production network controls.
+- Keep `ALLOWED_ORIGIN` on your actual HTTPS domain instead of `*` for production.
+- `meet.jit.si` is a public Jitsi deployment. For strict enterprise-grade call authorization, use a self-hosted/JWT-secured Jitsi setup.
 
 ## Validation
 
@@ -97,7 +131,8 @@ npm test
 npm start
 ```
 
-`npm test` performs server syntax validation. Add automated API/Socket.IO tests before a high-traffic production launch.
+`npm test` currently performs syntax validation. Add automated API, Socket.IO and browser integration tests before a large public launch.
 
-## UI theme
-This build includes the redesigned White + Sky Blue interface in `public/white-sky-ui.css`. The CSS is loaded after the legacy page styles so the app keeps its existing behavior while presenting the new visual system consistently across desktop and mobile.
+## UI
+
+The base visual system is in `public/white-sky-ui.css`. Discover-specific White + Sky Blue components are in `public/social.css`.
