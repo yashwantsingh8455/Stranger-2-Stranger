@@ -2057,6 +2057,79 @@
       background: var(--muted);
       border-radius: 4px;
     }
+
+    /* ══════════════════════════════════════════
+       COMMUNITY ADMIN PASS — ₹25 / 30 DAYS
+       ══════════════════════════════════════════ */
+    .paid-admin-btn {
+      border-color: rgba(245, 166, 35, .35) !important;
+      background: rgba(245, 166, 35, .10) !important;
+      color: #f5a623 !important;
+      gap: 6px;
+      padding: 0 12px !important;
+      width: auto !important;
+    }
+
+    .paid-admin-btn.active {
+      border-color: rgba(61, 220, 132, .40) !important;
+      background: rgba(61, 220, 132, .12) !important;
+      color: var(--green) !important;
+    }
+
+    .admin-pass-card {
+      border: 1px solid rgba(245, 166, 35, .28);
+      border-radius: 14px;
+      padding: 16px;
+      background: rgba(245, 166, 35, .06);
+    }
+
+    .admin-pass-price {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: #f5a623;
+      margin: 6px 0 2px;
+    }
+
+    .admin-pass-status {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--input);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 12px 0;
+    }
+
+    .admin-pass-note {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-top: 10px;
+    }
+
+    .admin-pass-feature {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 13px;
+      color: var(--text);
+      margin: 8px 0;
+      line-height: 1.45;
+    }
+
+    .admin-pass-feature i {
+      color: var(--green);
+      margin-top: 3px;
+    }
+
+    @media(max-width: 768px) {
+      .paid-admin-btn {
+        width: 32px !important;
+        padding: 0 !important;
+      }
+    }
+
   </style>
   <link rel="stylesheet" href="/white-sky-ui.css">
 </head>
@@ -2119,6 +2192,13 @@
             <i class="fa-solid fa-people-group" style="font-size:12px;"></i><span style="font-size:13px;font-weight:600;">Groups</span>
           </button>
 
+
+          <!-- Community Admin Pass -->
+          <button class="icon-btn paid-admin-btn" id="paidAdminTopBtn" onclick="openPaidAdminModal()" title="Community Admin — ₹25 / month">
+            <i class="fa-solid fa-crown" style="font-size:12px;"></i>
+            <span id="paidAdminTopLabel" style="font-size:13px;font-weight:600;">Admin ₹25</span>
+          </button>
+
           <!-- Report User Button -->
           <button class="icon-btn web-report-btn" onclick="switchTab('report')" title="Report User"
             style="border-color: rgba(255, 101, 132, 0.2); background: rgba(255, 101, 132, 0.08); color: var(--accent2); gap: 6px; padding: 0 12px; width: auto;">
@@ -2161,6 +2241,15 @@
           </div>
           <button class="drawer-save" onclick="saveSettings()"><i class="fa-solid fa-floppy-disk"
               style="margin-right:6px;"></i>Save Changes</button>
+
+          <div class="admin-pass-card">
+            <div class="drawer-label" style="color:#f5a623;">Community Admin Pass</div>
+            <div style="font-size:13px;line-height:1.5;color:var(--text);">Get limited chat-moderation access for 30 days.</div>
+            <div style="margin-top:8px;font-size:20px;font-weight:800;color:#f5a623;">₹25 / month</div>
+            <button class="drawer-save" onclick="openPaidAdminModal()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#f5a623,#ff8a42);">
+              <i class="fa-solid fa-crown" style="margin-right:6px;"></i>View Admin Pass
+            </button>
+          </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
           <button class="drawer-save" onclick="logout()" style="background:linear-gradient(135deg,#ff6584,#ff8a65);"><i
               class="fa-solid fa-right-from-bracket" style="margin-right:6px;"></i>Logout</button>
@@ -2377,6 +2466,50 @@
   </div><!-- #app -->
 
   <!-- Modals -->
+
+  <!-- Community Admin Pass Modal -->
+  <div class="modal-overlay" id="paidAdminModal">
+    <div class="modal" style="max-width:460px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+        <h3 style="margin:0;color:#f5a623;"><i class="fa-solid fa-crown" style="margin-right:8px;"></i>Community Admin</h3>
+        <button class="drawer-close" onclick="closePaidAdminModal()" aria-label="Close">×</button>
+      </div>
+
+      <p style="margin-bottom:12px;">
+        30 days of limited community-moderation access. Your normal account stays the same.
+      </p>
+
+      <div class="admin-pass-card">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.6px;">Monthly pass</div>
+        <div class="admin-pass-price">₹25 <span style="font-family:inherit;font-size:13px;color:var(--muted);font-weight:600;">/ 30 days</span></div>
+
+        <div class="admin-pass-feature"><i class="fa-solid fa-circle-check"></i><span>Delete abusive/spam messages in chat after server-side permission check.</span></div>
+        <div class="admin-pass-feature"><i class="fa-solid fa-circle-check"></i><span>Community Admin badge/status while the pass is active.</span></div>
+        <div class="admin-pass-feature"><i class="fa-solid fa-shield-halved"></i><span>Master admin panel, registered emails, IP/session data, Firebase UID controls and site-wide owner powers are <strong>not</strong> included.</span></div>
+      </div>
+
+      <div class="admin-pass-status" id="paidAdminStatusBox">
+        Checking your Admin Pass status…
+      </div>
+
+      <div id="paidAdminPurchaseArea">
+        <div class="form-field" style="margin-bottom:12px;">
+          <label>Mobile Number for Payment</label>
+          <input type="tel" id="paidAdminPhone" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" autocomplete="tel" />
+        </div>
+
+        <button class="modal-btn send" id="paidAdminPayBtn" onclick="startPaidAdminCheckout()" style="width:100%;background:linear-gradient(135deg,#f5a623,#ff8a42);">
+          <i class="fa-solid fa-lock" style="margin-right:6px;"></i>Pay ₹25 with Cashfree
+        </button>
+
+        <div class="admin-pass-note">
+          Payment is created and verified by the server. Your Cashfree secret key is never exposed in this page.
+          A registered account is required so the 30-day entitlement can stay attached to the same account.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="groupsModal">
     <div class="modal" style="max-width:560px;max-height:80vh;overflow:auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
@@ -2489,6 +2622,7 @@
   <audio id="notifSound" src="https://cdn.glitch.global/StrangertoStranger/sound.mp3?v=1234567890"
     preload="auto"></audio>
 
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
     'use strict';
@@ -2515,6 +2649,8 @@
     let pendingMediaData = null;
     let typingTimer;
     let currentUserIsAdmin = false;
+    let currentUserIsPaidAdmin = false;
+    let paidAdminExpiresAt = null;
     let currentGroupId = null;
     let currentGroupName = null;
     let groupsCache = [];
@@ -2789,6 +2925,10 @@ if (savedUser && ((savedAuthMode === 'guest' && savedGuestToken) || (savedAuthMo
       currentUser = session?.name || currentUser;
       currentBio = session?.bio || currentBio;
       currentUserIsAdmin = !!session?.isAdmin;
+      currentUserIsPaidAdmin = !!session?.isPaidAdmin;
+      paidAdminExpiresAt = session?.paidAdminExpiresAt || null;
+      updatePaidAdminUI();
+      loadPaidAdminStatus();
       if (session?.authType) localStorage.setItem('authMode', session.authType);
       if (session?.country) localStorage.setItem('guestCountry', session.country);
       localStorage.setItem('chatUsername', currentUser);
@@ -3154,7 +3294,7 @@ if (savedUser && ((savedAuthMode === 'guest' && savedGuestToken) || (savedAuthMo
         actions.appendChild(dmActionBtn);
       }
 
-      const isAdminUser = currentUserIsAdmin;
+      const isAdminUser = currentUserIsAdmin || currentUserIsPaidAdmin;
       if (isMe || isAdminUser) {
         const delBtn = document.createElement('button');
         delBtn.className = 'msg-action-btn del';
@@ -3854,6 +3994,167 @@ async function confirmCustomLogout() {
     }
 
     function closePage(pageId) { const page = document.getElementById(pageId); if (page) page.classList.remove('open'); document.querySelectorAll('.mob-btn').forEach(b => b.classList.remove('active')); document.getElementById('mobChatBtn').classList.add('active'); }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // 👑 COMMUNITY ADMIN PASS — CASHFREE
+    // ══════════════════════════════════════════════════════════════════
+    function getPaidAdminAuthHeaders(json = false) {
+      if (localStorage.getItem('authMode') === 'guest') return null;
+      const token = localStorage.getItem('fbToken');
+      if (!token) return null;
+      const headers = { Authorization: `Bearer ${token}` };
+      if (json) headers['Content-Type'] = 'application/json';
+      return headers;
+    }
+
+    function formatAdminExpiry(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function updatePaidAdminUI() {
+      const btn = document.getElementById('paidAdminTopBtn');
+      const label = document.getElementById('paidAdminTopLabel');
+      const box = document.getElementById('paidAdminStatusBox');
+      const purchase = document.getElementById('paidAdminPurchaseArea');
+
+      if (currentUserIsPaidAdmin) {
+        btn?.classList.add('active');
+        if (label) label.textContent = 'Admin Active';
+        if (box) {
+          box.innerHTML = `<strong style="color:var(--green);">✅ Community Admin active</strong><br>` +
+            (paidAdminExpiresAt ? `Valid until ${escapeHtml(formatAdminExpiry(paidAdminExpiresAt))}` : 'Your paid moderation access is active.');
+        }
+        if (purchase) purchase.style.display = 'none';
+      } else {
+        btn?.classList.remove('active');
+        if (label) label.textContent = 'Admin ₹25';
+        if (box) box.innerHTML = 'No active Community Admin Pass. Buy 30 days for ₹25.';
+        if (purchase) purchase.style.display = '';
+      }
+    }
+
+    async function loadPaidAdminStatus() {
+      const headers = getPaidAdminAuthHeaders(false);
+      if (!headers) {
+        currentUserIsPaidAdmin = false;
+        paidAdminExpiresAt = null;
+        updatePaidAdminUI();
+        const box = document.getElementById('paidAdminStatusBox');
+        if (box && localStorage.getItem('authMode') === 'guest') {
+          box.innerHTML = 'ℹ️ Guest sessions cannot purchase a paid role. Sign in with a registered account first.';
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/paid-admin/status', { headers, cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load Admin Pass status');
+        currentUserIsPaidAdmin = !!data.active;
+        paidAdminExpiresAt = data.expiresAt || null;
+        updatePaidAdminUI();
+      } catch (err) {
+        console.warn('Paid admin status:', err.message);
+        const box = document.getElementById('paidAdminStatusBox');
+        if (box) box.textContent = 'Admin Pass status is temporarily unavailable.';
+      }
+    }
+
+    function openPaidAdminModal() {
+      document.getElementById('paidAdminModal')?.classList.add('open');
+      loadPaidAdminStatus();
+    }
+
+    function closePaidAdminModal() {
+      document.getElementById('paidAdminModal')?.classList.remove('open');
+    }
+
+    async function startPaidAdminCheckout() {
+      const headers = getPaidAdminAuthHeaders(true);
+      if (!headers) {
+        alert('Community Admin Pass ke liye registered account se sign in karna zaroori hai.');
+        return;
+      }
+
+      const phone = String(document.getElementById('paidAdminPhone')?.value || '').replace(/\D/g, '');
+      if (!/^[6-9]\d{9}$/.test(phone)) {
+        alert('Please enter a valid 10-digit Indian mobile number.');
+        return;
+      }
+
+      const btn = document.getElementById('paidAdminPayBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px;"></i>Creating secure payment…';
+      }
+
+      try {
+        const res = await fetch('/api/paid-admin/create-order', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not create Cashfree order');
+        if (!data.paymentSessionId) throw new Error('Payment session was not returned by the server');
+
+        const cashfree = Cashfree({ mode: data.mode === 'sandbox' ? 'sandbox' : 'production' });
+        await cashfree.checkout({
+          paymentSessionId: data.paymentSessionId,
+          redirectTarget: '_self'
+        });
+      } catch (err) {
+        alert(err.message || 'Payment could not be started.');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-lock" style="margin-right:6px;"></i>Pay ₹25 with Cashfree';
+        }
+      }
+    }
+
+    async function verifyPaidAdminReturn() {
+      const params = new URLSearchParams(location.search);
+      if (params.get('admin_payment') !== 'return') return;
+
+      const orderId = params.get('order_id');
+      const headers = getPaidAdminAuthHeaders(true);
+      if (!orderId || !headers) return;
+
+      document.getElementById('paidAdminModal')?.classList.add('open');
+      const box = document.getElementById('paidAdminStatusBox');
+      if (box) box.innerHTML = '⏳ Verifying your Cashfree payment…';
+
+      try {
+        const res = await fetch('/api/paid-admin/verify', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ orderId })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.active) {
+          currentUserIsPaidAdmin = true;
+          paidAdminExpiresAt = data.expiresAt || null;
+          updatePaidAdminUI();
+          if (box) box.innerHTML = `<strong style="color:var(--green);">✅ Payment verified — Community Admin activated.</strong><br>Valid until ${escapeHtml(formatAdminExpiry(paidAdminExpiresAt))}`;
+        } else {
+          if (box) box.textContent = data.error || 'Payment is not marked PAID yet. You can reopen this page and check again.';
+        }
+      } catch (err) {
+        if (box) box.textContent = 'Payment verification is temporarily unavailable.';
+      } finally {
+        history.replaceState({}, document.title, location.pathname);
+      }
+    }
+
+    window.addEventListener('load', verifyPaidAdminReturn);
 
     // ── Report ──────────────────────────────────────────────────────────────────────
     function submitReport() {
