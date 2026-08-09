@@ -1,152 +1,80 @@
-# Stranger 2 Stranger — Social Discovery Edition
+# Stranger 2 Stranger — Social V2
 
-Stranger 2 Stranger is a real-time social discovery and chat platform built with **Node.js, Express, Socket.IO, MongoDB/Mongoose, optional Firebase Authentication, Jitsi Meet and optional Discord integration**. Users can sign in with a Firebase account or continue as a Guest using username + country + DOB.
+Stranger 2 Stranger is an authenticated real-time social discovery and community chat platform built with **Node.js, Express, Socket.IO, MongoDB/Mongoose, Firebase Authentication and Jitsi Meet**. Social V2 keeps the repaired global chat/call/admin foundation and adds smart stranger matching, connection requests, richer profiles and privacy, advanced communities, enhanced messages, safety tooling, activities, analytics and premium-ready cosmetics.
 
-This edition keeps the White + Sky Blue UI and adds a new `/discover.html` product hub for interest-based matching, topic rooms, communities, friends, reputation and safety controls.
+## Important security note
 
-## New social features
-
-- Interest profile and language preferences
-- Instant stranger matching by shared interests
-- **Strict same-age-band matching:** 13–17 only matches 13–17; 18+ only matches 18+
-- 10 / 15 / 20 / 30 / 60 minute temporary conversations
-- Temporary match message content is cleared when the conversation ends/expires
-- Match-again invitations for recent conversations when both users are online
-- Friend requests and accepted-friend list
-- Positive reputation: Helpful, Friendly, Respectful
-- Daily streaks and achievement badges
-- Block, mute and report safety controls
-- DM policy: Everyone / Friends only / Nobody
-- Legacy private DMs also honor block, mute, teen/adult boundaries and DM policy
-- Smart Safety fallback for spam-like, abusive and scam-like text plus rate limiting
-- Topic rooms: Coding, Study, Gaming, Movies, Music, Anime, Sports, India and age-separated lounges
-- Real-time topic messages, reactions, presence and polls
-- Daily Question with community answers
-- Public communities with member lists/counts
-- Community chat, reactions and pinned messages
-- Community threads + replies
-- Community events + RSVP
-- Community polls
-- Community conversation summary (built-in extractive summary; no paid AI API required)
-- Short-lived voice rooms with server-side age-band access verification
-- Shareable SEO landing pages for topics and communities
-- Dynamic `/sitemap.xml` and `/robots.txt`
-- Real trending-room ranking from online presence + recent message activity
-- In-app notifications and browser/PWA notification alerts while the app is active
-- PWA install prompt and app shortcuts
-- English / Hinglish UI toggle hooks
-- Conversation starters based on shared interests
-
-## Authentication modes
-
-### Guest mode
-Guest registration asks for:
-- Username
-- Country
-- Date of birth
-
-The exact DOB is used to validate age and is **not stored**. The server stores only the derived age band (`teen` = 13–17, `adult` = 18+) plus an age-verification timestamp. Guest sessions use a high-entropy token whose SHA-256 hash is stored in MongoDB.
-
-### Firebase account mode
-Firebase email/password accounts remain optional. A Firebase account that wants to use Discover/matching verifies DOB once inside Discover; only the derived age band is stored, not the exact DOB.
-
-## Safety model
-
-The social-discovery features are designed to avoid adult/minor 1-to-1 matching:
-
-- Teen and adult users cannot be matched together.
-- Teen/adult private DMs are blocked.
-- Teen private messaging requires configured Discover safety profiles.
-- Voice rooms are age-band restricted and re-check access inside `call.html`.
-- Guests can never become admin.
-- Block rules are enforced server-side for matching and private DMs.
-- Mute suppresses real-time DM delivery and hides muted users in Discover room rendering.
-- Smart Safety applies duplicate-spam, message-rate, abusive-language, unsafe-request and scam-like checks to Discover conversations.
-- Repeated blocked messages can trigger a short temporary messaging restriction.
-- Reports are stored for admin review and merged into the existing admin reports endpoint.
-
-No safety filter is perfect. A real public launch should still have human moderation, clear community rules, abuse escalation, and appropriate legal/privacy review.
+The original archive contained credentials/webhooks in source code. Social V2 does **not** include those secrets. Removing an exposed secret from source code does not invalidate it, so rotate any old MongoDB password, Discord webhook/token and admin credential that appeared in the original archive before deployment.
 
 ## Setup
 
 1. Install Node.js 20+.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
-4. Set `MONGO_URI`.
-5. Set `PANEL_PASSWORD`.
-6. For Guest mode keep `ALLOW_GUEST_AUTH=true`.
-7. Optional Firebase account login: add `FIREBASE_SERVICE_ACCOUNT_JSON` and `ADMIN_FIREBASE_UIDS`.
-8. Set `ALLOWED_ORIGIN` to your deployed HTTPS origin.
-9. Run `npm start`.
+4. Set at minimum `MONGO_URI`, `PANEL_PASSWORD`, `ADMIN_FIREBASE_UIDS` and `FIREBASE_SERVICE_ACCOUNT_JSON`.
+5. Keep `REQUIRE_FIREBASE_AUTH=true` and `REQUIRE_EMAIL_VERIFIED=true` in production.
+6. Set `ALLOWED_ORIGIN` to the deployed HTTPS origin.
+7. Run `npm start`.
+8. Open `/social.html` for the new Social Hub.
 
-### Minimum Render environment
+The Firebase web config remains a client-side Firebase configuration. Server privileges still require the Firebase Admin service account and server-side authorization.
 
-```env
-MONGO_URI=your_mongodb_connection_string
-PANEL_PASSWORD=your_long_random_admin_panel_password
-ALLOW_GUEST_AUTH=true
-GUEST_SESSION_DAYS=30
-ALLOWED_ORIGIN=https://your-domain.example
-```
+## Main pages
 
-## Main routes
+- `/` — authenticated dashboard
+- `/login.html` — Firebase signup/login + email verification
+- `/social.html` — Social Hub: matching, connections, rooms, tools, profile, safety
+- `/Group-Chatroom.html` — global/group chat with enhanced messages
+- `/call.html` — Jitsi voice/video rooms
+- `/admin` — moderation panel
+- `/analytics.html` — admin analytics, report/appeal queues and audit logs
+- `/health` — safe server status
 
-- `/` — homepage/dashboard
-- `/login.html` — Sign In / Create Account / Guest
-- `/discover.html` — social discovery hub
-- `/discover.html#match` — instant matching
-- `/discover.html#topics` — topic rooms
-- `/discover.html#communities` — communities
-- `/Group-Chatroom.html` — existing global chat, groups and DMs
-- `/call.html` — Jitsi call interface
-- `/rooms/:slug` — SEO topic landing pages
-- `/community/:slug` — SEO community landing pages
-- `/voice/:roomKey` — age-gated temporary voice room entry
-- `/admin` — moderation console
-- `/health` — server status
-- `/sitemap.xml` — dynamic SEO sitemap
-- `/robots.txt` — crawler rules
+## Social V2 highlights
 
-## Important notification note
+- Interest/language/topic/country/timezone profiles and smart-match filters.
+- Random temporary 1-to-1 matching with compatibility scoring, skip/next and connection requests.
+- Connection/friend system, received/sent requests, permanent connection DMs, block and mute.
+- Reputation, XP, levels, badges, account-age information, presence, custom status and last-seen privacy.
+- Message reactions, edit, pin, save/star, search, read receipts, forwarding, temporary messages, per-room drafts and media gallery.
+- Image compression/preview, voice-note waveform and bounded file sharing.
+- Public/private communities with roles, approval queue, expiring invite links, rules, slow mode, announcements-only mode, polls, events, notes and branding fields.
+- Safety Center, warning history, categorized reports, moderator queue, appeals, heuristic AI-assisted moderation flags, link protection and rate limits.
+- Conversation starters, language detection, summary helper and optional translation-provider hook.
+- Topic-room discovery/trending, daily discussion prompt, streak/XP/badges, helpfulness-oriented leaderboard, RPS/quiz/Tic-Tac-Toe and Pomodoro study utility.
+- Call lobby, mic/camera/screen controls, device selectors, raise hand, participant limit and moderator host controls where the Jitsi room grants moderator permission.
+- In-app notifications, notification preferences, PWA install/offline read cache, responsive mobile navigation and accessibility options.
+- Premium-ready themes, animated avatar frames, creator/community rooms and higher saved-message quota with server-side entitlement checks.
+- Admin analytics for activity, growth, rooms, reports, moderation and server health plus audit logs.
+- Account export/delete, recent sessions, revoke-all sessions, email verification and username-change cooldown.
 
-This build includes the notification center, real-time Socket.IO notifications, browser notifications and a service-worker `push` handler. **True closed-app server push delivery still requires a Web Push/FCM provider plus VAPID/push-subscription delivery configuration.** The project does not hard-code a third-party push private key.
+See `FEATURES-V2.md` for the full implementation matrix and provider-dependent limitations.
 
-## Smart Safety / AI note
+## Render deployment
 
-The project includes a built-in Smart Safety fallback and extractive community summaries so it works without a paid AI API. It is intentionally not marketed in code as a guaranteed AI moderator. If you later connect an LLM moderation provider, keep the existing server-side rules as a fallback and never send private credentials to the browser.
+- Root directory: repository root, **not** `public/`
+- Build command: `npm install`
+- Start command: `npm start`
+- Add `.env.example` values as Render Environment Variables.
+- Never commit `.env` or Firebase service-account JSON.
 
-## Deployment security
+## Provider-dependent features
 
-- Never commit `.env`.
-- Never commit `firebase-service-account.json`.
-- Rotate any MongoDB/Discord/admin secrets that were previously exposed.
-- Use a restricted MongoDB Atlas user and production network controls.
-- Keep `ALLOWED_ORIGIN` on your actual HTTPS domain instead of `*` for production.
-- `meet.jit.si` is a public Jitsi deployment. For strict enterprise-grade call authorization, use a self-hosted/JWT-secured Jitsi setup.
+Some requested features require infrastructure that cannot be safely faked inside a ZIP:
+
+- **AI translation:** `/api/social/ai/translate` is implemented as a provider hook. Configure `TRANSLATION_API_URL` and optionally `TRANSLATION_API_KEY`.
+- **Paid checkout:** premium entitlements and admin grant/status APIs exist, but no fake payment gateway is included. Connect your chosen real billing provider before taking payments.
+- **Browser push while the site is fully closed:** current notifications are in-app/realtime. True Web Push requires push credentials/subscriptions and a delivery service.
+- **Large media storage:** current data/file messages are intentionally bounded. Use object storage for production-scale files/video and store URLs in MongoDB.
+- **Strict private Jitsi authorization:** the UI and app auth protect the Stranger 2 Stranger entry flow, but strict meeting-level authorization requires an appropriately configured Jitsi deployment/JWT setup.
 
 ## Validation
+
+Run:
 
 ```bash
 npm test
 npm start
 ```
 
-`npm test` currently performs syntax validation. Add automated API, Socket.IO and browser integration tests before a large public launch.
-
-## UI
-
-The base visual system is in `public/white-sky-ui.css`. Discover-specific White + Sky Blue components are in `public/social.css`.
-
-## Admin registered email registry
-
-Open `/mail.html` and authenticate with the same `PANEL_PASSWORD` used by the admin console. The page reads registered Firebase Authentication email accounts through the admin-only `/api/admin/emails` endpoint. If Firebase Admin is unavailable, it falls back to email addresses already synced to MongoDB `UserProfile` documents. Guest accounts never expose or require an email address.
-
-## Visitor analytics
-
-The public landing page records a privacy-preserving browser-level unique visitor in MongoDB and shows the live total beside Notifications. `public/analytics.html` provides date/week/month/year analytics. The backend routes are registered from `visitor-analytics.js` beside `server.js`; do not move that file into `public/`.
-
-Routes:
-- `POST /api/analytics/visit`
-- `GET /api/analytics/summary`
-- `GET /api/analytics/years`
-- `GET /api/analytics/series`
+`npm test` runs the bundled validator for server/social/service-worker JavaScript syntax, manifest validity, active-page inline JavaScript, duplicate static HTML IDs, required files, auth defaults and known leaked-secret patterns.

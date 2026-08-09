@@ -1,640 +1,748 @@
-const crypto = require('crypto');
+"use strict";
 
-const TOPICS = [
-  { slug:'coding', name:'Coding & Dev', icon:'💻', description:'Programming, web, apps, cloud and developer help.', interests:['Coding','Web Development','Cloud','AI'], audience:'all' },
-  { slug:'study', name:'Study Lounge', icon:'📚', description:'Study sessions, college life, exams and productivity.', interests:['Study','College','Productivity'], audience:'all' },
-  { slug:'gaming', name:'Gaming', icon:'🎮', description:'Games, co-op, esports and gaming discussions.', interests:['Gaming','Esports'], audience:'all' },
-  { slug:'movies', name:'Movies & Series', icon:'🎬', description:'Movies, shows, recommendations and spoiler-safe chat.', interests:['Movies','Series'], audience:'all' },
-  { slug:'music', name:'Music', icon:'🎵', description:'Artists, playlists, instruments and music discovery.', interests:['Music'], audience:'all' },
-  { slug:'anime', name:'Anime', icon:'🌸', description:'Anime, manga and community discussions.', interests:['Anime','Manga'], audience:'all' },
-  { slug:'sports', name:'Sports', icon:'⚽', description:'Cricket, football, fitness and sports talk.', interests:['Sports','Cricket','Football'], audience:'all' },
-  { slug:'india', name:'India Lounge', icon:'🇮🇳', description:'India-focused culture, student and everyday conversations.', interests:['India','Culture'], audience:'all' },
-  { slug:'teen-lounge', name:'Teen Lounge', icon:'🫶', description:'Age-separated social space for users aged 13–17.', interests:['Friends','Study','Music','Gaming'], audience:'teen' },
-  { slug:'adult-lounge', name:'18+ General Lounge', icon:'☕', description:'Age-separated general social space for adults.', interests:['General','Work','Hobbies'], audience:'adult' },
-];
+const crypto = require("crypto");
 
-const DAILY_QUESTIONS = [
-  'Which skill would you learn instantly if you could?',
-  'What small habit improved your day the most?',
-  'Which app do you wish existed right now?',
-  'What is one topic you can talk about for hours?',
-  'If you could visit one place this year, where would you go?',
-  'What is a project you would love to build with a team?',
-  'Which game, movie or book deserves more attention?',
-  'What is one useful thing you learned this week?',
-  'Would you rather master design, coding, communication or business?',
-  'What makes an online community feel welcoming to you?',
-  'Which technology do you think will matter most in five years?',
-  'What is your favorite way to take a study break?',
-  'What is one goal you want to complete this month?',
-  'Which hobby would you recommend to a stranger?',
-];
+module.exports = function installSocialFeatures(ctx) {
+  const {
+    app, io, mongoose, admin, requireFirebaseUser, requireAdmin,
+    UserProfile, Message, DM, Group, Report, Warning, UserSession,
+    activeUsers, safeDB, isFirebaseAdminUid,
+  } = ctx;
 
-const STARTERS = {
-  Coding: ['What are you building these days?', 'Which language do you enjoy most and why?', 'What bug took you the longest to solve?'],
-  Gaming: ['Which game are you playing lately?', 'Single-player or multiplayer?', 'Which game deserves a remake?'],
-  Study: ['Which subject are you focusing on this week?', 'What study method actually works for you?', 'Morning study or late-night study?'],
-  Music: ['What song have you had on repeat lately?', 'Which artist would you see live?', 'Do you prefer playlists or full albums?'],
-  Movies: ['What is the last movie you genuinely liked?', 'Which series are you watching?', 'Comedy, thriller or sci-fi?'],
-  Anime: ['Which anime would you recommend to a beginner?', 'Sub or dub?', 'Which anime world would you visit?'],
-  default: ['What is something interesting you learned recently?', 'What are you looking forward to this week?', 'Which hobby are you into right now?'],
-};
+  const INTERESTS = ["Gaming","Coding","Movies","Music","Study","Anime","Sports","Tech","Books","Art","Travel","Science","Business","Fitness","Photography"];
+  const LANGUAGES = ["Hindi","English","Hinglish","Spanish","French","German","Japanese","Korean","Tamil","Telugu","Marathi","Bengali","Gujarati","Punjabi"];
+  const STATUSES = ["online","away","busy","invisible"];
+  const REPORT_CATEGORIES = ["spam","bullying","impersonation","unsafe-content","scam","harassment","hate","other"];
+  const EMOJIS = ["❤️","😂","👍","😮","😢","🔥"];
+  const USERNAME_COOLDOWN_DAYS = 30;
 
-function dayKey(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
-function safeText(v, max = 500) { return String(v || '').trim().slice(0, max); }
-function htmlEscape(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function slugify(v) {
-  return safeText(v, 80).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
-}
-function pairKey(a,b) { return [String(a),String(b)].sort().join('::'); }
-function ageBandFromDob(raw) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw || ''))) return null;
-  const d = new Date(String(raw) + 'T00:00:00.000Z');
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0,10) !== String(raw)) return null;
-  const now = new Date();
-  let age = now.getUTCFullYear() - d.getUTCFullYear();
-  const md = now.getUTCMonth() - d.getUTCMonth();
-  if (md < 0 || (md === 0 && now.getUTCDate() < d.getUTCDate())) age--;
-  if (age < 13 || age > 120) return null;
-  return age < 18 ? 'teen' : 'adult';
-}
-function publicProfile(p) {
-  if (!p) return null;
-  const r = p.reputation || {};
-  return {
-    authId: p.authId,
-    displayName: p.displayName,
-    authType: p.authType,
-    country: p.country || '',
-    ageBand: p.ageBand || '',
-    interests: Array.isArray(p.interests) ? p.interests : [],
-    languages: Array.isArray(p.languages) ? p.languages : [],
-    dmPolicy: p.dmPolicy || 'friends',
-    streak: Number(p.streak || 0),
-    reputation: { helpful:Number(r.helpful||0), friendly:Number(r.friendly||0), respectful:Number(r.respectful||0) },
-    achievements: Array.isArray(p.achievements) ? p.achievements : [],
-    lastSeen: p.lastSeen || null,
-  };
-}
-function computeAchievements(p) {
-  const a = [];
-  if ((p.streak || 0) >= 3) a.push('3-day streak');
-  if ((p.streak || 0) >= 7) a.push('7-day streak');
-  const r = p.reputation || {};
-  if ((r.helpful || 0) >= 5) a.push('Helpful member');
-  if ((r.friendly || 0) >= 5) a.push('Friendly member');
-  if ((r.respectful || 0) >= 5) a.push('Respectful member');
-  if (((r.helpful||0)+(r.friendly||0)+(r.respectful||0)) >= 25) a.push('Trusted member');
-  return a;
-}
-function touchStreak(p) {
-  const today = dayKey();
-  if (!p.lastActiveDay) p.streak = 1;
-  else if (p.lastActiveDay !== today) {
-    const yesterday = dayKey(new Date(Date.now() - 86400000));
-    p.streak = p.lastActiveDay === yesterday ? Math.max(1, Number(p.streak||0) + 1) : 1;
+  // Extend the existing models instead of creating parallel user/message/group stores.
+  UserProfile.schema.add({
+    interests: [{ type: String }],
+    languages: [{ type: String }],
+    country: { type: String, default: "" },
+    timezone: { type: String, default: "" },
+    selectedTopics: [{ type: String }],
+    presenceStatus: { type: String, enum: STATUSES, default: "online" },
+    customStatus: { type: String, default: "" },
+    lastSeenPrivacy: { type: String, enum: ["everyone","connections","nobody"], default: "connections" },
+    discoverable: { type: Boolean, default: true },
+    matchFilters: {
+      sameCountry: { type: Boolean, default: false },
+      languages: [{ type: String }],
+      interests: [{ type: String }],
+      timezone: { type: String, default: "" },
+    },
+    blockedUids: [{ type: String }],
+    mutedUids: [{ type: String }],
+    reputation: { type: Number, default: 50, min: 0, max: 100 },
+    xp: { type: Number, default: 0, min: 0 },
+    streak: { type: Number, default: 0, min: 0 },
+    lastActiveDate: Date,
+    badges: [{ type: String }],
+    profileLevel: { type: String, enum: ["Beginner","Active","Regular","Trusted"], default: "Beginner" },
+    verified: { type: Boolean, default: false },
+    banner: { type: String, default: "" },
+    avatarFrame: { type: String, default: "none" },
+    chatTheme: { type: String, default: "default" },
+    accessibility: {
+      largeText: { type: Boolean, default: false },
+      reducedMotion: { type: Boolean, default: false },
+      highContrast: { type: Boolean, default: false },
+    },
+    notificationPrefs: {
+      dm: { type: Boolean, default: true },
+      connection: { type: Boolean, default: true },
+      mention: { type: Boolean, default: true },
+      groupInvite: { type: Boolean, default: true },
+    },
+    usernameChangedAt: Date,
+    savedMessageIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Message" }],
+    premium: {
+      plan: { type: String, enum: ["free","premium","creator"], default: "free" },
+      status: { type: String, enum: ["inactive","active","past_due","cancelled"], default: "inactive" },
+      expiresAt: Date,
+    },
+    lastSeen: { type: Date, default: Date.now },
+  });
+
+  Message.schema.add({
+    reactions: [{ emoji: String, userUids: [String] }],
+    editedAt: Date,
+    pinned: { type: Boolean, default: false },
+    pinnedBy: String,
+    expiresAt: Date,
+    forwardedFrom: { messageId: String, sender: String },
+    readBy: [{ uid: String, at: Date }],
+    language: { type: String, default: "unknown" },
+    moderation: {
+      flagged: { type: Boolean, default: false },
+      score: { type: Number, default: 0 },
+      reasons: [String],
+    },
+  });
+
+  const dmMessageSchema = DM.schema.path("messages")?.schema;
+  if (dmMessageSchema) dmMessageSchema.add({
+    senderUid: String,
+    receiverUid: String,
+    editedAt: Date,
+    expiresAt: Date,
+    readAt: Date,
+    deliveredAt: Date,
+    forwardedFrom: { messageId: String, sender: String },
+    reactions: [{ emoji: String, userUids: [String] }],
+  });
+
+  Group.schema.add({
+    visibility: { type: String, enum: ["public","private"], default: "public" },
+    joinApproval: { type: Boolean, default: false },
+    rules: [{ type: String }],
+    slowModeSeconds: { type: Number, default: 0, min: 0, max: 3600 },
+    announcementsOnly: { type: Boolean, default: false },
+    category: { type: String, default: "General" },
+    isCommunity: { type: Boolean, default: false },
+    roles: [{ uid: String, name: String, role: { type: String, enum: ["owner","admin","moderator","member"], default: "member" } }],
+    pendingMembers: [{ uid: String, name: String, requestedAt: { type: Date, default: Date.now } }],
+    inviteCode: { type: String, index: true },
+    inviteExpiresAt: Date,
+    branding: { banner: String, accent: String },
+    maxMembers: { type: Number, default: 200, min: 2, max: 10000 },
+    polls: [{
+      question: String,
+      options: [{ text: String, voters: [String] }],
+      createdBy: String,
+      createdAt: { type: Date, default: Date.now },
+      closesAt: Date,
+    }],
+    events: [{
+      title: String,
+      description: String,
+      startsAt: Date,
+      createdBy: String,
+      createdAt: { type: Date, default: Date.now },
+    }],
+    notes: [{
+      text: String,
+      authorUid: String,
+      authorName: String,
+      updatedAt: { type: Date, default: Date.now },
+    }],
+  });
+
+  Report.schema.add({
+    status: { type: String, enum: ["open","reviewing","resolved","dismissed"], default: "open" },
+    moderatorNotes: String,
+    reviewedAt: Date,
+    reviewedBy: String,
+  });
+
+  const Connection = mongoose.models.Connection || mongoose.model("Connection", new mongoose.Schema({
+    pairKey: { type: String, unique: true, index: true },
+    requesterUid: { type: String, index: true },
+    addresseeUid: { type: String, index: true },
+    status: { type: String, enum: ["pending","accepted","declined"], default: "pending" },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  }));
+
+  const Notification = mongoose.models.Notification || mongoose.model("Notification", new mongoose.Schema({
+    uid: { type: String, index: true },
+    type: String,
+    text: String,
+    data: mongoose.Schema.Types.Mixed,
+    read: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
+  }));
+
+  const MatchHistory = mongoose.models.MatchHistory || mongoose.model("MatchHistory", new mongoose.Schema({
+    sessionId: { type: String, index: true },
+    uids: [String],
+    score: Number,
+    commonInterests: [String],
+    commonLanguages: [String],
+    startedAt: { type: Date, default: Date.now },
+    endedAt: Date,
+    endedReason: String,
+  }));
+
+  const Appeal = mongoose.models.Appeal || mongoose.model("Appeal", new mongoose.Schema({
+    uid: { type: String, index: true },
+    email: String,
+    displayName: String,
+    reason: String,
+    status: { type: String, enum: ["open","reviewing","accepted","rejected"], default: "open" },
+    moderatorNote: String,
+    createdAt: { type: Date, default: Date.now },
+    reviewedAt: Date,
+  }));
+
+  const AuditLog = mongoose.models.AuditLog || mongoose.model("AuditLog", new mongoose.Schema({
+    actor: String,
+    action: String,
+    target: String,
+    metadata: mongoose.Schema.Types.Mixed,
+    createdAt: { type: Date, default: Date.now },
+  }));
+
+  const GameScore = mongoose.models.GameScore || mongoose.model("GameScore", new mongoose.Schema({
+    uid: { type: String, index: true },
+    displayName: String,
+    game: { type: String, enum: ["rps","quiz","tictactoe"] },
+    wins: { type: Number, default: 0 },
+    losses: { type: Number, default: 0 },
+    draws: { type: Number, default: 0 },
+    updatedAt: { type: Date, default: Date.now },
+  }));
+
+  function cleanArray(v, allowed = null, max = 12) {
+    const arr = Array.isArray(v) ? v : [];
+    const out = [...new Set(arr.map(x => String(x).trim()).filter(Boolean))].slice(0, max);
+    return allowed ? out.filter(x => allowed.includes(x)) : out;
   }
-  p.lastActiveDay = today;
-  p.lastSeen = new Date();
-  p.achievements = computeAchievements(p);
-}
-function safetyCheck(text, state = {}) {
-  const raw = safeText(text, 4000);
-  const lower = raw.toLowerCase();
-  const blocked = ['send nudes','explicit pic','credit card number','cvv','otp code','bank password'];
-  const scam = ['guaranteed profit','double your money','send otp','share otp','investment guaranteed','free crypto'];
-  const abusive = ['kill yourself','kys','motherfucker','madarchod','behenchod','chutiya','cunt'];
-  let score = 0; const flags = [];
-  if (blocked.some(x => lower.includes(x))) { score += 5; flags.push('unsafe-request'); }
-  if (scam.some(x => lower.includes(x))) { score += 4; flags.push('scam-risk'); }
-  if (abusive.some(x => lower.includes(x))) { score += 3; flags.push('abusive-language'); }
-  const links = (raw.match(/https?:\/\//gi) || []).length;
-  if (links >= 3) { score += 3; flags.push('link-spam'); }
-  if (state.lastText && state.lastText === lower && Date.now() - (state.lastAt||0) < 10000) { score += 2; flags.push('duplicate-spam'); }
-  return { allowed: score < 5, score, flags, suggestion: score >= 5 ? 'Message blocked by Smart Safety.' : score >= 3 ? 'Consider rewriting this more respectfully.' : '' };
-}
-function summarizeMessages(messages) {
-  const texts = (messages || []).map(m => safeText(m.text, 400)).filter(Boolean).slice(-40);
-  if (!texts.length) return 'No messages to summarize yet.';
-  const words = new Map();
-  for (const t of texts) for (const w of t.toLowerCase().match(/[a-z0-9]{4,}/g) || []) {
-    if (['this','that','with','have','from','your','about','what','when','where','there','would','could','should'].includes(w)) continue;
-    words.set(w, (words.get(w)||0)+1);
+  function pairKey(a,b) { return [String(a),String(b)].sort().join("::"); }
+  function todayKey(d = new Date()) { return d.toISOString().slice(0,10); }
+  function levelForXp(xp) { return xp >= 1500 ? "Trusted" : xp >= 600 ? "Regular" : xp >= 150 ? "Active" : "Beginner"; }
+  function accountAge(profile) {
+    const days = Math.max(0, Math.floor((Date.now() - new Date(profile?.createdAt || Date.now()).getTime()) / 86400000));
+    if (days < 30) return `${days} day${days===1?"":"s"}`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} month${months===1?"":"s"}`;
+    const years = Math.floor(months / 12);
+    return `${years} year${years===1?"":"s"}`;
   }
-  const top = [...words.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([w])=>w);
-  const sample = texts.slice(-3).map(t => t.length > 110 ? t.slice(0,107)+'…' : t);
-  return `Recent discussion themes: ${top.length ? top.join(', ') : 'general conversation'}. Recent points: ${sample.join(' • ')}`;
-}
-
-module.exports = function initSocialFeatures(opts) {
-  const { app, io, mongoose, verifyFirebaseToken, verifyGuestToken, firebaseAdminReady, UserProfile, GuestUser, mongoReady } = opts;
-
-  const SocialProfileSchema = new mongoose.Schema({
-    authId:{type:String,unique:true,index:true,required:true},
-    displayName:{type:String,index:true,required:true}, authType:{type:String,enum:['firebase','guest'],required:true},
-    country:{type:String,default:''}, ageBand:{type:String,enum:['teen','adult',''],default:''}, ageVerifiedAt:Date,
-    interests:[String], languages:[String], dmPolicy:{type:String,enum:['everyone','friends','none'],default:'friends'},
-    streak:{type:Number,default:0}, lastActiveDay:String,
-    reputation:{ helpful:{type:Number,default:0}, friendly:{type:Number,default:0}, respectful:{type:Number,default:0} },
-    achievements:[String], safetyStrikes:{type:Number,default:0}, restrictedUntil:Date, lastSeen:{type:Date,default:Date.now}, createdAt:{type:Date,default:Date.now}, updatedAt:{type:Date,default:Date.now},
-  });
-  const SocialProfile = mongoose.models.SocialProfile || mongoose.model('SocialProfile', SocialProfileSchema);
-
-  const FriendRequestSchema = new mongoose.Schema({
-    pairKey:{type:String,index:true}, fromId:{type:String,index:true}, fromName:String, toId:{type:String,index:true}, toName:String,
-    status:{type:String,enum:['pending','accepted','declined'],default:'pending'}, createdAt:{type:Date,default:Date.now}, updatedAt:{type:Date,default:Date.now},
-  });
-  FriendRequestSchema.index({ pairKey:1, status:1 });
-  const FriendRequest = mongoose.models.FriendRequest || mongoose.model('FriendRequest', FriendRequestSchema);
-
-  const BlockSchema = new mongoose.Schema({ blockerId:{type:String,index:true}, targetId:{type:String,index:true}, createdAt:{type:Date,default:Date.now} });
-  BlockSchema.index({ blockerId:1,targetId:1 }, { unique:true });
-  const SocialBlock = mongoose.models.SocialBlock || mongoose.model('SocialBlock', BlockSchema);
-
-  const MuteSchema = new mongoose.Schema({ muterId:{type:String,index:true}, targetId:{type:String,index:true}, targetName:String, createdAt:{type:Date,default:Date.now} });
-  MuteSchema.index({ muterId:1,targetId:1 }, { unique:true });
-  const SocialMute = mongoose.models.SocialMute || mongoose.model('SocialMute', MuteSchema);
-
-  const SocialReportSchema = new mongoose.Schema({ reporterId:String, reporterName:String, targetId:String, targetName:String, reason:String, createdAt:{type:Date,default:Date.now}, status:{type:String,default:'open'} });
-  const SocialReport = mongoose.models.SocialReport || mongoose.model('SocialReport', SocialReportSchema);
-
-  const MatchSessionSchema = new mongoose.Schema({
-    sessionId:{type:String,unique:true,index:true}, participants:[String], participantNames:[String], commonInterests:[String],
-    ageBand:{type:String,index:true}, durationMinutes:Number, startedAt:{type:Date,default:Date.now}, expiresAt:{type:Date,index:true}, endedAt:Date,
-    status:{type:String,enum:['active','ended','expired'],default:'active'},
-    messages:[{ senderId:String,senderName:String,text:String,createdAt:{type:Date,default:Date.now} }],
-  });
-  const MatchSession = mongoose.models.MatchSession || mongoose.model('MatchSession', MatchSessionSchema);
-
-  const TopicMessageSchema = new mongoose.Schema({
-    slug:{type:String,index:true}, senderId:String, senderName:String, text:String,
-    reactions:{type:Map,of:[String],default:{}}, createdAt:{type:Date,default:Date.now},
-  });
-  const TopicMessage = mongoose.models.TopicMessage || mongoose.model('TopicMessage', TopicMessageSchema);
-
-  const CommunitySchema = new mongoose.Schema({
-    name:String, slug:{type:String,unique:true,index:true}, description:String, tags:[String], ownerId:String, ownerName:String,
-    ageBand:{type:String,enum:['teen','adult','all'],default:'all'}, members:[{authId:String,name:String}], createdAt:{type:Date,default:Date.now},
-    pinnedMessageIds:[String],
-  });
-  const Community = mongoose.models.Community || mongoose.model('Community', CommunitySchema);
-  const CommunityMessageSchema = new mongoose.Schema({
-    communityId:{type:String,index:true}, senderId:String, senderName:String, text:String,
-    reactions:{type:Map,of:[String],default:{}}, pinned:{type:Boolean,default:false}, createdAt:{type:Date,default:Date.now},
-  });
-  const CommunityMessage = mongoose.models.CommunityMessage || mongoose.model('CommunityMessage', CommunityMessageSchema);
-
-  const CommunityThreadSchema = new mongoose.Schema({
-    communityId:{type:String,index:true}, title:String, body:String, createdBy:String, createdByName:String, createdAt:{type:Date,default:Date.now},
-    replies:[{senderId:String,senderName:String,text:String,createdAt:{type:Date,default:Date.now}}]
-  });
-  const CommunityThread = mongoose.models.CommunityThread || mongoose.model('CommunityThread', CommunityThreadSchema);
-
-  const CommunityEventSchema = new mongoose.Schema({
-    communityId:{type:String,index:true}, title:String, description:String, startsAt:Date, createdBy:String, createdByName:String, attendees:[String], createdAt:{type:Date,default:Date.now}
-  });
-  const CommunityEvent = mongoose.models.CommunityEvent || mongoose.model('CommunityEvent', CommunityEventSchema);
-
-  const PollSchema = new mongoose.Schema({
-    scope:{type:String,enum:['topic','community'],required:true}, scopeId:{type:String,index:true}, question:String,
-    options:[{ text:String, voters:[String] }], createdBy:String, createdByName:String, createdAt:{type:Date,default:Date.now}, expiresAt:Date,
-  });
-  const Poll = mongoose.models.Poll || mongoose.model('Poll', PollSchema);
-
-  const DailyAnswerSchema = new mongoose.Schema({
-    day:{type:String,index:true}, authId:String, displayName:String, answer:String, createdAt:{type:Date,default:Date.now},
-  });
-  DailyAnswerSchema.index({ day:1, authId:1 }, { unique:true });
-  const DailyAnswer = mongoose.models.DailyAnswer || mongoose.model('DailyAnswer', DailyAnswerSchema);
-
-  const NotificationSchema = new mongoose.Schema({
-    toId:{type:String,index:true}, type:String, text:String, link:String, read:{type:Boolean,default:false}, createdAt:{type:Date,default:Date.now},
-  });
-  const SocialNotification = mongoose.models.SocialNotification || mongoose.model('SocialNotification', NotificationSchema);
-
-  const EndorsementSchema = new mongoose.Schema({ fromId:String,toId:String,category:String,day:String,createdAt:{type:Date,default:Date.now} });
-  EndorsementSchema.index({ fromId:1,toId:1,category:1,day:1 }, { unique:true });
-  const Endorsement = mongoose.models.Endorsement || mongoose.model('Endorsement', EndorsementSchema);
-
-  const VoiceRoomSchema = new mongoose.Schema({
-    roomKey:{type:String,unique:true,index:true}, title:String, ownerId:String, ownerName:String, ageBand:{type:String,enum:['teen','adult'],required:true},
-    topic:String, createdAt:{type:Date,default:Date.now}, expiresAt:{type:Date,expires:0},
-  });
-  const VoiceRoom = mongoose.models.VoiceRoom || mongoose.model('VoiceRoom', VoiceRoomSchema);
-
-  const online = new Map(); // authId -> {socketId,name,ageBand,interests}
-  const queue = new Map();  // authId -> entry
-  const safetyState = new Map();
-  const topicCounts = new Map();
-
-  async function resolveIdentityFromTokens(firebaseToken, guestToken) {
-    if (guestToken) {
-      const guest = await verifyGuestToken(guestToken);
-      if (!guest) return null;
-      return { authId:`guest:${guest.guestId}`, authType:'guest', displayName:guest.displayName, country:guest.country||'', ageBand:guest.ageBand||'', raw:guest };
+  function publicProfile(p, viewerUid, connection = false) {
+    if (!p) return null;
+    const lastSeenAllowed = p.lastSeenPrivacy === "everyone" || (p.lastSeenPrivacy === "connections" && connection) || p.firebaseUid === viewerUid;
+    return {
+      uid: p.firebaseUid,
+      displayName: p.displayName || "User",
+      bio: p.bio || "",
+      avatar: p.avatar || "",
+      color: p.color || "#00f5a0",
+      country: p.country || "",
+      timezone: p.timezone || "",
+      interests: p.interests || [],
+      languages: p.languages || [],
+      selectedTopics: p.selectedTopics || [],
+      presenceStatus: p.presenceStatus === "invisible" && p.firebaseUid !== viewerUid ? "offline" : (p.presenceStatus || "offline"),
+      customStatus: p.customStatus || "",
+      reputation: Number(p.reputation ?? 50),
+      xp: Number(p.xp || 0),
+      profileLevel: p.profileLevel || levelForXp(p.xp || 0),
+      badges: p.badges || [],
+      verified: !!p.verified,
+      accountAge: accountAge(p),
+      lastSeen: lastSeenAllowed ? p.lastSeen : null,
+      banner: p.banner || "",
+      avatarFrame: p.avatarFrame || "none",
+      premium: p.premium?.status === "active" ? { plan: p.premium.plan, active: true } : { plan: "free", active: false },
+    };
+  }
+  async function getProfile(uid, lean = true) {
+    const q = UserProfile.findOne({ firebaseUid: uid });
+    return safeDB(() => lean ? q.lean() : q, null);
+  }
+  async function ensureProfile(decoded) {
+    let p = await getProfile(decoded.uid, false);
+    if (!p) {
+      p = await new UserProfile({
+        firebaseUid: decoded.uid,
+        email: decoded.email || "",
+        displayName: decoded.name || (decoded.email ? decoded.email.split("@")[0] : "User"),
+        verified: !!decoded.email_verified,
+        lastSeen: new Date(),
+      }).save();
+    } else {
+      p.verified = !!decoded.email_verified;
+      p.lastSeen = new Date();
+      await p.save();
     }
-    if (firebaseToken && firebaseAdminReady()) {
-      const decoded = await verifyFirebaseToken(firebaseToken);
-      if (!decoded) return null;
-      const p = mongoReady() ? await UserProfile.findOne({firebaseUid:decoded.uid}).lean().catch(()=>null) : null;
-      return { authId:`firebase:${decoded.uid}`, authType:'firebase', displayName:p?.displayName || decoded.name || decoded.email?.split('@')[0] || 'User', country:p?.location||'', ageBand:p?.ageBand||'', raw:decoded };
-    }
-    return null;
-  }
-
-  async function resolveHttpIdentity(req) {
-    const guestToken = String(req.headers['x-guest-token'] || '');
-    const auth = String(req.headers.authorization || '');
-    const firebaseToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    return resolveIdentityFromTokens(firebaseToken, guestToken);
-  }
-
-  async function ensureSocialProfile(identity) {
-    if (!mongoReady()) throw new Error('Database unavailable');
-    let p = await SocialProfile.findOne({authId:identity.authId});
-    if (!p) p = new SocialProfile({ authId:identity.authId, displayName:identity.displayName, authType:identity.authType, country:identity.country||'', ageBand:identity.ageBand||'' });
-    p.displayName = identity.displayName || p.displayName;
-    p.authType = identity.authType;
-    if (identity.country && !p.country) p.country = identity.country;
-    if (identity.ageBand && !p.ageBand) p.ageBand = identity.ageBand;
-    touchStreak(p);
-    p.updatedAt = new Date();
-    await p.save();
     return p;
   }
-
-  async function checkSocialMessage(authId,text){
-    const p=await SocialProfile.findOne({authId});
-    if(p?.restrictedUntil && p.restrictedUntil>new Date())return {allowed:false,score:9,flags:['temporary-restriction'],suggestion:'Messaging is temporarily limited because Smart Safety detected repeated risky or spam-like messages.'};
-    const prev=safetyState.get(authId)||{}; const now=Date.now(); const times=(prev.times||[]).filter(t=>now-t<8000); times.push(now); const check=safetyCheck(text,prev); if(times.length>6){check.score+=4;check.flags.push('rate-spam');check.allowed=false;check.suggestion='You are sending messages too quickly. Slow down and try again.';}
-    safetyState.set(authId,{lastText:String(text).toLowerCase(),lastAt:now,times});
-    if(!check.allowed && p){p.safetyStrikes=Number(p.safetyStrikes||0)+1;if(p.safetyStrikes>=3){p.restrictedUntil=new Date(Date.now()+10*60000);p.safetyStrikes=0;}await p.save().catch(()=>{});}
-    return check;
+  async function acceptedConnection(uidA, uidB) {
+    if (!uidA || !uidB) return false;
+    const c = await safeDB(() => Connection.findOne({ pairKey: pairKey(uidA,uidB), status: "accepted" }).lean(), null);
+    return !!c;
   }
-
-  async function authMiddleware(req,res,next) {
-    if (!mongoReady()) return res.status(503).json({error:'Database is required for social features.'});
-    const identity = await resolveHttpIdentity(req);
-    if (!identity) return res.status(401).json({error:'Sign in or continue as guest first.'});
-    try {
-      req.socialIdentity = identity;
-      req.socialProfile = await ensureSocialProfile(identity);
-      next();
-    } catch (e) { res.status(500).json({error:'Could not load social profile.'}); }
+  async function isBlockedEitherWay(uidA, uidB) {
+    if (!uidA || !uidB) return true;
+    const docs = await safeDB(() => UserProfile.find({ firebaseUid: { $in: [uidA,uidB] } }).select("firebaseUid blockedUids").lean(), []);
+    const a = docs.find(x => x.firebaseUid === uidA), b = docs.find(x => x.firebaseUid === uidB);
+    return !!(a?.blockedUids?.includes(uidB) || b?.blockedUids?.includes(uidA));
   }
-
-  async function notify(toId,type,text,link='') {
-    if (!toId) return;
-    await SocialNotification.create({toId,type,text,link}).catch(()=>{});
-    const live = online.get(toId);
-    if (live) social.to(live.socketId).emit('notification',{type,text,link,createdAt:new Date()});
+  async function notify(uid, type, text, data = {}) {
+    if (!uid) return;
+    const target = await getProfile(uid);
+    const prefKey = type === "dm" ? "dm" : type === "connection" ? "connection" : type === "mention" ? "mention" : type === "groupInvite" ? "groupInvite" : null;
+    if (prefKey && target?.notificationPrefs?.[prefKey] === false) return;
+    await safeDB(() => new Notification({ uid, type, text: String(text).slice(0,240), data }).save());
+    const live = Object.values(activeUsers).find(u => u.firebaseUid === uid);
+    if (live && live.presenceStatus !== "invisible") io.to(live.socketId).emit("social:notification", { type, text, data, createdAt: new Date() });
   }
-
-  async function areFriends(a,b) {
-    return !!await FriendRequest.findOne({pairKey:pairKey(a,b),status:'accepted'}).lean();
+  async function awardXp(uid, amount, badge) {
+    if (!uid || !amount) return;
+    const profile = await getProfile(uid, false);
+    if (!profile) return;
+    const now = new Date();
+    const prev = profile.lastActiveDate ? todayKey(profile.lastActiveDate) : "";
+    const today = todayKey(now);
+    const yesterday = todayKey(new Date(now.getTime() - 86400000));
+    if (prev !== today) profile.streak = prev === yesterday ? (profile.streak || 0) + 1 : 1;
+    profile.lastActiveDate = now;
+    profile.xp = Math.max(0, (profile.xp || 0) + amount);
+    profile.profileLevel = levelForXp(profile.xp);
+    const badges = new Set(profile.badges || []);
+    if (profile.streak >= 7) badges.add("7-Day Active");
+    if (profile.xp >= 150) badges.add("Active Member");
+    if (profile.xp >= 600) badges.add("Community Contributor");
+    if (badge) badges.add(badge);
+    profile.badges = [...badges];
+    await profile.save();
   }
-  async function isBlockedEither(a,b) {
-    return !!await SocialBlock.findOne({$or:[{blockerId:a,targetId:b},{blockerId:b,targetId:a}]}).lean();
-  }
-  async function findProfileByName(name) {
-    const p = await SocialProfile.findOne({displayName:{$regex:new RegExp('^'+String(name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$','i')}});
-    if (p) return p;
-    const fp = await UserProfile.findOne({displayName:{$regex:new RegExp('^'+String(name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$','i')}}).lean().catch(()=>null);
-    if (fp) return ensureSocialProfile({authId:`firebase:${fp.firebaseUid}`,authType:'firebase',displayName:fp.displayName,country:fp.location||'',ageBand:fp.ageBand||''});
-    const gp = await GuestUser.findOne({usernameLower:String(name).toLowerCase()}).lean().catch(()=>null);
-    if (gp) return ensureSocialProfile({authId:`guest:${gp.guestId}`,authType:'guest',displayName:gp.displayName,country:gp.country||'',ageBand:gp.ageBand||''});
-    return null;
-  }
-
-  function dailyQuestion() {
-    const key = dayKey();
-    const days = Math.floor(Date.parse(key+'T00:00:00Z') / 86400000);
-    return { day:key, question:DAILY_QUESTIONS[Math.abs(days) % DAILY_QUESTIONS.length] };
-  }
-
-  async function trendingPayload() {
-    const topicStats = await Promise.all(TOPICS.map(async t => ({
-      slug:t.slug,name:t.name,icon:t.icon,audience:t.audience,
-      online:Number(topicCounts.get(t.slug)||0),
-      messages:await TopicMessage.countDocuments({slug:t.slug,createdAt:{$gte:new Date(Date.now()-24*3600*1000)}}).catch(()=>0),
-    })));
-    topicStats.sort((a,b)=>(b.online*5+b.messages)-(a.online*5+a.messages));
-    return topicStats;
-  }
-
-  // REST: bootstrap/profile
-  app.get('/api/social/bootstrap', authMiddleware, async (req,res) => {
-    const p = req.socialProfile;
-    const [incoming,outgoing,friends,notes,communities,recentMatches,trending,answerCount,mutes] = await Promise.all([
-      FriendRequest.find({toId:p.authId,status:'pending'}).sort({createdAt:-1}).lean(),
-      FriendRequest.find({fromId:p.authId,status:'pending'}).sort({createdAt:-1}).lean(),
-      FriendRequest.find({$or:[{fromId:p.authId},{toId:p.authId}],status:'accepted'}).sort({updatedAt:-1}).lean(),
-      SocialNotification.find({toId:p.authId}).sort({createdAt:-1}).limit(30).lean(),
-      Community.find({$or:[{'members.authId':p.authId}, {ageBand:'all'}, {ageBand:p.ageBand||'__none__'}]}).sort({createdAt:-1}).limit(50).lean(),
-      MatchSession.find({participants:p.authId,status:{$in:['ended','expired']}}).sort({startedAt:-1}).limit(8).lean(),
-      trendingPayload(),
-      DailyAnswer.countDocuments({day:dayKey()}),
-      SocialMute.find({muterId:p.authId}).sort({createdAt:-1}).lean(),
+  async function recomputeReputation(uid) {
+    const p = await getProfile(uid, false); if (!p) return 50;
+    const [warnings, reportsAgainst, accepted] = await Promise.all([
+      safeDB(() => Warning.findOne({ username: String(p.displayName||"").toLowerCase() }).lean(), null),
+      safeDB(() => Report.countDocuments({ reportedUser: { $regex: new RegExp("^" + String(p.displayName||"").replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "$", "i") }, status: { $in: ["open","reviewing","resolved"] } }), 0),
+      safeDB(() => Connection.countDocuments({ $or: [{requesterUid:uid},{addresseeUid:uid}], status:"accepted" }), 0),
     ]);
-    const friendViews = friends.map(f => ({requestId:String(f._id), authId:f.fromId===p.authId?f.toId:f.fromId, name:f.fromId===p.authId?f.toName:f.fromName, since:f.updatedAt}));
+    const ageBonus = Math.min(10, Math.floor((Date.now()-new Date(p.createdAt||Date.now()).getTime())/(30*86400000)));
+    const score = Math.max(0, Math.min(100, 50 + ageBonus + Math.min(15, accepted) - ((warnings?.count||0)*8) - Math.min(30, reportsAgainst*4)));
+    p.reputation = score;
+    if (score >= 80) { const b = new Set(p.badges||[]); b.add("Trusted Member"); p.badges=[...b]; }
+    await p.save();
+    return score;
+  }
+  function detectLanguage(text) {
+    const s = String(text || "");
+    if (!s.trim()) return "unknown";
+    if (/[\u0900-\u097F]/.test(s)) return "Hindi";
+    if (/[\u3040-\u30ff]/.test(s)) return "Japanese";
+    if (/[\uac00-\ud7af]/.test(s)) return "Korean";
+    if (/[\u0400-\u04ff]/.test(s)) return "Russian";
+    const low = s.toLowerCase();
+    if (/\b(hola|gracias|como|que|por|para)\b/.test(low)) return "Spanish";
+    if (/\b(bonjour|merci|avec|pour|est)\b/.test(low)) return "French";
+    if (/\b(hai|nahi|kya|mera|tum|aap|kaise|bhai)\b/.test(low)) return "Hinglish";
+    return "English";
+  }
+  function autoModerate(text) {
+    const s = String(text || "");
+    const reasons = [];
+    if (/(https?:\/\/[^\s]+.*){3,}/i.test(s)) reasons.push("excessive-links");
+    if (/(.)\1{10,}/.test(s)) reasons.push("repeated-characters");
+    if ((s.match(/@/g)||[]).length > 8) reasons.push("excessive-mentions");
+    if (/\b(free money|guaranteed profit|send otp|share otp|password here|crypto giveaway)\b/i.test(s)) reasons.push("possible-scam");
+    const score = Math.min(100, reasons.length * 30);
+    return { flagged: score >= 30, score, reasons };
+  }
+  function starterFor(topic) {
+    const t = String(topic || "General").trim().slice(0,60);
+    const templates = [
+      `What got you interested in ${t}?`,
+      `What is one ${t} thing you learned recently?`,
+      `If you had one free day for ${t}, what would you do?`,
+      `What is an underrated part of ${t}?`,
+      `Which beginner mistake in ${t} would you help someone avoid?`,
+    ];
+    return templates;
+  }
+  function simpleSummary(messages) {
+    const list = (Array.isArray(messages) ? messages : []).map(x => String(x?.text ?? x ?? "").trim()).filter(Boolean).slice(-100);
+    if (!list.length) return "No messages to summarize.";
+    const sentences = list.join(" ").split(/(?<=[.!?])\s+/).filter(Boolean);
+    const picks = sentences.filter((s,i) => i===0 || s.length>60).slice(0,5);
+    return picks.join(" ").slice(0,1200) || list.slice(-5).join(" • ").slice(0,1200);
+  }
+  function groupRole(group, uid) {
+    if (!group || !uid) return null;
+    if (group.adminUid === uid) return "owner";
+    return group.roles?.find(r => r.uid === uid)?.role || null;
+  }
+  function hasGroupPower(group, uid, levels = ["owner","admin","moderator"]) { return levels.includes(groupRole(group, uid)); }
+
+  async function accessibleMessageRooms(uid) {
+    const groups = await safeDB(() => Group.find({
+      $or: [
+        { adminUid: uid },
+        { roles: { $elemMatch: { uid } } },
+      ],
+    }).select("_id").lean(), []);
+    return ["global", ...(groups || []).map(g => `group_${g._id}`)];
+  }
+
+  async function canAccessMessageRoom(uid, room) {
+    if (!room || room === "global") return true;
+    if (!room.startsWith("group_")) return false;
+    const id = room.slice(6);
+    if (!mongoose.isValidObjectId(id)) return false;
+    const g = await safeDB(() => Group.findOne({
+      _id: id,
+      $or: [
+        { adminUid: uid },
+        { roles: { $elemMatch: { uid } } },
+      ],
+    }).select("_id").lean(), null);
+    return !!g;
+  }
+  function normalizeInvite() { return crypto.randomBytes(9).toString("base64url"); }
+  function activeByUid(uid) { return Object.values(activeUsers).find(u => u.firebaseUid === uid); }
+
+  // Audit all web-admin actions registered after this module. Password/token values are never stored.
+  app.use("/api/admin", (req, res, next) => {
+    const started = Date.now();
+    res.on("finish", () => {
+      if (req.method !== "GET") safeDB(() => new AuditLog({ actor: "web-admin", action: `${req.method} ${req.path}`, target: String(req.body?.username || req.body?.uid || req.body?.id || ""), metadata: { statusCode: res.statusCode, durationMs: Date.now() - started } }).save());
+    });
+    next();
+  });
+
+  // ------------------------------- REST: BOOTSTRAP / PROFILE
+  app.get("/api/social/config", (req,res) => res.json({ interests: INTERESTS, languages: LANGUAGES, statuses: STATUSES, reportCategories: REPORT_CATEGORIES, reactions: EMOJIS, usernameCooldownDays: USERNAME_COOLDOWN_DAYS }));
+
+  app.get("/api/social/bootstrap", requireFirebaseUser, async (req,res) => {
+    const decoded = req.firebaseUser;
+    const p = await ensureProfile(decoded);
+    const [connections, pendingIn, pendingOut, unread, warnings] = await Promise.all([
+      safeDB(() => Connection.find({ $or:[{requesterUid:decoded.uid},{addresseeUid:decoded.uid}], status:"accepted" }).lean(), []),
+      safeDB(() => Connection.find({ addresseeUid: decoded.uid, status:"pending" }).lean(), []),
+      safeDB(() => Connection.find({ requesterUid: decoded.uid, status:"pending" }).lean(), []),
+      safeDB(() => Notification.countDocuments({ uid:decoded.uid, read:false }), 0),
+      safeDB(() => Warning.findOne({ username:String(p.displayName||"").toLowerCase() }).lean(), null),
+    ]);
+    const otherUids = [...new Set([...connections.map(c => c.requesterUid===decoded.uid?c.addresseeUid:c.requesterUid), ...pendingIn.map(c=>c.requesterUid), ...pendingOut.map(c=>c.addresseeUid)])];
+    const profiles = await safeDB(() => UserProfile.find({ firebaseUid:{ $in:otherUids } }).lean(), []);
+    const byUid = Object.fromEntries(profiles.map(x => [x.firebaseUid, publicProfile(x, decoded.uid, connections.some(c => c.pairKey===pairKey(decoded.uid,x.firebaseUid)))]));
+    await recomputeReputation(decoded.uid);
+    const fresh = await getProfile(decoded.uid);
     res.json({
-      profile:publicProfile(p), topics:TOPICS, trending, daily:{...dailyQuestion(),answerCount},
-      incoming:incoming.map(x=>({...x,_id:String(x._id)})), outgoing:outgoing.map(x=>({...x,_id:String(x._id)})), friends:friendViews,
-      notifications:notes.map(n=>({...n,_id:String(n._id)})), communities:communities.map(c=>({...c,_id:String(c._id),memberCount:c.members?.length||0})),
-      recentMatches:recentMatches.map(m=>({sessionId:m.sessionId,names:m.participantNames,commonInterests:m.commonInterests,startedAt:m.startedAt})),
-      muted:mutes.map(m=>({authId:m.targetId,name:m.targetName})), starters:STARTERS,
+      profile: { ...publicProfile(fresh,decoded.uid,true), email: fresh?.email || decoded.email || "", lastSeenPrivacy:fresh?.lastSeenPrivacy||"connections", discoverable:fresh?.discoverable!==false, matchFilters:fresh?.matchFilters||{}, accessibility:fresh?.accessibility||{}, notificationPrefs:fresh?.notificationPrefs||{}, chatTheme:fresh?.chatTheme||"default", premium:fresh?.premium||{plan:"free",status:"inactive"} },
+      connections: connections.map(c => ({...c, other:byUid[c.requesterUid===decoded.uid?c.addresseeUid:c.requesterUid]})),
+      pendingReceived: pendingIn.map(c => ({...c, other:byUid[c.requesterUid]})),
+      pendingSent: pendingOut.map(c => ({...c, other:byUid[c.addresseeUid]})),
+      unreadNotifications: unread,
+      warningCount: warnings?.count || 0,
     });
   });
 
-  app.put('/api/social/profile', authMiddleware, async (req,res) => {
-    const p = req.socialProfile;
-    const b = req.body && typeof req.body==='object' ? req.body : {};
-    if (b.dob) {
-      const band = ageBandFromDob(String(b.dob));
-      if (!band) return res.status(400).json({error:'Enter a valid DOB. Social discovery is available for age 13+.'});
-      p.ageBand = band; p.ageVerifiedAt = new Date();
-      if (p.authType === 'guest') await GuestUser.updateOne({guestId:p.authId.replace('guest:','')},{$set:{ageBand:band}}).catch(()=>{});
-      else await UserProfile.updateOne({firebaseUid:p.authId.replace('firebase:','')},{$set:{ageBand:band,ageVerifiedAt:new Date()}}).catch(()=>{});
+  app.put("/api/social/profile", requireFirebaseUser, async (req,res) => {
+    const decoded = req.firebaseUser; const p = await ensureProfile(decoded); const b=req.body||{};
+    if (b.displayName !== undefined && String(b.displayName).trim() !== p.displayName) {
+      const last = p.usernameChangedAt ? new Date(p.usernameChangedAt).getTime() : 0;
+      const remain = USERNAME_COOLDOWN_DAYS*86400000 - (Date.now()-last);
+      if (last && remain > 0) return res.status(429).json({ error:`Username can be changed again in ${Math.ceil(remain/86400000)} day(s).` });
+      const name=String(b.displayName).trim();
+      if (name.length<2||name.length>30||!/^[\p{L}\p{N}_. -]+$/u.test(name)) return res.status(400).json({error:"Invalid display name"});
+      const exists=await safeDB(()=>UserProfile.findOne({displayName:{$regex:new RegExp("^"+name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"$","i")},firebaseUid:{$ne:decoded.uid}}).lean(),null);
+      if(exists) return res.status(409).json({error:"Display name already taken"});
+      p.displayName=name; p.usernameChangedAt=new Date();
     }
-    if (Array.isArray(b.interests)) p.interests = [...new Set(b.interests.map(x=>safeText(x,30)).filter(Boolean))].slice(0,12);
-    if (Array.isArray(b.languages)) p.languages = [...new Set(b.languages.map(x=>safeText(x,30)).filter(Boolean))].slice(0,6);
-    if (['everyone','friends','none'].includes(b.dmPolicy)) p.dmPolicy = b.dmPolicy;
-    p.updatedAt = new Date(); touchStreak(p); await p.save();
-    res.json({ok:true,profile:publicProfile(p)});
+    if (b.bio !== undefined) p.bio=String(b.bio).slice(0,240);
+    if (b.country !== undefined) p.country=String(b.country).slice(0,80);
+    if (b.timezone !== undefined) p.timezone=String(b.timezone).slice(0,80);
+    if (b.interests !== undefined) p.interests=cleanArray(b.interests,INTERESTS,10);
+    if (b.languages !== undefined) p.languages=cleanArray(b.languages,LANGUAGES,8);
+    if (b.selectedTopics !== undefined) p.selectedTopics=cleanArray(b.selectedTopics,null,10);
+    if (STATUSES.includes(b.presenceStatus)) p.presenceStatus=b.presenceStatus;
+    if (b.customStatus !== undefined) p.customStatus=String(b.customStatus).slice(0,80);
+    if (["everyone","connections","nobody"].includes(b.lastSeenPrivacy)) p.lastSeenPrivacy=b.lastSeenPrivacy;
+    if (typeof b.discoverable === "boolean") p.discoverable=b.discoverable;
+    if (b.matchFilters && typeof b.matchFilters === "object") p.matchFilters={sameCountry:!!b.matchFilters.sameCountry,languages:cleanArray(b.matchFilters.languages,LANGUAGES,8),interests:cleanArray(b.matchFilters.interests,INTERESTS,10),timezone:String(b.matchFilters.timezone||"").slice(0,80)};
+    const premiumActive = p.premium?.status === "active" && ["premium","creator"].includes(p.premium?.plan);
+    if (b.banner !== undefined) {
+      const banner=String(b.banner||"").trim();
+      if (banner && !/^#[0-9a-f]{6}$/i.test(banner)) return res.status(400).json({error:"Banner must be a 6-digit hex color, e.g. #16213e"});
+      p.banner=banner;
+    }
+    if (b.avatarFrame !== undefined) {
+      const frame=String(b.avatarFrame);
+      if (!["none","neon","orbit","gold"].includes(frame)) return res.status(400).json({error:"Invalid avatar frame"});
+      if (["orbit","gold"].includes(frame) && !premiumActive) return res.status(403).json({error:"This avatar frame requires an active Premium or Creator plan"});
+      p.avatarFrame=frame;
+    }
+    if (b.chatTheme !== undefined) {
+      const theme=String(b.chatTheme);
+      if (!["default","ocean","forest","amoled","sunset","aurora"].includes(theme)) return res.status(400).json({error:"Invalid chat theme"});
+      if (["sunset","aurora"].includes(theme) && !premiumActive) return res.status(403).json({error:"This theme requires an active Premium or Creator plan"});
+      p.chatTheme=theme;
+    }
+    if (b.accessibility && typeof b.accessibility === "object") p.accessibility={largeText:!!b.accessibility.largeText,reducedMotion:!!b.accessibility.reducedMotion,highContrast:!!b.accessibility.highContrast};
+    if (b.notificationPrefs && typeof b.notificationPrefs === "object") p.notificationPrefs={dm:b.notificationPrefs.dm!==false,connection:b.notificationPrefs.connection!==false,mention:b.notificationPrefs.mention!==false,groupInvite:b.notificationPrefs.groupInvite!==false};
+    p.verified=!!decoded.email_verified; p.updatedAt=new Date(); p.lastSeen=new Date(); await p.save(); await awardXp(decoded.uid,2);
+    const live=activeByUid(decoded.uid); if(live){live.name=p.displayName;live.bio=p.bio;live.avatar=p.avatar;live.color=p.color;live.presenceStatus=p.presenceStatus;live.customStatus=p.customStatus;live.verified=!!p.verified;io.emit("user list", Object.values(activeUsers).filter(u=>u.presenceStatus!=="invisible").map(u=>({socketId:u.socketId,name:u.name,rawName:u.name,bio:u.bio,avatar:u.avatar,color:u.color,isVip:!!u.isVip,isAdmin:!!u.isAdmin,status:u.presenceStatus||"online",customStatus:u.customStatus||"",verified:!!u.verified})));}
+    res.json({ok:true,profile:publicProfile(p.toObject(),decoded.uid,true)});
   });
 
-  app.get('/api/social/daily', authMiddleware, async (req,res)=>{
-    const d=dailyQuestion(); const [count,mine,answers]=await Promise.all([
-      DailyAnswer.countDocuments({day:d.day}), DailyAnswer.findOne({day:d.day,authId:req.socialProfile.authId}).lean(), DailyAnswer.find({day:d.day}).sort({createdAt:-1}).limit(30).lean()
+  app.get("/api/social/profile/:uid", requireFirebaseUser, async (req,res) => {
+    const target=await getProfile(req.params.uid); if(!target) return res.status(404).json({error:"User not found"});
+    if(await isBlockedEitherWay(req.firebaseUser.uid,target.firebaseUid)) return res.status(403).json({error:"Profile unavailable"});
+    const conn=await acceptedConnection(req.firebaseUser.uid,target.firebaseUid); res.json(publicProfile(target,req.firebaseUser.uid,conn));
+  });
+
+  // ------------------------------- DISCOVERY / MATCH FILTERS
+  app.get("/api/social/discover", requireFirebaseUser, async (req,res) => {
+    const me=await getProfile(req.firebaseUser.uid); if(!me) return res.json([]);
+    const q={firebaseUid:{$ne:req.firebaseUser.uid},discoverable:{$ne:false}};
+    if(req.query.country) q.country=String(req.query.country).slice(0,80);
+    if(req.query.language) q.languages=String(req.query.language).slice(0,30);
+    if(req.query.interest) q.interests=String(req.query.interest).slice(0,30);
+    const excluded=new Set(me.blockedUids||[]);
+    const conns=await safeDB(()=>Connection.find({$or:[{requesterUid:req.firebaseUser.uid},{addresseeUid:req.firebaseUser.uid}],status:"accepted"}).lean(),[]);
+    conns.forEach(c=>excluded.add(c.requesterUid===req.firebaseUser.uid?c.addresseeUid:c.requesterUid));
+    const users=await safeDB(()=>UserProfile.find(q).sort({reputation:-1,lastSeen:-1}).limit(60).lean(),[]);
+    const filtered=users.filter(u=>!excluded.has(u.firebaseUid)&&!(u.blockedUids||[]).includes(req.firebaseUser.uid)).slice(0,30);
+    res.json(filtered.map(u=>publicProfile(u,req.firebaseUser.uid,false)));
+  });
+
+  // ------------------------------- CONNECTIONS / BLOCK / MUTE
+  app.get("/api/social/connections", requireFirebaseUser, async (req,res) => {
+    const uid=req.firebaseUser.uid; const cs=await safeDB(()=>Connection.find({$or:[{requesterUid:uid},{addresseeUid:uid}]}).sort({updatedAt:-1}).lean(),[]);
+    const ids=[...new Set(cs.map(c=>c.requesterUid===uid?c.addresseeUid:c.requesterUid))]; const [ps,dms]=await Promise.all([safeDB(()=>UserProfile.find({firebaseUid:{$in:ids}}).lean(),[]),safeDB(()=>DM.find({channelId:{$in:ids.map(x=>pairKey(uid,x))}}).lean(),[])]); const map=Object.fromEntries(ps.map(p=>[p.firebaseUid,p]));const dmMap=Object.fromEntries(dms.map(d=>[d.channelId,d]));
+    res.json(cs.map(c=>{const oid=c.requesterUid===uid?c.addresseeUid:c.requesterUid,dm=dmMap[pairKey(uid,oid)],unread=(dm?.messages||[]).filter(m=>m.receiverUid===uid&&!m.readAt).length;return {...c,unread,other:publicProfile(map[oid],uid,c.status==="accepted")};}));
+  });
+
+  app.post("/api/social/connections/request", requireFirebaseUser, async (req,res) => {
+    const from=req.firebaseUser.uid,to=String(req.body?.uid||""); if(!to||to===from) return res.status(400).json({error:"Invalid user"});
+    if(await isBlockedEitherWay(from,to)) return res.status(403).json({error:"Connection unavailable"});
+    const target=await getProfile(to); if(!target) return res.status(404).json({error:"User not found"});
+    const key=pairKey(from,to); const existing=await safeDB(()=>Connection.findOne({pairKey:key}),null);
+    if(existing?.status==="accepted") return res.json({ok:true,status:"accepted"});
+    const c=await safeDB(()=>Connection.findOneAndUpdate({pairKey:key},{$set:{pairKey:key,requesterUid:from,addresseeUid:to,status:"pending",updatedAt:new Date()},$setOnInsert:{createdAt:new Date()}},{upsert:true,returnDocument:"after"}),null);
+    const me=await getProfile(from); await notify(to,"connection",`${me?.displayName||"Someone"} sent you a connection request.`,{connectionId:c?._id?.toString(),fromUid:from}); await awardXp(from,3);
+    res.json({ok:true,status:"pending"});
+  });
+
+  app.post("/api/social/connections/respond", requireFirebaseUser, async (req,res) => {
+    const uid=req.firebaseUser.uid,id=String(req.body?.id||""),accept=!!req.body?.accept; if(!mongoose.isValidObjectId(id)) return res.status(400).json({error:"Invalid request"});
+    const c=await safeDB(()=>Connection.findOne({_id:id,addresseeUid:uid,status:"pending"}),null); if(!c) return res.status(404).json({error:"Request not found"});
+    c.status=accept?"accepted":"declined";c.updatedAt=new Date();await c.save(); const me=await getProfile(uid); await notify(c.requesterUid,"connection",`${me?.displayName||"Someone"} ${accept?"accepted":"declined"} your connection request.`,{connectionId:id,status:c.status});
+    if(accept){await awardXp(uid,10,"First Connection");await awardXp(c.requesterUid,10,"First Connection");}
+    res.json({ok:true,status:c.status});
+  });
+
+  app.delete("/api/social/connections/:uid", requireFirebaseUser, async (req,res)=>{await safeDB(()=>Connection.deleteOne({pairKey:pairKey(req.firebaseUser.uid,req.params.uid)}));res.json({ok:true});});
+
+  app.post("/api/social/block", requireFirebaseUser, async (req,res) => {
+    const me=await getProfile(req.firebaseUser.uid,false),target=String(req.body?.uid||""); if(!me||!target||target===req.firebaseUser.uid)return res.status(400).json({error:"Invalid user"});
+    const set=new Set(me.blockedUids||[]); if(req.body?.blocked===false)set.delete(target);else set.add(target);me.blockedUids=[...set];await me.save();if(set.has(target))await safeDB(()=>Connection.deleteOne({pairKey:pairKey(req.firebaseUser.uid,target)}));res.json({ok:true,blocked:set.has(target)});
+  });
+  app.post("/api/social/mute", requireFirebaseUser, async (req,res) => {
+    const me=await getProfile(req.firebaseUser.uid,false),target=String(req.body?.uid||""); if(!me||!target||target===req.firebaseUser.uid)return res.status(400).json({error:"Invalid user"});
+    const set=new Set(me.mutedUids||[]); if(req.body?.muted===false)set.delete(target);else set.add(target);me.mutedUids=[...set];await me.save();res.json({ok:true,muted:set.has(target)});
+  });
+
+  app.post("/api/social/reports", requireFirebaseUser, async (req,res) => {
+    const targetUid=String(req.body?.uid||""), category=String(req.body?.category||"other").toLowerCase(), details=String(req.body?.details||"").trim().slice(0,1200);
+    if(!targetUid||targetUid===req.firebaseUser.uid)return res.status(400).json({error:"Invalid report target"});
+    if(!REPORT_CATEGORIES.includes(category))return res.status(400).json({error:"Invalid report category"});
+    const [target,me]=await Promise.all([getProfile(targetUid),getProfile(req.firebaseUser.uid)]);if(!target)return res.status(404).json({error:"User not found"});
+    const recent=await safeDB(()=>Report.findOne({reporterEmail:req.firebaseUser.email||"",reportedUser:target.displayName,createdAt:{$gte:new Date(Date.now()-10*60000)}}).lean(),null);if(recent)return res.status(429).json({error:"You recently reported this user. Moderators will review it."});
+    const r=await safeDB(()=>new Report({reportedUser:target.displayName,reporterUser:me?.displayName||"User",reporterEmail:req.firebaseUser.email||"",category,reason:details||category,device:"Web/PWA",status:"open"}).save(),null);
+    await awardXp(req.firebaseUser.uid,1);res.json({ok:true,id:r?._id});
+  });
+  app.get("/api/social/warnings/me", requireFirebaseUser, async (req,res)=>{const p=await getProfile(req.firebaseUser.uid);const w=await safeDB(()=>Warning.findOne({username:String(p?.displayName||"").toLowerCase()}).lean(),null);res.json(w||{username:p?.displayName||"",count:0,messages:[]});});
+
+  // ------------------------------- NOTIFICATIONS
+  app.get("/api/social/notifications", requireFirebaseUser, async (req,res)=>res.json(await safeDB(()=>Notification.find({uid:req.firebaseUser.uid}).sort({createdAt:-1}).limit(100).lean(),[])));
+  app.post("/api/social/notifications/read", requireFirebaseUser, async (req,res)=>{const ids=cleanArray(req.body?.ids,null,100).filter(mongoose.isValidObjectId);const q={uid:req.firebaseUser.uid};if(ids.length)q._id={$in:ids};await safeDB(()=>Notification.updateMany(q,{$set:{read:true}}));res.json({ok:true});});
+
+  // ------------------------------- MESSAGES: search, save, media, enhanced actions
+  app.get("/api/social/messages/search", requireFirebaseUser, async (req,res)=>{
+    const q=String(req.query.q||"").trim();
+    if(q.length<2)return res.json([]);
+    const rooms=await accessibleMessageRooms(req.firebaseUser.uid);
+    const escaped=q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const rows=await safeDB(()=>Message.find({room:{$in:rooms},text:{$regex:new RegExp(escaped,"i")}}).sort({createdAt:-1}).limit(50).lean(),[]);
+    res.json(rows.map(m=>({id:m._id,sender:m.senderName,text:m.text,room:m.room,type:m.type,createdAt:m.createdAt,pinned:!!m.pinned,editedAt:m.editedAt})));
+  });
+  app.post("/api/social/messages/:id/save", requireFirebaseUser, async (req,res)=>{
+    if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:"Invalid id"});
+    const msg=await safeDB(()=>Message.findById(req.params.id).select("room").lean(),null);
+    if(!msg)return res.status(404).json({error:"Message missing"});
+    if(!(await canAccessMessageRoom(req.firebaseUser.uid,msg.room)))return res.status(403).json({error:"You cannot access this message"});
+    const p=await getProfile(req.firebaseUser.uid,false);if(!p)return res.status(404).json({error:"Profile missing"});
+    const set=new Set((p.savedMessageIds||[]).map(String));
+    const premiumActive=p.premium?.status==="active"&&["premium","creator"].includes(p.premium?.plan);const limit=premiumActive?1000:100;
+    if(req.body?.saved===false)set.delete(req.params.id);else if(!set.has(req.params.id)&&set.size>=limit)return res.status(429).json({error:`Saved message limit reached (${limit})`});else set.add(req.params.id);
+    p.savedMessageIds=[...set].filter(mongoose.isValidObjectId);await p.save();res.json({ok:true,saved:set.has(req.params.id),limit,count:set.size});
+  });
+  app.get("/api/social/saved", requireFirebaseUser, async (req,res)=>{
+    const p=await getProfile(req.firebaseUser.uid);const ids=(p?.savedMessageIds||[]).filter(mongoose.isValidObjectId);
+    const rooms=await accessibleMessageRooms(req.firebaseUser.uid);
+    const rows=await safeDB(()=>Message.find({_id:{$in:ids},room:{$in:rooms}}).sort({createdAt:-1}).lean(),[]);res.json(rows);
+  });
+  app.get("/api/social/media", requireFirebaseUser, async (req,res)=>{
+    const room=String(req.query.room||"global").slice(0,100);
+    if(!(await canAccessMessageRoom(req.firebaseUser.uid,room)))return res.status(403).json({error:"You cannot access this room"});
+    const rows=await safeDB(()=>Message.find({room,type:{$in:["image","video","voice","gif","file"]}}).sort({createdAt:-1}).limit(100).lean(),[]);res.json(rows);
+  });
+
+  // ------------------------------- ADVANCED GROUPS / ROOMS
+  app.post("/api/social/groups", requireFirebaseUser, async (req,res)=>{
+    const p=await getProfile(req.firebaseUser.uid);const b=req.body||{};const name=String(b.name||"").trim().slice(0,60);if(name.length<2)return res.status(400).json({error:"Group name must be at least 2 characters"});
+    const password=String(b.password||"");if(password&&password.length<4)return res.status(400).json({error:"Password must be at least 4 characters"});
+    const passwordHash=password?await require("bcrypt").hash(password,12):"";
+    const g=await safeDB(()=>new Group({name,description:String(b.description||"").slice(0,300),passwordHash,adminName:p?.displayName||"User",adminUid:req.firebaseUser.uid,icon:String(b.icon||"👥").slice(0,10),members:[p?.displayName||"User"],visibility:["public","private"].includes(b.visibility)?b.visibility:"public",joinApproval:!!b.joinApproval,rules:cleanArray(b.rules,null,20).map(x=>x.slice(0,200)),category:String(b.category||"General").slice(0,40),slowModeSeconds:Math.max(0,Math.min(3600,Number(b.slowModeSeconds)||0)),announcementsOnly:!!b.announcementsOnly,isCommunity:!!b.isCommunity,roles:[{uid:req.firebaseUser.uid,name:p?.displayName||"User",role:"owner"}],maxMembers:Math.max(2,Math.min(10000,Number(b.maxMembers)||200))}).save(),null);
+    if(!g)return res.status(503).json({error:"Database unavailable"});await awardXp(req.firebaseUser.uid,10,"Community Creator");res.json({ok:true,groupId:String(g._id)});
+  });
+  app.get("/api/social/rooms", requireFirebaseUser, async (req,res)=>{
+    const groups=await safeDB(()=>Group.find({}).sort({createdAt:-1}).limit(100).lean(),[]);const activeCounts={};Object.values(activeUsers).forEach(u=>{if(u.room?.startsWith("group_"))activeCounts[u.room.slice(6)]=(activeCounts[u.room.slice(6)]||0)+1;});
+    const out=groups.filter(g=>g.visibility!=="private"||groupRole(g,req.firebaseUser.uid)).map(g=>({id:g._id,name:g.name,description:g.description,icon:g.icon,visibility:g.visibility||"public",category:g.category||"General",isCommunity:!!g.isCommunity,members:g.roles?.length||g.members?.length||0,online:activeCounts[String(g._id)]||0,joinApproval:!!g.joinApproval,rules:g.rules||[],slowModeSeconds:g.slowModeSeconds||0,announcementsOnly:!!g.announcementsOnly,branding:g.branding||{},role:groupRole(g,req.firebaseUser.uid)}));
+    out.sort((a,b)=>b.online-a.online||b.members-a.members);res.json(out);
+  });
+  app.get("/api/social/groups/:id", requireFirebaseUser, async (req,res)=>{
+    if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:"Invalid group"});
+    const g=await safeDB(()=>Group.findById(req.params.id).lean(),null);
+    if(!g)return res.status(404).json({error:"Group missing"});
+    const role=groupRole(g,req.firebaseUser.uid);
+    if(g.visibility==="private"&&!role)return res.status(403).json({error:"Group membership required"});
+    const canModerate=["owner","admin","moderator"].includes(role);
+    const polls=(g.polls||[]).map(p=>({
+      id:String(p._id),question:p.question,createdAt:p.createdAt,closesAt:p.closesAt,
+      options:(p.options||[]).map(o=>({text:o.text,count:(o.voters||[]).length,voted:(o.voters||[]).includes(req.firebaseUser.uid)}))
+    }));
+    res.json({
+      id:String(g._id),name:g.name,description:g.description||"",icon:g.icon||"👥",visibility:g.visibility||"public",
+      category:g.category||"General",isCommunity:!!g.isCommunity,joinApproval:!!g.joinApproval,rules:g.rules||[],
+      slowModeSeconds:g.slowModeSeconds||0,announcementsOnly:!!g.announcementsOnly,branding:g.branding||{},maxMembers:g.maxMembers||200,
+      role,members:(g.roles||[]).map(r=>({uid:r.uid,name:r.name,role:r.role})),pending:canModerate?(g.pendingMembers||[]).map(x=>({uid:x.uid,name:x.name,requestedAt:x.requestedAt})):[],
+      polls,events:(g.events||[]).slice().sort((a,b)=>new Date(a.startsAt)-new Date(b.startsAt)).map(e=>({id:String(e._id),title:e.title,description:e.description||"",startsAt:e.startsAt,createdAt:e.createdAt})),
+      notes:(g.notes||[]).slice(-50).map(n=>({id:String(n._id),text:n.text,authorName:n.authorName,updatedAt:n.updatedAt}))
+    });
+  });
+  app.post("/api/social/groups/:id/settings", requireFirebaseUser, async (req,res)=>{
+    if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:"Invalid group"});const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g)return res.status(404).json({error:"Group missing"});if(!hasGroupPower(g,req.firebaseUser.uid,["owner","admin"]))return res.status(403).json({error:"Owner/admin only"});const b=req.body||{};
+    if(["public","private"].includes(b.visibility))g.visibility=b.visibility;if(typeof b.joinApproval==="boolean")g.joinApproval=b.joinApproval;if(Array.isArray(b.rules))g.rules=cleanArray(b.rules,null,20).map(x=>x.slice(0,200));if(Number.isFinite(Number(b.slowModeSeconds)))g.slowModeSeconds=Math.max(0,Math.min(3600,Number(b.slowModeSeconds)));if(typeof b.announcementsOnly==="boolean")g.announcementsOnly=b.announcementsOnly;if(b.category!==undefined)g.category=String(b.category).slice(0,40);if(typeof b.isCommunity==="boolean")g.isCommunity=b.isCommunity;if(b.branding&&typeof b.branding==="object")g.branding={banner:String(b.branding.banner||"").slice(0,300000),accent:/^#[0-9a-f]{6}$/i.test(String(b.branding.accent||""))?b.branding.accent:""};await g.save();res.json({ok:true});
+  });
+  app.post("/api/social/groups/:id/invite", requireFirebaseUser, async (req,res)=>{if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:"Invalid group"});const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g)return res.status(404).json({error:"Group missing"});if(!hasGroupPower(g,req.firebaseUser.uid))return res.status(403).json({error:"Moderator access required"});g.inviteCode=normalizeInvite();const hours=Math.max(1,Math.min(168,Number(req.body?.hours||24)));g.inviteExpiresAt=new Date(Date.now()+hours*3600000);await g.save();res.json({ok:true,code:g.inviteCode,expiresAt:g.inviteExpiresAt,path:`/social.html?invite=${g.inviteCode}`});});
+  app.post("/api/social/groups/join-invite", requireFirebaseUser, async (req,res)=>{const code=String(req.body?.code||"");const g=await safeDB(()=>Group.findOne({inviteCode:code,inviteExpiresAt:{$gt:new Date()}}),null);if(!g)return res.status(404).json({error:"Invite invalid or expired"});if((g.roles||[]).some(r=>r.uid===req.firebaseUser.uid))return res.json({ok:true,groupId:g._id});const p=await getProfile(req.firebaseUser.uid);if(g.joinApproval){if(!(g.pendingMembers||[]).some(x=>x.uid===req.firebaseUser.uid))g.pendingMembers.push({uid:req.firebaseUser.uid,name:p?.displayName||"User"});await g.save();return res.json({ok:true,pending:true,groupId:g._id});}g.roles.push({uid:req.firebaseUser.uid,name:p?.displayName||"User",role:"member"});await g.save();res.json({ok:true,groupId:g._id});});
+  app.post("/api/social/groups/:id/approve", requireFirebaseUser, async (req,res)=>{const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g)return res.status(404).json({error:"Group missing"});if(!hasGroupPower(g,req.firebaseUser.uid))return res.status(403).json({error:"Moderator access required"});const target=String(req.body?.uid||"");const pending=(g.pendingMembers||[]).find(x=>x.uid===target);if(!pending)return res.status(404).json({error:"Request missing"});g.pendingMembers=g.pendingMembers.filter(x=>x.uid!==target);if(req.body?.approve!==false&&!g.roles.some(r=>r.uid===target))g.roles.push({uid:target,name:pending.name,role:"member"});await g.save();await notify(target,"groupInvite",req.body?.approve===false?`Your request to join ${g.name} was declined.`:`You were approved to join ${g.name}.`,{groupId:String(g._id)});res.json({ok:true});});
+  app.post("/api/social/groups/:id/role", requireFirebaseUser, async (req,res)=>{const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g)return res.status(404).json({error:"Group missing"});if(groupRole(g,req.firebaseUser.uid)!=="owner")return res.status(403).json({error:"Owner only"});const role=String(req.body?.role||"");if(!["admin","moderator","member"].includes(role))return res.status(400).json({error:"Invalid role"});const r=g.roles.find(x=>x.uid===String(req.body?.uid||""));if(!r)return res.status(404).json({error:"Member missing"});r.role=role;await g.save();res.json({ok:true});});
+  app.post("/api/social/groups/:id/polls", requireFirebaseUser, async (req,res)=>{const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g||!groupRole(g,req.firebaseUser.uid))return res.status(403).json({error:"Group membership required"});const question=String(req.body?.question||"").slice(0,180),options=cleanArray(req.body?.options,null,6).map(t=>({text:t.slice(0,100),voters:[]}));if(!question||options.length<2)return res.status(400).json({error:"Question + at least 2 options required"});g.polls.push({question,options,createdBy:req.firebaseUser.uid,closesAt:req.body?.closesAt?new Date(req.body.closesAt):undefined});await g.save();res.json({ok:true,poll:g.polls[g.polls.length-1]});});
+  app.post("/api/social/groups/:id/polls/:pollId/vote", requireFirebaseUser, async (req,res)=>{const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g||!groupRole(g,req.firebaseUser.uid))return res.status(403).json({error:"Group membership required"});const poll=g.polls.id(req.params.pollId);if(!poll)return res.status(404).json({error:"Poll missing"});if(poll.closesAt&&new Date(poll.closesAt)<new Date())return res.status(410).json({error:"Poll closed"});poll.options.forEach(o=>o.voters=o.voters.filter(u=>u!==req.firebaseUser.uid));const idx=Number(req.body?.option);if(!Number.isInteger(idx)||!poll.options[idx])return res.status(400).json({error:"Invalid option"});poll.options[idx].voters.push(req.firebaseUser.uid);await g.save();res.json({ok:true,poll});});
+  app.post("/api/social/groups/:id/events", requireFirebaseUser, async (req,res)=>{const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g||!hasGroupPower(g,req.firebaseUser.uid))return res.status(403).json({error:"Moderator access required"});const title=String(req.body?.title||"").slice(0,120),startsAt=new Date(req.body?.startsAt);if(!title||Number.isNaN(startsAt.getTime()))return res.status(400).json({error:"Valid title/date required"});g.events.push({title,description:String(req.body?.description||"").slice(0,500),startsAt,createdBy:req.firebaseUser.uid});await g.save();res.json({ok:true,event:g.events[g.events.length-1]});});
+  app.post("/api/social/groups/:id/notes", requireFirebaseUser, async (req,res)=>{const g=await safeDB(()=>Group.findById(req.params.id),null);if(!g||!groupRole(g,req.firebaseUser.uid))return res.status(403).json({error:"Group membership required"});const p=await getProfile(req.firebaseUser.uid);const text=String(req.body?.text||"").slice(0,3000);if(!text)return res.status(400).json({error:"Note required"});g.notes.push({text,authorUid:req.firebaseUser.uid,authorName:p?.displayName||"User",updatedAt:new Date()});if(g.notes.length>100)g.notes=g.notes.slice(-100);await g.save();res.json({ok:true,note:g.notes[g.notes.length-1]});});
+
+  // ------------------------------- DAILY / XP / LEADERBOARD / GAMES
+  app.get("/api/social/daily", requireFirebaseUser, (req,res)=>{const prompts=["What skill are you learning right now?","What small win did you have today?","Which app could you not live without?","What would you build if you had one free week?","What is one thing you changed your mind about recently?","What song or movie would you recommend today?","What is one study trick that actually works for you?"];const i=Math.floor(Date.now()/86400000)%prompts.length;res.json({question:prompts[i],discussion:`Today’s discussion: ${prompts[(i+3)%prompts.length]}`});});
+  app.get("/api/social/leaderboard", requireFirebaseUser, async (req,res)=>{const ps=await safeDB(()=>UserProfile.find({discoverable:{$ne:false}}).sort({xp:-1,reputation:-1}).limit(50).lean(),[]);res.json(ps.map((p,i)=>({rank:i+1,...publicProfile(p,req.firebaseUser.uid,false)})));});
+  app.post("/api/social/activity", requireFirebaseUser, async (req,res)=>{const allowed={helpful:5,study:3,daily:2,report_valid:4};const type=String(req.body?.type||"");await awardXp(req.firebaseUser.uid,allowed[type]||1);res.json({ok:true});});
+  app.post("/api/social/games/result", requireFirebaseUser, async (req,res)=>{const game=String(req.body?.game||"");const result=String(req.body?.result||"");if(!["rps","quiz","tictactoe"].includes(game)||!["win","loss","draw"].includes(result))return res.status(400).json({error:"Invalid game result"});const p=await getProfile(req.firebaseUser.uid);const inc=result==="win"?{wins:1}:result==="loss"?{losses:1}:{draws:1};await safeDB(()=>GameScore.findOneAndUpdate({uid:req.firebaseUser.uid,game},{$set:{displayName:p?.displayName||"User",updatedAt:new Date()},$inc:inc},{upsert:true}));await awardXp(req.firebaseUser.uid,result==="win"?5:1,result==="win"?"Game Winner":null);res.json({ok:true});});
+
+  // ------------------------------- SAFETY / APPEALS / AI-ASSISTED LOCAL TOOLS
+  app.get("/api/social/safety", requireFirebaseUser, (req,res)=>res.json({rules:["Keep personal contact details private until you trust someone.","Use Block for unwanted contact and Report for policy violations.","Never share passwords, OTPs or payment credentials.","Exact live location is intentionally not used for matching.","Suspicious links should be opened only when you trust the source."],reportCategories:REPORT_CATEGORIES}));
+  app.post("/api/social/appeals", requireFirebaseUser, async (req,res)=>{const p=await getProfile(req.firebaseUser.uid);const reason=String(req.body?.reason||"").trim().slice(0,2000);if(reason.length<20)return res.status(400).json({error:"Please explain the appeal in at least 20 characters"});const existing=await safeDB(()=>Appeal.findOne({uid:req.firebaseUser.uid,status:{$in:["open","reviewing"]}}).lean(),null);if(existing)return res.status(409).json({error:"You already have an open appeal"});const a=await safeDB(()=>new Appeal({uid:req.firebaseUser.uid,email:req.firebaseUser.email||"",displayName:p?.displayName||"User",reason}).save(),null);res.json({ok:true,id:a?._id});});
+  app.get("/api/social/ai/starter", requireFirebaseUser, (req,res)=>res.json({topic:String(req.query.topic||"General"),starters:starterFor(req.query.topic)}));
+  app.post("/api/social/ai/language", requireFirebaseUser, (req,res)=>res.json({language:detectLanguage(req.body?.text)}));
+  app.post("/api/social/ai/moderate", requireFirebaseUser, (req,res)=>res.json(autoModerate(req.body?.text)));
+  app.post("/api/social/ai/summary", requireFirebaseUser, (req,res)=>res.json({summary:simpleSummary(req.body?.messages)}));
+  app.post("/api/social/ai/translate", requireFirebaseUser, async (req,res)=>{
+    const text=String(req.body?.text||"").slice(0,4000),target=String(req.body?.target||"English");
+    // Provider hook: configure TRANSLATION_API_URL to a trusted translation service you control.
+    if(!process.env.TRANSLATION_API_URL) return res.status(501).json({error:"Translation provider not configured",detectedLanguage:detectLanguage(text),target});
+    try{const r=await fetch(process.env.TRANSLATION_API_URL,{method:"POST",headers:{"content-type":"application/json",...(process.env.TRANSLATION_API_KEY?{"authorization":`Bearer ${process.env.TRANSLATION_API_KEY}`}:{})},body:JSON.stringify({text,target})});if(!r.ok)throw new Error(`provider ${r.status}`);const data=await r.json();res.json({translation:data.translation||data.text||"",detectedLanguage:data.detectedLanguage||detectLanguage(text),target});}catch(e){res.status(502).json({error:"Translation provider failed"});}
+  });
+
+  // ------------------------------- ACCOUNT / PRIVACY / SESSIONS / PREMIUM STATUS
+  app.get("/api/social/account/export", requireFirebaseUser, async (req,res)=>{const uid=req.firebaseUser.uid,p=await getProfile(uid);const cs=await safeDB(()=>Connection.find({$or:[{requesterUid:uid},{addresseeUid:uid}]}).lean(),[]);const ns=await safeDB(()=>Notification.find({uid}).lean(),[]);const sessions=await safeDB(()=>UserSession.find({firebaseUid:uid}).lean(),[]);res.json({exportedAt:new Date(),profile:p,connections:cs,notifications:ns,sessions:sessions.map(s=>({browser:s.browser,os:s.os,isMobile:s.isMobile,connectedAt:s.connectedAt,lastSeen:s.lastSeen}))});});
+  app.get("/api/social/sessions", requireFirebaseUser, async (req,res)=>{const rows=await safeDB(()=>UserSession.find({firebaseUid:req.firebaseUser.uid}).sort({lastSeen:-1}).lean(),[]);res.json(rows.map(s=>({id:s._id,browser:s.browser,os:s.os,isMobile:s.isMobile,connectedAt:s.connectedAt,lastSeen:s.lastSeen})));});
+  app.post("/api/social/sessions/revoke-all", requireFirebaseUser, async (req,res)=>{try{await admin.auth().revokeRefreshTokens(req.firebaseUser.uid);await safeDB(()=>UserSession.deleteMany({firebaseUid:req.firebaseUser.uid}));res.json({ok:true});}catch(e){res.status(500).json({error:"Could not revoke sessions"});}});
+  app.get("/api/social/subscription", requireFirebaseUser, async (req,res)=>{const p=await getProfile(req.firebaseUser.uid);const premium=p?.premium||{plan:"free",status:"inactive"};res.json({plan:premium.status==="active"?premium.plan:"free",status:premium.status||"inactive",expiresAt:premium.expiresAt||null,benefits:{premium:["Premium profile themes","Animated avatar frames","Extra saved media allowance","Advanced room customization","No ads if ads are enabled later"],creator:["Creator/community room branding","Higher community member limits","Advanced moderation tools"]},billingConfigured:false,note:"Payment checkout is intentionally not faked. Connect your payment provider before enabling purchases."});});
+  app.delete("/api/social/account", requireFirebaseUser, async (req,res)=>{if(String(req.body?.confirm||"")!=="DELETE")return res.status(400).json({error:'Send confirm: "DELETE"'});const uid=req.firebaseUser.uid,p=await getProfile(uid);await Promise.all([safeDB(()=>Connection.deleteMany({$or:[{requesterUid:uid},{addresseeUid:uid}]})),safeDB(()=>Notification.deleteMany({uid})),safeDB(()=>MatchHistory.deleteMany({uids:uid})),safeDB(()=>Appeal.deleteMany({uid})),safeDB(()=>GameScore.deleteMany({uid})),safeDB(()=>UserSession.deleteMany({firebaseUid:uid})),safeDB(()=>UserProfile.deleteOne({firebaseUid:uid}))]);if(p?.displayName)await safeDB(()=>Message.updateMany({senderId:uid},{$set:{senderName:"Deleted User",senderAvatar:""}}));try{await admin.auth().deleteUser(uid);}catch(e){}res.json({ok:true});});
+
+  // ------------------------------- ADMIN ANALYTICS / MOD QUEUE / AUDIT
+  app.get("/api/social/admin/analytics", requireAdmin, async (req,res)=>{
+    const since24=new Date(Date.now()-86400000),since7=new Date(Date.now()-7*86400000);
+    const [users,totalMessages,messages24,reportsOpen,newUsers7,activeUsers24,connections,appeals,groups,gamePlayers] = await Promise.all([
+      safeDB(()=>UserProfile.countDocuments(),0),safeDB(()=>Message.countDocuments(),0),safeDB(()=>Message.countDocuments({createdAt:{$gte:since24}}),0),safeDB(()=>Report.countDocuments({status:{$in:["open","reviewing"]}}),0),safeDB(()=>UserProfile.countDocuments({createdAt:{$gte:since7}}),0),safeDB(()=>UserProfile.countDocuments({lastSeen:{$gte:since24}}),0),safeDB(()=>Connection.countDocuments({status:"accepted"}),0),safeDB(()=>Appeal.countDocuments({status:{$in:["open","reviewing"]}}),0),safeDB(()=>Group.countDocuments(),0),safeDB(()=>GameScore.distinct("uid"),[])
     ]);
-    res.json({...d,count,mine:mine?.answer||'',answers:answers.map(a=>({name:a.displayName,answer:a.answer,createdAt:a.createdAt}))});
+    const reportCats=await safeDB(()=>Report.aggregate([{$group:{_id:"$category",count:{$sum:1}}},{$sort:{count:-1}},{$limit:10}]),[]);
+    const daily=await safeDB(()=>Message.aggregate([{$match:{createdAt:{$gte:since7}}},{$group:{_id:{$dateToString:{format:"%Y-%m-%d",date:"$createdAt"}},count:{$sum:1}}},{$sort:{_id:1}}]),[]);
+    const userGrowth=await safeDB(()=>UserProfile.aggregate([{$match:{createdAt:{$gte:since7}}},{$group:{_id:{$dateToString:{format:"%Y-%m-%d",date:"$createdAt"}},count:{$sum:1}}},{$sort:{_id:1}}]),[]);
+    res.json({online:Object.keys(activeUsers).length,activeUsers24,users,totalMessages,messages24,reportsOpen,newUsers7,connections,appeals,groups,gamePlayers:gamePlayers.length,reportCategories:reportCats,dailyMessages:daily,userGrowth,server:{node:process.version,uptimeSeconds:Math.round(process.uptime()),memoryMB:Math.round(process.memoryUsage().rss/1024/1024)}});
   });
-  app.post('/api/social/daily', authMiddleware, async (req,res)=>{
-    const answer=safeText(req.body?.answer,280); if(answer.length<2)return res.status(400).json({error:'Write a little more.'}); const check=await checkSocialMessage(req.socialProfile.authId,answer); if(!check.allowed)return res.status(400).json({error:check.suggestion});
-    const d=dailyQuestion(); await DailyAnswer.findOneAndUpdate({day:d.day,authId:req.socialProfile.authId},{$set:{displayName:req.socialProfile.displayName,answer}},{upsert:true});
-    res.json({ok:true,count:await DailyAnswer.countDocuments({day:d.day})});
+  app.get("/api/social/admin/modqueue", requireAdmin, async (req,res)=>{const [reports,appeals,flagged]=await Promise.all([safeDB(()=>Report.find({status:{$in:["open","reviewing"]}}).sort({createdAt:-1}).limit(100).lean(),[]),safeDB(()=>Appeal.find({status:{$in:["open","reviewing"]}}).sort({createdAt:-1}).limit(100).lean(),[]),safeDB(()=>Message.find({"moderation.flagged":true}).sort({createdAt:-1}).limit(100).lean(),[])]);res.json({reports,appeals,flaggedMessages:flagged.map(m=>({id:m._id,sender:m.senderName,text:m.text,room:m.room,moderation:m.moderation,createdAt:m.createdAt}))});});
+  app.get("/api/social/admin/appeals", requireAdmin, async (req,res)=>res.json(await safeDB(()=>Appeal.find({}).sort({createdAt:-1}).limit(100).lean(),[])));
+  app.post("/api/social/admin/appeals/:id", requireAdmin, async (req,res)=>{if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:"Invalid appeal"});const status=String(req.body?.status||"");if(!["reviewing","accepted","rejected"].includes(status))return res.status(400).json({error:"Invalid status"});const a=await safeDB(()=>Appeal.findByIdAndUpdate(req.params.id,{$set:{status,moderatorNote:String(req.body?.note||"").slice(0,1000),reviewedAt:new Date()}},{returnDocument:"after"}),null);if(!a)return res.status(404).json({error:"Appeal missing"});await safeDB(()=>new AuditLog({actor:"web-admin",action:"appeal-"+status,target:a.uid,metadata:{appealId:String(a._id)}}).save());await notify(a.uid,"moderation",`Your appeal was ${status}.`,{appealId:String(a._id)});res.json({ok:true});});
+  app.post("/api/social/admin/reports/:id", requireAdmin, async (req,res)=>{
+    if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:"Invalid report"});
+    const status=String(req.body?.status||"");if(!["reviewing","resolved","dismissed"].includes(status))return res.status(400).json({error:"Invalid status"});
+    const r=await safeDB(()=>Report.findByIdAndUpdate(req.params.id,{$set:{status,moderatorNote:String(req.body?.note||"").slice(0,1000),reviewedAt:new Date(),reviewedBy:"web-admin"}},{returnDocument:"after"}),null);
+    if(!r)return res.status(404).json({error:"Report missing"});
+    await safeDB(()=>new AuditLog({actor:"web-admin",action:"report-"+status,target:r.reportedUser||"",metadata:{reportId:String(r._id)}}).save());
+    res.json({ok:true,report:r});
   });
+  app.post("/api/social/admin/premium", requireAdmin, async (req,res)=>{
+    const uid=String(req.body?.uid||"").trim();const plan=String(req.body?.plan||"free"),status=String(req.body?.status||"inactive");
+    if(!uid||!["free","premium","creator"].includes(plan)||!["inactive","active","past_due","cancelled"].includes(status))return res.status(400).json({error:"Invalid premium update"});
+    const expiresAt=req.body?.expiresAt?new Date(req.body.expiresAt):null;if(expiresAt&&Number.isNaN(expiresAt.getTime()))return res.status(400).json({error:"Invalid expiry"});
+    const p=await safeDB(()=>UserProfile.findOneAndUpdate({firebaseUid:uid},{$set:{premium:{plan,status,expiresAt},updatedAt:new Date()}},{returnDocument:"after"}),null);
+    if(!p)return res.status(404).json({error:"User missing"});
+    await safeDB(()=>new AuditLog({actor:"web-admin",action:"premium-update",target:uid,metadata:{plan,status,expiresAt}}).save());
+    await notify(uid,"system",status==="active"?`${plan} access is active.`:"Your premium status changed.",{plan,status});
+    res.json({ok:true,premium:p.premium});
+  });
+  app.get("/api/social/admin/audit", requireAdmin, async (req,res)=>res.json(await safeDB(()=>AuditLog.find({}).sort({createdAt:-1}).limit(200).lean(),[])));
 
-  // Friends / block / reputation
-  app.post('/api/social/friends/request', authMiddleware, async (req,res)=>{
-    const target = await findProfileByName(safeText(req.body?.username,40));
-    if(!target || target.authId===req.socialProfile.authId)return res.status(404).json({error:'User not found.'});
-    if(await isBlockedEither(req.socialProfile.authId,target.authId))return res.status(403).json({error:'Friend request unavailable.'});
-    if(!req.socialProfile.ageBand || !target.ageBand || req.socialProfile.ageBand!==target.ageBand)return res.status(403).json({error:'Friend discovery is limited to the same age group.'});
-    const pk=pairKey(req.socialProfile.authId,target.authId);
-    const accepted=await FriendRequest.findOne({pairKey:pk,status:'accepted'}).lean(); if(accepted)return res.status(409).json({error:'You are already friends.'});
-    const existing=await FriendRequest.findOne({pairKey:pk,status:'pending'}).lean(); if(existing)return res.status(409).json({error:'A request is already pending.'});
-    const fr=await FriendRequest.create({pairKey:pk,fromId:req.socialProfile.authId,fromName:req.socialProfile.displayName,toId:target.authId,toName:target.displayName});
-    await notify(target.authId,'friend_request',`${req.socialProfile.displayName} sent you a friend request.`,'/discover.html#friends');
-    res.json({ok:true,requestId:String(fr._id)});
-  });
-  app.post('/api/social/friends/respond', authMiddleware, async (req,res)=>{
-    const fr=await FriendRequest.findOne({_id:req.body?.requestId,toId:req.socialProfile.authId,status:'pending'}); if(!fr)return res.status(404).json({error:'Request not found.'});
-    const action=req.body?.action==='accept'?'accepted':'declined'; fr.status=action; fr.updatedAt=new Date(); await fr.save();
-    if(action==='accepted')await notify(fr.fromId,'friend_accepted',`${req.socialProfile.displayName} accepted your friend request.`,'/discover.html#friends');
-    res.json({ok:true,status:action});
-  });
-  app.post('/api/social/block', authMiddleware, async (req,res)=>{
-    const target=await findProfileByName(safeText(req.body?.username,40)); if(!target||target.authId===req.socialProfile.authId)return res.status(404).json({error:'User not found.'});
-    await SocialBlock.updateOne({blockerId:req.socialProfile.authId,targetId:target.authId},{$setOnInsert:{createdAt:new Date()}},{upsert:true});
-    queue.delete(req.socialProfile.authId); await FriendRequest.updateMany({pairKey:pairKey(req.socialProfile.authId,target.authId),status:'pending'},{$set:{status:'declined'}});
-    res.json({ok:true});
-  });
-  app.post('/api/social/unblock', authMiddleware, async (req,res)=>{ const target=await findProfileByName(safeText(req.body?.username,40)); if(target)await SocialBlock.deleteOne({blockerId:req.socialProfile.authId,targetId:target.authId}); res.json({ok:true}); });
-  app.post('/api/social/mute', authMiddleware, async (req,res)=>{
-    const target=await findProfileByName(safeText(req.body?.username,40)); if(!target||target.authId===req.socialProfile.authId)return res.status(404).json({error:'User not found.'});
-    await SocialMute.updateOne({muterId:req.socialProfile.authId,targetId:target.authId},{$set:{targetName:target.displayName},$setOnInsert:{createdAt:new Date()}},{upsert:true}); res.json({ok:true});
-  });
-  app.post('/api/social/unmute', authMiddleware, async (req,res)=>{ const target=await findProfileByName(safeText(req.body?.username,40)); if(target)await SocialMute.deleteOne({muterId:req.socialProfile.authId,targetId:target.authId}); res.json({ok:true}); });
-  app.post('/api/social/report', authMiddleware, async (req,res)=>{
-    const target=await findProfileByName(safeText(req.body?.username,40)); const reason=safeText(req.body?.reason,500); if(!target||target.authId===req.socialProfile.authId)return res.status(404).json({error:'User not found.'});
-    await SocialReport.create({reporterId:req.socialProfile.authId,reporterName:req.socialProfile.displayName,targetId:target.authId,targetName:target.displayName,reason:reason||'Safety concern'}); res.json({ok:true});
-  });
-  app.post('/api/social/endorse', authMiddleware, async (req,res)=>{
-    const target=await findProfileByName(safeText(req.body?.username,40)); const category=String(req.body?.category||'');
-    if(!target||target.authId===req.socialProfile.authId||!['helpful','friendly','respectful'].includes(category))return res.status(400).json({error:'Invalid endorsement.'});
-    if(!await areFriends(req.socialProfile.authId,target.authId))return res.status(403).json({error:'Endorsements are available between friends.'});
-    try{await Endorsement.create({fromId:req.socialProfile.authId,toId:target.authId,category,day:dayKey()});}
-    catch(e){return res.status(409).json({error:'You already gave this endorsement today.'});}
-    const updated=await SocialProfile.findOneAndUpdate({authId:target.authId},{$inc:{[`reputation.${category}`]:1}},{new:true});
-    updated.achievements=computeAchievements(updated); await updated.save();
-    await notify(target.authId,'reputation',`${req.socialProfile.displayName} marked you as ${category}.`,'/discover.html#friends');
-    res.json({ok:true,reputation:publicProfile(updated).reputation,achievements:updated.achievements});
-  });
+  // ------------------------------- REAL-TIME SMART MATCH + TEMP CHAT + ENHANCED MESSAGES
+  const matchQueue = new Map(); // uid -> {socketId, profile, filters, queuedAt}
+  const liveMatches = new Map(); // uid -> {sessionId, partnerUid, room}
+  const messageRate = new Map(); // uid -> timestamps
+  const groupLastMessage = new Map();
 
-  app.post('/api/social/notifications/read', authMiddleware, async (req,res)=>{ await SocialNotification.updateMany({toId:req.socialProfile.authId,read:false},{$set:{read:true}}); res.json({ok:true}); });
+  function compatible(a,b) {
+    if(!a||!b)return {score:-1,commonInterests:[],commonLanguages:[]};
+    if(a.blockedUids?.includes(b.firebaseUid)||b.blockedUids?.includes(a.firebaseUid))return {score:-1,commonInterests:[],commonLanguages:[]};
+    const ai=(a.interests||[]),bi=(b.interests||[]),al=(a.languages||[]),bl=(b.languages||[]),at=(a.selectedTopics||[]),bt=(b.selectedTopics||[]);
+    const commonInterests=ai.filter(x=>bi.includes(x)),commonLanguages=al.filter(x=>bl.includes(x)),commonTopics=at.filter(x=>bt.includes(x));
+    let score=commonInterests.length*5+commonLanguages.length*4+commonTopics.length*3;
+    if(a.country&&b.country&&a.country===b.country)score+=3;if(a.timezone&&b.timezone&&a.timezone===b.timezone)score+=1;
+    const fa=a.matchFilters||{},fb=b.matchFilters||{};
+    if(fa.sameCountry&&a.country!==b.country)return {score:-1,commonInterests,commonLanguages};
+    if(fb.sameCountry&&a.country!==b.country)return {score:-1,commonInterests,commonLanguages};
+    if((fa.languages||[]).length&&!fa.languages.some(x=>bl.includes(x)))return {score:-1,commonInterests,commonLanguages};
+    if((fb.languages||[]).length&&!fb.languages.some(x=>al.includes(x)))return {score:-1,commonInterests,commonLanguages};
+    if((fa.interests||[]).length&&!fa.interests.some(x=>bi.includes(x)))return {score:-1,commonInterests,commonLanguages};
+    if((fb.interests||[]).length&&!fb.interests.some(x=>ai.includes(x)))return {score:-1,commonInterests,commonLanguages};
+    if(fa.timezone&&b.timezone!==fa.timezone)return {score:-1,commonInterests,commonLanguages};
+    if(fb.timezone&&a.timezone!==fb.timezone)return {score:-1,commonInterests,commonLanguages};
+    return {score,commonInterests,commonLanguages};
+  }
+  function rateAllowed(uid) {const now=Date.now(),arr=(messageRate.get(uid)||[]).filter(t=>now-t<10000);if(arr.length>=12)return false;arr.push(now);messageRate.set(uid,arr);return true;}
+  async function endMatch(uid,reason="left",requeuePartner=false){const m=liveMatches.get(uid);if(!m)return;liveMatches.delete(uid);const pm=liveMatches.get(m.partnerUid);if(pm)liveMatches.delete(m.partnerUid);const me=activeByUid(uid),partner=activeByUid(m.partnerUid);if(me)me.socketId&&io.to(me.socketId).emit("social:match:ended",{reason});if(partner)partner.socketId&&io.to(partner.socketId).emit("social:match:ended",{reason:reason==="skip"?"partner-skipped":reason});await safeDB(()=>MatchHistory.updateOne({sessionId:m.sessionId},{$set:{endedAt:new Date(),endedReason:reason}}));if(requeuePartner&&partner){const p=await getProfile(m.partnerUid);if(p?.discoverable!==false)matchQueue.set(m.partnerUid,{socketId:partner.socketId,profile:p,filters:p.matchFilters||{},queuedAt:Date.now()});}}
 
-  // Communities
-  app.get('/api/social/communities', authMiddleware, async (req,res)=>{
-    const q = req.socialProfile.ageBand ? {$or:[{ageBand:'all'},{ageBand:req.socialProfile.ageBand}]} : {ageBand:'all'};
-    const rows=await Community.find(q).sort({createdAt:-1}).limit(100).lean(); res.json(rows.map(c=>({...c,_id:String(c._id),memberCount:c.members?.length||0})));
-  });
-  app.post('/api/social/communities', authMiddleware, async (req,res)=>{
-    if(!req.socialProfile.ageBand)return res.status(400).json({error:'Verify your age group first.'});
-    const name=safeText(req.body?.name,60), description=safeText(req.body?.description,300); if(name.length<3)return res.status(400).json({error:'Community name is too short.'});
-    let slug=slugify(name)||crypto.randomBytes(4).toString('hex'); if(await Community.findOne({slug}))slug += '-' + crypto.randomBytes(2).toString('hex');
-    const c=await Community.create({name,slug,description,tags:(req.body?.tags||[]).map(x=>safeText(x,24)).slice(0,6),ownerId:req.socialProfile.authId,ownerName:req.socialProfile.displayName,ageBand:req.body?.ageBand==='all'?'all':req.socialProfile.ageBand,members:[{authId:req.socialProfile.authId,name:req.socialProfile.displayName}]});
-    res.json({ok:true,community:{...c.toObject(),_id:String(c._id),memberCount:1}});
-  });
-  app.post('/api/social/communities/:id/join', authMiddleware, async (req,res)=>{
-    const c=await Community.findById(req.params.id); if(!c)return res.status(404).json({error:'Community not found.'});
-    if(c.ageBand!=='all' && c.ageBand!==req.socialProfile.ageBand)return res.status(403).json({error:'This community is for a different age group.'});
-    if(!c.members.some(m=>m.authId===req.socialProfile.authId)){c.members.push({authId:req.socialProfile.authId,name:req.socialProfile.displayName});await c.save();}
-    res.json({ok:true});
-  });
-  app.get('/api/social/communities/:id/messages', authMiddleware, async (req,res)=>{
-    const c=await Community.findById(req.params.id).lean(); if(!c)return res.status(404).json({error:'Community not found.'});
-    if(c.ageBand!=='all'&&c.ageBand!==req.socialProfile.ageBand)return res.status(403).json({error:'Not available for your age group.'});
-    const [msgs,polls,threads,events]=await Promise.all([
-      CommunityMessage.find({communityId:String(c._id)}).sort({createdAt:1}).limit(100).lean(),
-      Poll.find({scope:'community',scopeId:String(c._id),$or:[{expiresAt:null},{expiresAt:{$gt:new Date()}}]}).sort({createdAt:-1}).lean(),
-      CommunityThread.find({communityId:String(c._id)}).sort({createdAt:-1}).limit(30).lean(),
-      CommunityEvent.find({communityId:String(c._id),startsAt:{$gte:new Date(Date.now()-86400000)}}).sort({startsAt:1}).limit(30).lean()
-    ]);
-    res.json({community:{...c,_id:String(c._id)},messages:msgs.map(m=>({...m,_id:String(m._id)})),polls,threads:threads.map(t=>({...t,_id:String(t._id)})),events:events.map(e=>({...e,_id:String(e._id)}))});
-  });
-  app.post('/api/social/communities/:id/threads', authMiddleware, async (req,res)=>{
-    const c=await Community.findById(req.params.id).lean(); if(!c||!c.members.some(m=>m.authId===req.socialProfile.authId))return res.status(403).json({error:'Join the community first.'});
-    const title=safeText(req.body?.title,120),body=safeText(req.body?.body,1800); if(title.length<3||body.length<2)return res.status(400).json({error:'Thread needs a title and message.'}); const check=await checkSocialMessage(req.socialProfile.authId,title+' '+body); if(!check.allowed)return res.status(400).json({error:check.suggestion});
-    const t=await CommunityThread.create({communityId:String(c._id),title,body,createdBy:req.socialProfile.authId,createdByName:req.socialProfile.displayName}); res.json({ok:true,thread:{...t.toObject(),_id:String(t._id)}});
-  });
-  app.post('/api/social/threads/:id/reply', authMiddleware, async (req,res)=>{
-    const t=await CommunityThread.findById(req.params.id); if(!t)return res.status(404).json({error:'Thread not found.'}); const c=await Community.findById(t.communityId).lean(); if(!c||!c.members.some(m=>m.authId===req.socialProfile.authId))return res.status(403).json({error:'Join the community first.'});
-    const text=safeText(req.body?.text,1000); if(!text)return res.status(400).json({error:'Reply cannot be empty.'}); const check=await checkSocialMessage(req.socialProfile.authId,text); if(!check.allowed)return res.status(400).json({error:check.suggestion}); t.replies.push({senderId:req.socialProfile.authId,senderName:req.socialProfile.displayName,text}); if(t.replies.length>100)t.replies=t.replies.slice(-100);await t.save();res.json({ok:true,thread:{...t.toObject(),_id:String(t._id)}});
-  });
-  app.post('/api/social/communities/:id/events', authMiddleware, async (req,res)=>{
-    const c=await Community.findById(req.params.id).lean(); if(!c||!c.members.some(m=>m.authId===req.socialProfile.authId))return res.status(403).json({error:'Join the community first.'}); const startsAt=new Date(req.body?.startsAt); if(Number.isNaN(startsAt.getTime())||startsAt<Date.now()-60000)return res.status(400).json({error:'Choose a future event time.'});
-    const title=safeText(req.body?.title,120),description=safeText(req.body?.description,500); if(title.length<3)return res.status(400).json({error:'Event title is too short.'}); const e=await CommunityEvent.create({communityId:String(c._id),title,description,startsAt,createdBy:req.socialProfile.authId,createdByName:req.socialProfile.displayName,attendees:[req.socialProfile.authId]}); res.json({ok:true,event:{...e.toObject(),_id:String(e._id)}});
-  });
-  app.post('/api/social/events/:id/rsvp', authMiddleware, async (req,res)=>{ const e=await CommunityEvent.findById(req.params.id); if(!e)return res.status(404).json({error:'Event not found.'}); if(!e.attendees.includes(req.socialProfile.authId))e.attendees.push(req.socialProfile.authId);await e.save();res.json({ok:true,count:e.attendees.length}); });
-
-  app.get('/api/social/communities/:id/summary', authMiddleware, async (req,res)=>{
-    const msgs=await CommunityMessage.find({communityId:req.params.id}).sort({createdAt:-1}).limit(40).lean(); res.json({summary:summarizeMessages(msgs.reverse())});
-  });
-
-  // Polls
-  app.post('/api/social/polls', authMiddleware, async (req,res)=>{
-    const scope=req.body?.scope==='community'?'community':'topic'; const scopeId=safeText(req.body?.scopeId,80); const question=safeText(req.body?.question,160);
-    const options=(req.body?.options||[]).map(x=>safeText(x,80)).filter(Boolean).slice(0,6); if(question.length<3||options.length<2)return res.status(400).json({error:'Poll needs a question and at least two options.'});
-    if(scope==='topic') { const t=TOPICS.find(x=>x.slug===scopeId); if(!t)return res.status(404).json({error:'Topic not found.'}); if(t.audience!=='all'&&t.audience!==req.socialProfile.ageBand)return res.status(403).json({error:'Topic not available.'}); }
-    else { const c=await Community.findById(scopeId).lean(); if(!c||!c.members.some(m=>m.authId===req.socialProfile.authId))return res.status(403).json({error:'Join the community first.'}); }
-    const poll=await Poll.create({scope,scopeId,question,options:options.map(text=>({text,voters:[]})),createdBy:req.socialProfile.authId,createdByName:req.socialProfile.displayName,expiresAt:new Date(Date.now()+7*86400000)});
-    social.to(`${scope}:${scopeId}`).emit('poll_update',{action:'created',poll}); res.json({ok:true,poll});
-  });
-  app.post('/api/social/polls/:id/vote', authMiddleware, async (req,res)=>{
-    const poll=await Poll.findById(req.params.id); if(!poll)return res.status(404).json({error:'Poll not found.'});
-    const idx=Number(req.body?.optionIndex); if(!Number.isInteger(idx)||idx<0||idx>=poll.options.length)return res.status(400).json({error:'Invalid option.'});
-    for(const o of poll.options)o.voters=o.voters.filter(v=>v!==req.socialProfile.authId); poll.options[idx].voters.push(req.socialProfile.authId); await poll.save();
-    social.to(`${poll.scope}:${poll.scopeId}`).emit('poll_update',{action:'voted',poll}); res.json({ok:true,poll});
-  });
-
-  // Voice rooms
-  app.post('/api/social/voice-rooms', authMiddleware, async (req,res)=>{
-    if(!req.socialProfile.ageBand)return res.status(400).json({error:'Verify your age group first.'});
-    const roomKey='s2s-voice-'+crypto.randomBytes(18).toString('hex');
-    const room=await VoiceRoom.create({roomKey,title:safeText(req.body?.title,80)||'Voice room',ownerId:req.socialProfile.authId,ownerName:req.socialProfile.displayName,ageBand:req.socialProfile.ageBand,topic:safeText(req.body?.topic,40),expiresAt:new Date(Date.now()+6*3600000)});
-    res.json({ok:true,room:{roomKey,title:room.title,url:`/voice/${roomKey}`}});
-  });
-  app.get('/api/social/voice-rooms/:roomKey', authMiddleware, async (req,res)=>{
-    const room=await VoiceRoom.findOne({roomKey:req.params.roomKey,expiresAt:{$gt:new Date()}}).lean().catch(()=>null);
-    if(!room)return res.status(404).json({error:'Voice room expired or not found.'});
-    if(room.ageBand!==req.socialProfile.ageBand)return res.status(403).json({error:'This voice room is for a different age group.'});
-    res.json({ok:true,room:{roomKey:room.roomKey,title:room.title,ownerName:room.ownerName,ageBand:room.ageBand}});
-  });
-  app.get('/voice/:roomKey', async (req,res)=>{
-    const room=await VoiceRoom.findOne({roomKey:req.params.roomKey,expiresAt:{$gt:new Date()}}).lean().catch(()=>null);
-    if(!room)return res.status(404).send('Voice room expired or not found.');
-    res.sendFile(require('path').join(__dirname,'public','voice-gate.html'));
-  });
-
-  // SEO topic pages
-  app.get('/rooms/:slug', async (req,res,next)=>{
-    const t=TOPICS.find(x=>x.slug===req.params.slug); if(!t)return next();
-    const canonical=`${req.protocol}://${req.get('host')}/rooms/${t.slug}`;
-    res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.name} Chat Room | Stranger 2 Stranger</title><meta name="description" content="Join the ${t.name} discussion room on Stranger 2 Stranger. ${t.description}"><link rel="canonical" href="${canonical}"><link rel="stylesheet" href="/white-sky-ui.css"></head><body style="margin:0;background:#f7fbff;color:#0f172a;font-family:Inter,system-ui,sans-serif"><main style="max-width:760px;margin:10vh auto;padding:32px"><div style="background:white;border:1px solid #dbeafe;border-radius:24px;padding:34px;box-shadow:0 16px 40px rgba(14,165,233,.08)"><div style="font-size:44px">${t.icon}</div><h1>${t.name} Chat Room</h1><p style="font-size:18px;line-height:1.7;color:#475569">${t.description}</p><p>Meet people around shared interests with age-separated matching, reporting, blocking and smart safety controls.</p><a href="/discover.html?topic=${t.slug}" style="display:inline-block;margin-top:14px;background:#0ea5e9;color:white;text-decoration:none;padding:13px 20px;border-radius:12px;font-weight:700">Open ${t.name}</a></div></main></body></html>`);
-  });
-
-  app.get('/robots.txt', (req,res)=>{ res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nSitemap: '+req.protocol+'://'+req.get('host')+'/sitemap.xml\n'); });
-  app.get('/sitemap.xml', async (req,res)=>{
-    const base=req.protocol+'://'+req.get('host'); const communities=mongoReady()?await Community.find({}).select('slug createdAt').sort({createdAt:-1}).limit(500).lean().catch(()=>[]):[];
-    const urls=[`${base}/`,`${base}/discover.html`,...TOPICS.map(t=>`${base}/rooms/${t.slug}`),...communities.map(c=>`${base}/community/${c.slug}`)];
-    res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+urls.map(u=>`<url><loc>${u.replace(/&/g,'&amp;')}</loc></url>`).join('')+'</urlset>');
-  });
-
-  app.get('/community/:slug', async (req,res,next)=>{
-    const c=await Community.findOne({slug:req.params.slug}).lean().catch(()=>null); if(!c)return next(); const canonical=`${req.protocol}://${req.get('host')}/community/${c.slug}`;
-    res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(safeText(c.name,80))} Community | Stranger 2 Stranger</title><meta name="description" content="${htmlEscape(safeText(c.description||'Join this community on Stranger 2 Stranger.',150))}"><link rel="canonical" href="${canonical}"><link rel="stylesheet" href="/white-sky-ui.css"></head><body style="margin:0;background:#f7fbff;color:#0f172a;font-family:Inter,system-ui,sans-serif"><main style="max-width:760px;margin:10vh auto;padding:32px"><div style="background:#fff;border:1px solid #dbeafe;border-radius:24px;padding:34px"><h1>${htmlEscape(safeText(c.name,80))}</h1><p>${htmlEscape(safeText(c.description,300))}</p><p>${c.members?.length||0} members • ${c.ageBand==='all'?'Public audience':c.ageBand==='teen'?'13–17 space':'18+ space'}</p><a href="/discover.html?community=${c._id}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:13px 20px;border-radius:12px;text-decoration:none;font-weight:700">Open community</a></div></main></body></html>`);
-  });
-
-  const social = io.of('/social');
-  social.on('connection', socket => {
-    let user = null;
-    let joinedTopic = '';
-    let joinedCommunity = '';
-
-    socket.on('social_join', async data => {
-      try {
-        const id=await resolveIdentityFromTokens(data?.firebaseToken||'',data?.guestToken||''); if(!id)return socket.emit('social_error','Authentication required.');
-        const p=await ensureSocialProfile(id); user=publicProfile(p); online.set(user.authId,{socketId:socket.id,name:user.displayName,ageBand:user.ageBand,interests:user.interests});
-        socket.emit('social_ready',{profile:user,online:online.size}); social.emit('social_online',{online:online.size});
-      } catch(e){socket.emit('social_error','Could not start social session.');}
+  io.on("connection", socket => {
+    socket.on("social:match:find", async () => {
+      const live=activeUsers[socket.id]; if(!live?.firebaseUid)return socket.emit("social:error","Join the authenticated chat first."); const uid=live.firebaseUid;
+      if(liveMatches.has(uid))return socket.emit("social:error","You are already matched."); const profile=await getProfile(uid); if(!profile||profile.discoverable===false)return socket.emit("social:error","Enable Discoverable in profile first.");
+      let best=null; for(const [otherUid,item] of matchQueue){if(otherUid===uid)continue;const c=compatible(profile,item.profile);if(c.score<0)continue;if(!best||c.score>best.compat.score)best={otherUid,item,compat:c};}
+      if(!best){matchQueue.set(uid,{socketId:socket.id,profile,filters:profile.matchFilters||{},queuedAt:Date.now()});return socket.emit("social:match:searching",{queued:true});}
+      matchQueue.delete(best.otherUid);matchQueue.delete(uid);const sessionId=crypto.randomBytes(12).toString("hex"),room=`match_${sessionId}`;socket.join(room);const otherSocket=io.sockets.sockets.get(best.item.socketId);if(otherSocket)otherSocket.join(room);liveMatches.set(uid,{sessionId,partnerUid:best.otherUid,room});liveMatches.set(best.otherUid,{sessionId,partnerUid:uid,room});const otherProfile=best.item.profile;
+      await safeDB(()=>new MatchHistory({sessionId,uids:[uid,best.otherUid],score:best.compat.score,commonInterests:best.compat.commonInterests,commonLanguages:best.compat.commonLanguages}).save());
+      socket.emit("social:match:found",{sessionId,score:best.compat.score,commonInterests:best.compat.commonInterests,commonLanguages:best.compat.commonLanguages,partner:publicProfile(otherProfile,uid,false)});
+      if(otherSocket)otherSocket.emit("social:match:found",{sessionId,score:best.compat.score,commonInterests:best.compat.commonInterests,commonLanguages:best.compat.commonLanguages,partner:publicProfile(profile,best.otherUid,false)});await awardXp(uid,2);await awardXp(best.otherUid,2);
     });
+    socket.on("social:match:message", async data => {const live=activeUsers[socket.id];if(!live?.firebaseUid)return;const m=liveMatches.get(live.firebaseUid);if(!m||String(data?.sessionId||"")!==m.sessionId)return;if(!rateAllowed(live.firebaseUid))return socket.emit("social:error","Too many messages. Slow down.");const text=String(data?.text||"").trim().slice(0,2000);if(!text)return;const moderation=autoModerate(text);if(moderation.score>=60)return socket.emit("social:error","Message blocked by safety filter.");const language=detectLanguage(text);socket.to(m.room).emit("social:match:message",{sessionId:m.sessionId,from:{uid:live.firebaseUid,name:live.name,avatar:live.avatar},text,language,createdAt:new Date(),moderation:{flagged:moderation.flagged}});});
+    socket.on("social:match:typing", data=>{const live=activeUsers[socket.id];if(!live?.firebaseUid)return;const m=liveMatches.get(live.firebaseUid);if(m)socket.to(m.room).emit("social:match:typing",{typing:!!data?.typing});});
+    socket.on("social:match:skip", async()=>{const live=activeUsers[socket.id];if(live?.firebaseUid)await endMatch(live.firebaseUid,"skip",true);socket.emit("social:match:ready");});
+    socket.on("social:match:leave", async()=>{const live=activeUsers[socket.id];if(live?.firebaseUid)await endMatch(live.firebaseUid,"left",false);});
 
-    socket.on('find_match', async data => {
-      if(!user)return; if(!user.ageBand)return socket.emit('match_error','Verify your age group first.');
-      const interests=[...new Set((data?.interests||user.interests||[]).map(x=>safeText(x,30)).filter(Boolean))].slice(0,12); if(!interests.length)return socket.emit('match_error','Choose at least one interest.');
-      const duration=[10,15,20,30,60].includes(Number(data?.duration))?Number(data.duration):15;
-      queue.delete(user.authId);
-      let best=null,bestScore=-1;
-      for(const q of queue.values()){
-        if(q.ageBand!==user.ageBand||q.authId===user.authId)continue;
-        if(await isBlockedEither(user.authId,q.authId))continue;
-        const common=interests.filter(i=>q.interests.includes(i)); const score=common.length;
-        if(score>bestScore){best={q,common};bestScore=score;}
-      }
-      if(best){
-        queue.delete(best.q.authId);
-        const sessionId=crypto.randomUUID(); const expiresAt=new Date(Date.now()+duration*60000);
-        await MatchSession.create({sessionId,participants:[user.authId,best.q.authId],participantNames:[user.displayName,best.q.name],commonInterests:best.common,durationMinutes:duration,expiresAt});
-        setTimeout(async()=>{const x=await MatchSession.findOne({sessionId,status:'active'});if(x){x.status='expired';x.endedAt=new Date();x.messages=[];await x.save();social.to('match:'+sessionId).emit('match_ended',{reason:'Temporary conversation finished.'});}},duration*60000+500);
-        const room='match:'+sessionId; socket.join(room); const otherSocket=social.sockets.get(best.q.socketId); if(otherSocket)otherSocket.join(room);
-        const myStarter=(STARTERS[best.common[0]]||STARTERS.default)[Math.floor(Math.random()*3)];
-        socket.emit('match_found',{sessionId,partner:{authId:best.q.authId,name:best.q.name,country:best.q.country||'',interests:best.q.interests},commonInterests:best.common,expiresAt,starter:myStarter});
-        if(otherSocket)otherSocket.emit('match_found',{sessionId,partner:{authId:user.authId,name:user.displayName,country:user.country||'',interests},commonInterests:best.common,expiresAt,starter:myStarter});
-      } else {
-        queue.set(user.authId,{authId:user.authId,socketId:socket.id,name:user.displayName,country:user.country||'',ageBand:user.ageBand,interests,duration,queuedAt:Date.now()});
-        socket.emit('match_waiting',{queued:true,available:[...queue.values()].filter(x=>x.ageBand===user.ageBand).length});
-      }
+    socket.on("social:dm:send", async data=>{
+      const live=activeUsers[socket.id];if(!live?.firebaseUid)return;const toUid=String(data?.toUid||"");if(!toUid||!(await acceptedConnection(live.firebaseUid,toUid))||await isBlockedEitherWay(live.firebaseUid,toUid))return socket.emit("social:error","Permanent DMs require an accepted connection.");if(!rateAllowed(live.firebaseUid))return socket.emit("social:error","Too many messages. Slow down.");const text=String(data?.text||"").trim().slice(0,4000);if(!text)return;const moderation=autoModerate(text);if(moderation.score>=60)return socket.emit("social:error","Message blocked by safety filter.");const recipient=await getProfile(toUid);const channelId=pairKey(live.firebaseUid,toUid);let doc=await safeDB(()=>DM.findOne({channelId}),null);if(!doc)doc=new DM({channelId,participantNames:[live.name,recipient?.displayName||"User"],messages:[]});doc.messages.push({senderUid:live.firebaseUid,receiverUid:toUid,senderName:live.name,senderAvatar:live.avatar,senderColor:live.color,text,type:"text",createdAt:new Date(),deliveredAt:activeByUid(toUid)?new Date():undefined});if(doc.messages.length>500)doc.messages=doc.messages.slice(-500);doc.updatedAt=new Date();await safeDB(()=>doc.save());const saved=doc.messages[doc.messages.length-1];const payload={id:saved?._id?.toString(),channelId,fromUid:live.firebaseUid,toUid,sender:live.name,text,createdAt:saved?.createdAt,deliveredAt:saved?.deliveredAt};socket.emit("social:dm:message",payload);const target=activeByUid(toUid);if(target)io.to(target.socketId).emit("social:dm:message",payload);else await notify(toUid,"dm",`${live.name} sent you a message.`,{fromUid:live.firebaseUid});await awardXp(live.firebaseUid,1,"First Conversation");
     });
-    socket.on('cancel_match',()=>{if(user)queue.delete(user.authId);socket.emit('match_waiting',{queued:false});});
-    socket.on('match_message', async data => {
-      if(!user)return; const session=await MatchSession.findOne({sessionId:data?.sessionId,participants:user.authId,status:'active'}); if(!session)return socket.emit('match_error','Match ended.');
-      if(session.expiresAt<new Date()){session.status='expired';session.endedAt=new Date();session.messages=[];await session.save();social.to('match:'+session.sessionId).emit('match_ended',{reason:'Time is up.'});return;}
-      const text=safeText(data?.text,1200); if(!text)return;
-      const check=await checkSocialMessage(user.authId,text); if(!check.allowed)return socket.emit('safety_notice',{message:check.suggestion,flags:check.flags});
-      session.messages.push({senderId:user.authId,senderName:user.displayName,text}); if(session.messages.length>200)session.messages=session.messages.slice(-200); await session.save();
-      social.to('match:'+session.sessionId).emit('match_message',{sessionId:session.sessionId,senderId:user.authId,senderName:user.displayName,text,createdAt:new Date(),safetyHint:check.suggestion});
-    });
-    socket.on('end_match', async ({sessionId}={})=>{if(!user)return;const s=await MatchSession.findOne({sessionId,participants:user.authId,status:'active'});if(!s)return;s.status='ended';s.endedAt=new Date();s.messages=[];await s.save();social.to('match:'+sessionId).emit('match_ended',{reason:'Conversation ended.'});});
+    socket.on("social:dm:history", async data=>{const live=activeUsers[socket.id];if(!live?.firebaseUid)return;const toUid=String(data?.toUid||"");if(!(await acceptedConnection(live.firebaseUid,toUid)))return;const doc=await safeDB(()=>DM.findOne({channelId:pairKey(live.firebaseUid,toUid)}),null);if(!doc)return socket.emit("social:dm:history",{toUid,messages:[]});let changed=false;for(const m of doc.messages){if(m.receiverUid===live.firebaseUid&&!m.readAt){m.readAt=new Date();changed=true;}}if(changed)await safeDB(()=>doc.save());socket.emit("social:dm:history",{toUid,messages:(doc.messages||[]).map(m=>({id:m._id?.toString(),fromUid:m.senderUid,toUid:m.receiverUid,sender:m.senderName,text:m.text,type:m.type,mediaUrl:m.mediaUrl,caption:m.caption,createdAt:m.createdAt,deliveredAt:m.deliveredAt,readAt:m.readAt,editedAt:m.editedAt,reactions:m.reactions||[]}))});const target=activeByUid(toUid);if(target)io.to(target.socketId).emit("social:dm:read",{byUid:live.firebaseUid,channelId:pairKey(live.firebaseUid,toUid),at:new Date()});});
 
-    socket.on('rematch_request', async ({username}={})=>{
-      if(!user)return;
-      const target=await findProfileByName(safeText(username,40));
-      if(!target||target.authId===user.authId)return socket.emit('match_error','User not found.');
-      if(!user.ageBand||!target.ageBand||user.ageBand!==target.ageBand)return socket.emit('match_error','Rematch is limited to the same age group.');
-      if(await isBlockedEither(user.authId,target.authId))return socket.emit('match_error','Rematch unavailable.');
-      const live=online.get(target.authId); if(!live)return socket.emit('match_error','That person is offline right now.');
-      social.to(live.socketId).emit('rematch_invite',{fromId:user.authId,fromName:user.displayName,interests:user.interests||[]});
-      socket.emit('rematch_sent',{toName:target.displayName});
-    });
-    socket.on('rematch_accept', async ({fromId}={})=>{
-      if(!user)return; const requester=online.get(String(fromId||'')); if(!requester)return socket.emit('match_error','That person is no longer online.');
-      const requesterProfile=await SocialProfile.findOne({authId:fromId}).lean(); if(!requesterProfile||requesterProfile.ageBand!==user.ageBand)return socket.emit('match_error','Rematch unavailable.');
-      if(await isBlockedEither(user.authId,fromId))return socket.emit('match_error','Rematch unavailable.');
-      const common=(user.interests||[]).filter(i=>(requesterProfile.interests||[]).includes(i)); const duration=15; const sessionId=crypto.randomUUID(); const expiresAt=new Date(Date.now()+duration*60000);
-      await MatchSession.create({sessionId,participants:[user.authId,fromId],participantNames:[user.displayName,requesterProfile.displayName],commonInterests:common,durationMinutes:duration,expiresAt});
-      setTimeout(async()=>{const x=await MatchSession.findOne({sessionId,status:'active'});if(x){x.status='expired';x.endedAt=new Date();x.messages=[];await x.save();social.to('match:'+sessionId).emit('match_ended',{reason:'Temporary conversation finished.'});}},duration*60000+500);
-      const room='match:'+sessionId; socket.join(room); const otherSocket=social.sockets.get(requester.socketId); if(otherSocket)otherSocket.join(room); const starter=(STARTERS[common[0]]||STARTERS.default)[0];
-      socket.emit('match_found',{sessionId,partner:{authId:fromId,name:requesterProfile.displayName,country:requesterProfile.country||'',interests:requesterProfile.interests||[]},commonInterests:common,expiresAt,starter});
-      if(otherSocket)otherSocket.emit('match_found',{sessionId,partner:{authId:user.authId,name:user.displayName,country:user.country||'',interests:user.interests||[]},commonInterests:common,expiresAt,starter});
-    });
+    socket.on("social:message:react", async data=>{const live=activeUsers[socket.id];if(!live?.firebaseUid||!mongoose.isValidObjectId(data?.id)||!EMOJIS.includes(data?.emoji))return;const m=await safeDB(()=>Message.findById(data.id),null);if(!m||!(await canAccessMessageRoom(live.firebaseUid,m.room)))return;let r=(m.reactions||[]).find(x=>x.emoji===data.emoji);if(!r){m.reactions.push({emoji:data.emoji,userUids:[live.firebaseUid]});}else{const set=new Set(r.userUids||[]);set.has(live.firebaseUid)?set.delete(live.firebaseUid):set.add(live.firebaseUid);r.userUids=[...set];}await m.save();io.to(m.room||"global").emit("social:message:reaction",{id:String(m._id),reactions:m.reactions});});
+    socket.on("social:message:edit", async data=>{const live=activeUsers[socket.id];if(!live?.firebaseUid||!mongoose.isValidObjectId(data?.id))return;const m=await safeDB(()=>Message.findById(data.id),null);if(!m||!(await canAccessMessageRoom(live.firebaseUid,m.room))||m.senderId!==live.firebaseUid)return socket.emit("social:error","You can only edit your own accessible message.");if(Date.now()-new Date(m.createdAt).getTime()>15*60000)return socket.emit("social:error","Edit window is 15 minutes.");const text=String(data?.text||"").trim().slice(0,4000);if(!text)return;m.text=text;m.editedAt=new Date();m.language=detectLanguage(text);m.moderation=autoModerate(text);await m.save();io.to(m.room||"global").emit("social:message:edited",{id:String(m._id),text:m.text,editedAt:m.editedAt});});
+    socket.on("social:message:pin", async data=>{const live=activeUsers[socket.id];if(!live?.firebaseUid||!mongoose.isValidObjectId(data?.id))return;const m=await safeDB(()=>Message.findById(data.id),null);if(!m)return;let allowed=!!live.isAdmin;if(!allowed&&m.room?.startsWith("group_")){const gid=m.room.slice(6);const g=await safeDB(()=>Group.findById(gid).lean(),null);allowed=hasGroupPower(g,live.firebaseUid);}if(!allowed)return socket.emit("social:error","Moderator access required to pin.");m.pinned=data?.pinned!==false;m.pinnedBy=live.firebaseUid;await m.save();io.to(m.room||"global").emit("social:message:pinned",{id:String(m._id),pinned:m.pinned});});
+    socket.on("social:message:read", async data=>{const live=activeUsers[socket.id];if(!live?.firebaseUid||!mongoose.isValidObjectId(data?.id))return;const m=await safeDB(()=>Message.findById(data.id),null);if(!m||!(await canAccessMessageRoom(live.firebaseUid,m.room)))return;if(!(m.readBy||[]).some(x=>x.uid===live.firebaseUid))m.readBy.push({uid:live.firebaseUid,at:new Date()});await m.save();io.to(m.room||"global").emit("social:message:read",{id:String(m._id),uid:live.firebaseUid,at:new Date()});});
 
-    socket.on('topic_join', async ({slug}={})=>{
-      if(!user)return;const t=TOPICS.find(x=>x.slug===slug);if(!t)return socket.emit('social_error','Topic not found.');if(t.audience!=='all'&&t.audience!==user.ageBand)return socket.emit('social_error','This room is for a different age group.');
-      if(joinedTopic){socket.leave('topic:'+joinedTopic);topicCounts.set(joinedTopic,Math.max(0,(topicCounts.get(joinedTopic)||1)-1));}
-      joinedTopic=slug;socket.join('topic:'+slug);topicCounts.set(slug,(topicCounts.get(slug)||0)+1);
-      const [messages,polls]=await Promise.all([TopicMessage.find({slug}).sort({createdAt:1}).limit(100).lean(),Poll.find({scope:'topic',scopeId:slug,$or:[{expiresAt:null},{expiresAt:{$gt:new Date()}}]}).sort({createdAt:-1}).lean()]);
-      socket.emit('topic_history',{slug,messages:messages.map(m=>({...m,_id:String(m._id)})),polls,online:Number(topicCounts.get(slug)||0)});social.to('topic:'+slug).emit('topic_presence',{slug,online:Number(topicCounts.get(slug)||0)});
-    });
-    socket.on('topic_message',async ({slug,text}={})=>{
-      if(!user||joinedTopic!==slug)return;const clean=safeText(text,1800);if(!clean)return;const check=await checkSocialMessage(user.authId,clean);if(!check.allowed)return socket.emit('safety_notice',{message:check.suggestion,flags:check.flags});
-      const m=await TopicMessage.create({slug,senderId:user.authId,senderName:user.displayName,text:clean});social.to('topic:'+slug).emit('topic_message',{...m.toObject(),_id:String(m._id),reactions:{}});
-    });
-    socket.on('topic_react',async ({messageId,emoji}={})=>{
-      if(!user||!['👍','❤️','😂','💡','👏'].includes(emoji))return;const m=await TopicMessage.findById(messageId);if(!m)return;const arr=(m.reactions.get(emoji)||[]).filter(x=>x!==user.authId);arr.push(user.authId);m.reactions.set(emoji,arr);await m.save();social.to('topic:'+m.slug).emit('topic_reaction',{messageId,emoji,count:arr.length});
-    });
-
-    socket.on('community_join_socket',async ({communityId}={})=>{
-      if(!user)return;const c=await Community.findById(communityId);if(!c)return socket.emit('social_error','Community not found.');if(c.ageBand!=='all'&&c.ageBand!==user.ageBand)return socket.emit('social_error','Community not available.');if(!c.members.some(m=>m.authId===user.authId))return socket.emit('social_error','Join the community first.');
-      if(joinedCommunity)socket.leave('community:'+joinedCommunity);joinedCommunity=String(c._id);socket.join('community:'+joinedCommunity);socket.emit('community_socket_ready',{communityId:joinedCommunity});
-    });
-    socket.on('community_message',async ({communityId,text}={})=>{
-      if(!user||joinedCommunity!==String(communityId))return;const clean=safeText(text,1800);if(!clean)return;const check=await checkSocialMessage(user.authId,clean);if(!check.allowed)return socket.emit('safety_notice',{message:check.suggestion,flags:check.flags});
-      const m=await CommunityMessage.create({communityId:String(communityId),senderId:user.authId,senderName:user.displayName,text:clean});social.to('community:'+communityId).emit('community_message',{...m.toObject(),_id:String(m._id),reactions:{}});
-    });
-    socket.on('community_react',async ({messageId,emoji}={})=>{
-      if(!user||!['👍','❤️','😂','💡','👏'].includes(emoji))return;const m=await CommunityMessage.findById(messageId);if(!m)return;const arr=(m.reactions.get(emoji)||[]).filter(x=>x!==user.authId);arr.push(user.authId);m.reactions.set(emoji,arr);await m.save();social.to('community:'+m.communityId).emit('community_reaction',{messageId,emoji,count:arr.length});
-    });
-    socket.on('community_pin',async ({messageId}={})=>{
-      if(!user)return;const m=await CommunityMessage.findById(messageId);if(!m)return;const c=await Community.findById(m.communityId);if(!c||c.ownerId!==user.authId)return socket.emit('social_error','Only the community owner can pin messages.');m.pinned=!m.pinned;await m.save();social.to('community:'+m.communityId).emit('community_pin_update',{messageId,pinned:m.pinned});
-    });
-
-    socket.on('disconnect',()=>{
-      if(!user)return;queue.delete(user.authId);online.delete(user.authId);if(joinedTopic){topicCounts.set(joinedTopic,Math.max(0,(topicCounts.get(joinedTopic)||1)-1));social.to('topic:'+joinedTopic).emit('topic_presence',{slug:joinedTopic,online:Number(topicCounts.get(joinedTopic)||0)});}social.emit('social_online',{online:online.size});
-    });
+    socket.on("disconnect", async()=>{const live=activeUsers[socket.id];if(live?.firebaseUid){matchQueue.delete(live.firebaseUid);await endMatch(live.firebaseUid,"disconnect",false);await safeDB(()=>UserProfile.updateOne({firebaseUid:live.firebaseUid},{$set:{lastSeen:new Date()}}));}});
   });
 
-  return { SocialProfile, FriendRequest, SocialBlock, SocialMute, SocialReport, MatchSession, TopicMessage, Community, CommunityMessage, CommunityThread, CommunityEvent, Poll, DailyAnswer, SocialNotification, VoiceRoom };
+  // Expire temporary messages once per minute.
+  setInterval(async()=>{await safeDB(()=>Message.deleteMany({expiresAt:{$lte:new Date()}}));},60000).unref?.();
+
+  return { Connection, Notification, MatchHistory, Appeal, AuditLog, GameScore, constants:{INTERESTS,LANGUAGES,STATUSES,REPORT_CATEGORIES,EMOJIS}, helpers:{ detectLanguage, autoModerate, awardXp, acceptedConnection, isBlockedEitherWay, notify, groupRole, hasGroupPower } };
 };

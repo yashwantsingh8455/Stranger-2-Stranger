@@ -1,45 +1,36 @@
-# Repair + Guest Authentication Summary
+# Repair Summary
 
-## Guest authentication added
-- Firebase login is now optional.
-- Added Guest tab to login screen.
-- Guest creation uses username + country + DOB.
-- Added server-side age validation (13+).
-- Added MongoDB-backed GuestUser records.
-- Added random guest ID + high-entropy session token.
-- Guest token is stored only as a SHA-256 hash server-side.
-- Exact DOB is validated but not persisted; only an age-verification timestamp is stored.
-- Added guest session resume, guest profile GET/PUT and explicit guest logout.
-- Explicit guest logout deletes the temporary identity so its username can be reused.
-- Global chat and Jitsi call page now accept Firebase or Guest sessions.
-- Guests can never become admins; admin privileges remain Firebase UID based.
+This build was cleaned from the supplied Stranger-2-Stranger archive.
 
-## Previous critical repairs retained
-- Removed embedded MongoDB credentials and Discord webhook URLs.
-- Removed hard-coded client-side admin password.
+## Critical fixes
+- Removed embedded MongoDB credentials.
+- Removed embedded Discord webhook URLs.
+- Removed the hard-coded admin password from browser JavaScript.
+- Made Firebase authentication mandatory by default for chat joins.
 - Replaced username-based admin trust with Firebase UID allowlisting.
 - Protected message deletion with owner/admin authorization.
 - Sanitized group-list responses and bcrypt-hashed group passwords.
 - Protected group messaging/deletion by membership/ownership.
 - Protected session lookup/admin APIs.
-- Added MongoDB-backed Firebase profiles.
+
+## Consistency fixes
+- Added MongoDB-backed profile GET/PUT APIs.
 - Added missing live-announcement endpoint.
-- Replaced fabricated homepage activity/online counts with real health data.
-- Fixed PWA assets/service worker and removed incompatible legacy room copies.
+- Fixed announcement object rendering.
+- Fixed admin single-message delete endpoint mismatch.
+- Fixed iframe group-chat route filename.
+- Removed duplicate Socket.IO handlers and duplicate report form IDs.
+- Added group UI wiring, group typing and owner/admin delete control.
+- Replaced fabricated homepage activity and online count with real health data.
+- Moved service worker to the served public directory.
+- Generated valid 192x192 and 512x512 PWA icons.
+- Removed incompatible legacy rooms/copies and unused scripts.
+- Reduced package.json to direct runtime dependencies.
 
-## White + Sky Blue UI redesign
-- Added a shared `public/white-sky-ui.css` product theme.
-- Reworked Home, Login/Register/Guest, Group Chat, Admin, Call, iframe/FAQ and Contact surfaces.
-- Replaced dark/neon/glow-heavy presentation with white surfaces, sky-blue actions, subtle borders and restrained shadows.
-- Standardized typography to a system UI stack for a more natural production-app feel.
-- Kept functional element IDs and JavaScript flows unchanged.
-- Locked the visible appearance to the White Sky design even if an older theme value exists in local storage.
+## Data safety changes
+- Global message IDs now come from MongoDB before broadcast.
+- Reply/caption fields are persisted.
+- Media payloads are type/size validated.
+- DM history is bounded to prevent unlimited single-document growth.
 
-## Social Discovery Edition additions
-- Added `/discover.html` White + Sky Blue discovery hub.
-- Added MongoDB-backed SocialProfile, friends, blocks, mutes, social reports, temporary matches, topic messages, communities, threads, events, polls, notifications, endorsements and voice-room records.
-- Added strict same-age-band 1-to-1 matchmaking and voice-room gates.
-- Added legacy DM enforcement for block/mute/DM policy and teen/adult boundaries.
-- Added Smart Safety duplicate/rate/scam/abuse checks for Discover messages.
-- Added shareable `/rooms/:slug` and `/community/:slug` landing pages, sitemap and robots routes.
-- Added PWA install shortcuts and safer service-worker caching (authenticated API responses are never cached).
+See README.md for deployment configuration and remaining production-scale recommendations.
