@@ -140,3 +140,13 @@ The base visual system is in `public/white-sky-ui.css`. Discover-specific White 
 ## Admin registered email registry
 
 Open `/mail.html` and authenticate with the same `PANEL_PASSWORD` used by the admin console. The page reads registered Firebase Authentication email accounts through the admin-only `/api/admin/emails` endpoint. If Firebase Admin is unavailable, it falls back to email addresses already synced to MongoDB `UserProfile` documents. Guest accounts never expose or require an email address.
+
+## Visitor analytics
+
+The public landing page records a privacy-preserving browser-level unique visitor in MongoDB and shows the live total beside Notifications. `public/analytics.html` provides date/week/month/year analytics. The backend routes are registered from `visitor-analytics.js` beside `server.js`; do not move that file into `public/`.
+
+Routes:
+- `POST /api/analytics/visit`
+- `GET /api/analytics/summary`
+- `GET /api/analytics/years`
+- `GET /api/analytics/series`
