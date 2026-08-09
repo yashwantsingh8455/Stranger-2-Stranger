@@ -4,12 +4,34 @@
 // ║   Profanity | Warnings | DM Persistence | Group Chatroom | 2026 ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-const bcrypt  = require("bcrypt");
-const crypto  = require("crypto");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
 const express = require("express");
 const app = express();
+
+app.use(express.json({ limit: "2mb" }));
+app.set("trust proxy", 1);
+
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
+
+require("dotenv").config();
+
+const http = require("http").createServer(app);
+
+const io = require("socket.io")(http, {
+  cors: {
+    origin: process.env.ALLOWED_ORIGIN || "*"
+  },
+  maxHttpBufferSize: 2 * 1024 * 1024
+});
+
+const path = require("path");
+const fs = require("fs");
+const mongoose = require("mongoose");
+const admin = require("firebase-admin");
 
 app.use(express.json({ limit: "2mb" }));
 
