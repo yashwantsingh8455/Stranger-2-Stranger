@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Exit Contact Form - TalktoPeoples</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Styling for a compact and fully responsive design */
+        :root {
+            --background-color: #f7f9fc;
+            --form-bg: #ffffff;
+            --text-color: #333d42;
+            --primary-color: #007bff;
+            --line-color: #e0e0e0;
+            --button-bg: #333d42;
+        }
+
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            margin: 0;
+            padding: 20px 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .form-container {
+            position: relative; 
+            width: 90%; 
+            max-width: 1100px;
+            background-color: var(--form-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); 
+        }
+        
+        /* --------------------- Close Button Styling --------------------- */
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 5px;
+            line-height: 1;
+            opacity: 0; /* Hidden by default */
+            visibility: hidden;
+            transition: color 0.2s;
+            z-index: 10;
+        }
+
+        .close-btn:hover {
+            color: #ff4d4d;
+        }
+        /* ---------------------------------------------------------------------- */
+
+        h1 {
+            font-size: 2.2em;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        .separator-line {
+            width: 100%;
+            height: 2px;
+            background-color: var(--line-color);
+            margin-bottom: 15px;
+        }
+
+        .info-block {
+            margin-bottom: 20px;
+            padding: 12px;
+            border-left: 4px solid var(--primary-color);
+            background-color: #f0f8ff;
+            border-radius: 4px;
+            line-height: 1.5;
+            font-size: 0.9em;
+        }
+
+        .info-block p {
+            margin: 0 0 8px 0;
+        }
+        
+        .info-block strong {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .faq-link {
+            display: block;
+            margin-top: 8px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        /* Form Structure and Input Styling */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.95em;
+            margin-bottom: 5px;
+            font-weight: 400;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 0.95em;
+            color: var(--text-color);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.2);
+            outline: none;
+        }
+
+        .input-short {
+            max-width: 600px; 
+        }
+
+        #message {
+            min-height: 120px; 
+            resize: vertical;
+        }
+
+        button[type="submit"] {
+            background-color: var(--button-bg);
+            color: #ffffff;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.3s, transform 0.1s;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #1a1a1a;
+        }
+
+        /* RESPONSIVE MEDIA QUERIES */
+        @media (max-width: 1024px) {
+            .form-container {
+                max-width: 90%;
+            }
+            .input-short {
+                max-width: 500px; 
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 0; 
+                align-items: flex-start;
+            }
+            .form-container {
+                width: 100%;
+                padding: 15px;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .info-block {
+                font-size: 0.85em;
+            }
+            .input-short {
+                max-width: 100%;
+            }
+            /* Show the close button on mobile */
+            .close-btn {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-container" id="contactFormContainer">
+    
+    <button class="close-btn" onclick="goToHome()">&#10005;</button>
+    
+    <h1>Contact us</h1>
+    <div class="separator-line"></div>
+    
+    <div class="info-block">
+        <p>We always welcome your suggestions and queries regarding your experience on <strong>TalktoPeoples</strong>. We understand that questions often arise while chatting online.</p>
+        
+        <p>If you encounter any technical issues or prefer not to use this form, you can directly email us at <strong><a href="mailto:noreply.trustcenter@gmail.com">noreply.trustcenter@gmail.com</a></strong>.</p>
+        
+        <p>We are here to help and will reply as quickly as we can.</p>
+
+        <p>Happy Chatting! The <strong>TalktoPeoples</strong> Team</p>
+    </div>
+
+    <form action="https://api.web3forms.com/submit" method="POST">
+        
+        <input type="hidden" name="access_key" value="1de6a434-0634-4501-b23c-d4fccd63ba5f">
+        
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" class="input-short" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" class="input-short" required>
+        </div>
+
+        <div class="form-group">
+            <label for="subject">Subject:</label>
+            <input type="text" id="subject" name="subject" class="input-short">
+        </div>
+
+        <div class="form-group">
+            <label for="message">Message:</label>
+            <textarea id="message" name="message" required></textarea>
+        </div>
+
+        <button type="submit">Submit</button>
+    </form>
+</div>
+
+<script>
+    function goToHome() {
+        // Since index.html is in the same folder as contact.html (based on the image), 
+        // we use a relative path: 'index.html'
+        window.location.href = '../index.html'; 
+    }
+</script>
+
+</body>
+</html>
