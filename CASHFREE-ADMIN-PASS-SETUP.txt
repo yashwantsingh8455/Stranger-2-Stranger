@@ -1,0 +1,21 @@
+Quick Cashfree Branding Notes
+=============================
+
+You can keep your old Cashfree payment integration unchanged and use the SAME
+Payment Gateway credentials for this ₹25 Admin Pass.
+
+Old feature:
+  Same Cashfree merchant account / same API credentials
+
+New Community Admin:
+  Same Cashfree merchant account / same API credentials
+  Different unique order_id
+  order_note = Stranger to Stranger - Community Admin - 30 Days
+  order_tags.feature = community_admin
+
+Checkout merchant/brand display:
+  Keep the Cashfree checkout brand configured as:
+  Stranger to Stranger
+
+This makes both old and new payment flows belong to the same visible merchant
+brand while your backend still knows what each order was for.

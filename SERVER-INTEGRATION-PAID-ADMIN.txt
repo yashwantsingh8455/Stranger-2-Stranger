@@ -1,0 +1,227 @@
+StrangerToStranger — ₹25 Community Admin Pass
+=============================================
+
+FILES
+-----
+1. Group-Chatroom-Paid-Admin.html
+   Replace public/Group-Chatroom.html with this file.
+
+2. paid-admin.js
+   Put this beside server.js.
+
+WHAT THIS FEATURE DOES
+----------------------
+- Shows "Admin ₹25" button in Group Chat.
+- Registered Firebase account can buy a 30-day Community Admin pass.
+- Cashfree Hosted Checkout is opened using payment_session_id.
+- Cashfree secret key stays on backend only.
+- Payment is verified from backend before access is activated.
+- Subscription is stored in MongoDB.
+- Renewing while already active adds another 30 days from the current expiry.
+- Guest accounts cannot buy the role because guest identities can be deleted on logout.
+- Paid Community Admin is NOT Master Admin.
+
+PAID COMMUNITY ADMIN SHOULD GET
+-------------------------------
+- Community Admin badge/status
+- Limited chat moderation
+- Delete abusive/spam messages in the room they are currently in
+
+PAID COMMUNITY ADMIN MUST NOT GET
+---------------------------------
+- /admin master panel
+- Registered Emails
+- IP/session data
+- Firebase UID data
+- Site-wide UID bans
+- PANEL_PASSWORD
+- Full-site message clearing
+- Deleting groups they do not own
+- Changing owner/master-admin settings
+
+CASHFREE
+--------
+You DO NOT need another Cashfree Payment Gateway API key for this plan.
+
+The same Payment Gateway client ID + secret can create many different orders.
+This module distinguishes this feature using:
+- unique order_id
+- order_note
+- order_tags
+
+The Cashfree checkout brand remains your merchant/checkout brand.
+Set that brand to "Stranger to Stranger" in the Cashfree dashboard.
+
+RENDER ENVIRONMENT
+------------------
+Use your EXISTING Cashfree keys.
+
+The module accepts either naming style:
+
+CASHFREE_CLIENT_ID=...
+CASHFREE_CLIENT_SECRET=...
+
+OR your existing aliases:
+
+CASHFREE_APP_ID=...
+CASHFREE_SECRET_KEY=...
+
+Also add:
+
+CASHFREE_ENV=production
+CASHFREE_API_VERSION=2026-01-01
+PUBLIC_BASE_URL=https://strangertostranger.onrender.com
+
+For testing first:
+CASHFREE_ENV=sandbox
+
+SERVER.JS — STEP 1
+------------------
+Make sure this exists BEFORE paid-admin routes are registered:
+
+app.use(express.json({ limit: "2mb" }));
+
+SERVER.JS — STEP 2
+------------------
+After express.json(), register paid-admin.js:
+
+const paidAdminFeature = require("./paid-admin")({
+  app,
+  mongoose,
+  verifyFirebaseToken,
+  firebaseAdminReady: () => firebaseAdminReady,
+  mongoReady: () => mongoConnected,
+});
+
+It is okay if your Socket.IO connection handler appears earlier in the source,
+as long as the server is not started until after paidAdminFeature has been
+initialised. For clarity, placing this registration before io.on("connection")
+is even better, but express.json() must be registered first.
+
+SERVER.JS — STEP 3: JOIN SESSION
+--------------------------------
+Find:
+
+const isAdmin = isFirebaseAdminUid(firebaseUid);
+
+Immediately after it add:
+
+const paidAdminStatus = firebaseUid
+  ? await paidAdminFeature.getStatus(firebaseUid)
+  : { active: false, expiresAt: null };
+
+Then, inside currentUser = { ... } add:
+
+isPaidAdmin: !!paidAdminStatus.active,
+paidAdminExpiresAt: paidAdminStatus.expiresAt || null,
+
+Example:
+
+currentUser = {
+  socketId: socket.id,
+  name,
+  bio,
+  avatar,
+  color,
+  ip: userIP,
+  firebaseUid,
+  firebaseEmail,
+  guestId,
+  country: guestCountry,
+  authType,
+  authId,
+  ageBand,
+  isAdmin,
+  isPaidAdmin: !!paidAdminStatus.active,
+  paidAdminExpiresAt: paidAdminStatus.expiresAt || null,
+  isVip: isUserVip(nameLower, isAdmin),
+  room: "global",
+};
+
+Your existing:
+
+socket.emit("joined", { ...currentUser, ... });
+
+will then send isPaidAdmin + paidAdminExpiresAt to the page.
+
+SERVER.JS — STEP 4: DELETE MESSAGE PERMISSION
+---------------------------------------------
+Find your delete-message handler.
+
+Do NOT simply change paid users into master admins.
+
+Use this form:
+
+socket.on("delete message", async id => {
+  if (!currentUser || !isValidObjectId(id)) return;
+
+  const message = await safeDB(() => Message.findById(id), null);
+  if (!message) return socket.emit("error_msg", "Message not found.");
+
+  const ownsMessage =
+    message.senderName?.toLowerCase() === currentUser.name.toLowerCase();
+
+  // Re-check MongoDB every moderation action so an expired pass cannot keep
+  // using admin powers just because the socket stayed connected.
+  const paidAdminActive =
+    !!currentUser.firebaseUid &&
+    await paidAdminFeature.hasActive(currentUser.firebaseUid);
+
+  const messageRoom = message.room || "global";
+
+  // Paid community admins can moderate ONLY the room they are currently in.
+  const paidAdminCanModerateThisRoom =
+    paidAdminActive &&
+    messageRoom === (currentUser.room || "global");
+
+  if (
+    !ownsMessage &&
+    !currentUser.isAdmin &&
+    !paidAdminCanModerateThisRoom
+  ) {
+    return socket.emit(
+      "error_msg",
+      "You do not have permission to delete this message."
+    );
+  }
+
+  await safeDB(() => Message.findByIdAndDelete(id));
+  io.to(messageRoom).emit("delete message", id);
+});
+
+KEEP MASTER-ONLY FEATURES UNCHANGED
+-----------------------------------
+Do NOT add isPaidAdmin to:
+- manual_clear_all
+- /api/admin/*
+- requireAdmin
+- delete_group for other people's groups
+- admin email registry
+- user session/IP endpoints
+- banuid
+
+MONGODB COLLECTIONS
+-------------------
+Mongoose will create collections similar to:
+- paidadminsubscriptions
+- paidadminorders
+
+PAYMENT FLOW
+------------
+Registered user
+  -> Admin ₹25
+  -> enters payment phone
+  -> POST /api/paid-admin/create-order
+  -> backend creates ₹25 Cashfree order
+  -> browser opens Cashfree Hosted Checkout
+  -> Cashfree redirects back to Group-Chatroom
+  -> POST /api/paid-admin/verify
+  -> backend asks Cashfree for order status
+  -> ONLY if order_status === PAID:
+       30-day entitlement activates
+
+IMPORTANT
+---------
+Never put Cashfree client secret in Group-Chatroom.html.
+Never activate the role only from a frontend "payment success" message.
+The backend verification in paid-admin.js is the authority.
