@@ -8,13 +8,18 @@ const bcrypt  = require("bcrypt");
 const crypto  = require("crypto");
 const nodemailer = require("nodemailer");
 
+const express = require("express");
+const app = express();
+
+app.use(express.json({ limit: "2mb" }));
+
+app.set("trust proxy", 1);
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
 require("dotenv").config();
-const express = require("express");
+
 const app     = express();
-app.set("trust proxy", 1);
 const http    = require("http").createServer(app);
 const io      = require("socket.io")(http, {
   cors: { origin: process.env.ALLOWED_ORIGIN || "*" },
@@ -225,6 +230,39 @@ async function hydratePersistentState() {
   for (const v of vipDocs || []) if (v.username) vips.add(String(v.username).toLowerCase());
   console.log(`✅ Persistent moderation state loaded: ${bannedUsernames.size} usernames, ${bannedUids.size} UIDs, ${vips.size} VIPs`);
 }
+
+
+
+
+async function safeDB(fn, fallback = null) {
+  if (!mongoConnected) return fallback;
+
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("DB op failed:", err.message);
+    return fallback;
+  }
+}
+
+
+
+
+// ══════════════════════════════════════════════════════════════════
+// 👑 PAID COMMUNITY ADMIN — CASHFREE
+// ══════════════════════════════════════════════════════════════════
+
+const paidAdminFeature = require("./paid-admin")({
+  app,
+  mongoose,
+  verifyFirebaseToken,
+
+  firebaseAdminReady: () => firebaseAdminReady,
+
+  mongoReady: () => mongoConnected,
+});
+
+console.log("✅ Paid Admin routes registered");
 
 // ══════════════════════════════════════════════════════════════════
 // 📋 MONGODB SCHEMAS
@@ -1816,7 +1854,6 @@ io.on("connection", socket => {
 
 
 
-app.use(express.json({ limit: "2mb" }));
 
 // Visitor analytics
 require("./visitor-analytics")(app);
