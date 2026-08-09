@@ -87,6 +87,25 @@ async function verifyFirebaseToken(idToken) {
   catch (err) { return null; }
 }
 
+
+
+
+app.get("/health", (req, res) => res.json({
+  status: "ok",
+  online: Object.keys(activeUsers).length,
+  discord: discordReady,
+  mongo: mongoConnected ? "connected" : "disconnected",
+  firebaseAdmin: firebaseAdminReady,
+  guestAuth: ALLOW_GUEST_AUTH,
+  analytics: mongoConnected ? "ready" : "waiting-for-mongodb",
+}));
+
+
+
+
+
+
+
 // ══════════════════════════════════════════════════════════════════
 // 🧠 PROFANITY DETECTION
 // ══════════════════════════════════════════════════════════════════
