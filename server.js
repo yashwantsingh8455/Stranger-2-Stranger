@@ -90,22 +90,6 @@ async function verifyFirebaseToken(idToken) {
 
 
 
-app.get("/health", (req, res) => res.json({
-  status: "ok",
-  online: Object.keys(activeUsers).length,
-  discord: discordReady,
-  mongo: mongoConnected ? "connected" : "disconnected",
-  firebaseAdmin: firebaseAdminReady,
-  guestAuth: ALLOW_GUEST_AUTH,
-  analytics: mongoConnected ? "ready" : "waiting-for-mongodb",
-}));
-
-
-
-
-
-
-
 // ══════════════════════════════════════════════════════════════════
 // 🧠 PROFANITY DETECTION
 // ══════════════════════════════════════════════════════════════════
@@ -1565,6 +1549,79 @@ io.on("connection", socket => {
 // 🔗 CLEAN URLS — REMOVE .html / .htm
 // ══════════════════════════════════════════════════════════════════
 
+
+
+
+app.use(express.json({ limit: "2mb" }));
+
+// Visitor analytics
+require("./visitor-analytics")(app);
+
+
+
+
+
+
+
+
+
+app.use((req, res, next) => {
+  if (
+    (req.method === "GET" || req.method === "HEAD") &&
+    /\.html?$/i.test(req.path)
+  ) {
+    const cleanPath = req.path.replace(/\.html?$/i, "") || "/";
+
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(req.query || {})) {
+      if (Array.isArray(value)) {
+        value.forEach(v => {
+          params.append(
+            key,
+            String(v).replace(/\.html?$/i, "")
+          );
+        });
+      } else {
+        params.append(
+          key,
+          String(value).replace(/\.html?$/i, "")
+        );
+      }
+    }
+
+    const query = params.toString();
+
+    return res.redirect(
+      301,
+      cleanPath + (query ? "?" + query : "")
+    );
+  }
+
+  next();
+});
+
+
+
+
+
+
+
+app.use(
+  express.static(
+    path.join(__dirname, "public"),
+    {
+      extensions: ["html", "htm"],
+      redirect: false
+    }
+  )
+);
+
+
+
+
+
+
 app.use((req, res, next) => {
   if (
     (req.method === "GET" || req.method === "HEAD") &&
@@ -1696,16 +1753,6 @@ app.get("/iframe-groupchatroom", (req, res) => {
     )
   );
 });
-
-// Unique visitor analytics — MongoDB-backed and available on the public landing page.
-// Keep this file beside server.js (NOT inside public/).
-require("./visitor-analytics")(app);
-
-app.use(express.static(path.join(__dirname, "public"), { extensions: ["html", "htm"] }));
-
-app.get("/",                    (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.get("/iframe-groupchatroom",(req, res) => res.sendFile(path.join(__dirname, "public", "iframe-groupchatroom.html")));
-app.get("/admin",               (req, res) => res.sendFile(path.join(__dirname, "public", "admin.html")));
 
 app.get("/health", (req, res) => res.json({
   status: "ok",
