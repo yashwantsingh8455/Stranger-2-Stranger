@@ -1,0 +1,26 @@
+FINAL DEPLOY GUIDE
+==================
+
+1. Replace your GitHub repository files with this final build.
+2. Run locally:
+   npm install
+   npm test
+3. Commit package.json AND package-lock.json.
+4. Render Build Command: npm install
+5. Render Start Command: npm start
+6. Add environment variables from .env.example (real values only in Render, never GitHub).
+7. Cashfree: whitelist https://strangertostranger.onrender.com
+8. Recommended Cashfree webhook URL:
+   https://strangertostranger.onrender.com/api/paid-admin/webhook
+9. Deploy latest commit.
+
+CHECK AFTER DEPLOY
+------------------
+/health should return JSON and show mongo/firebase/reportEmail/paidAdminPayments states.
+/api/paid-admin/status without auth should return JSON 401, not an HTML page.
+/Group-Chatroom should open with no .html extension.
+
+KNOWN INTENTIONAL LIMITS
+------------------------
+Paid Community Admin is limited moderation only. It is not the master admin role.
+Guest accounts cannot buy the paid role.

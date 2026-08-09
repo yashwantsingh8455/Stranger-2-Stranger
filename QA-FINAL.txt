@@ -1,0 +1,59 @@
+StrangerToStranger — FINAL QA REPORT
+====================================
+
+FIXED
+-----
+- Duplicate Express app declaration removed.
+- Duplicate dns/http/io/path/fs/mongoose/firebase-admin declarations removed.
+- Duplicate express.json setup removed; JSON parser is registered once.
+- Duplicate safeDB() function removed.
+- Paid Admin routes are registered in server.js.
+- ₹25 / 30-day Community Admin status loads on Firebase login.
+- Paid Community Admin is re-verified from MongoDB before moderation actions.
+- Paid admin moderation is limited to the currently joined room.
+- Master admin-only controls remain master-only.
+- Cashfree checkout response parsing no longer blindly assumes JSON.
+- Cashfree payment return is verified server-side before activation.
+- Signed Cashfree payment-success webhook endpoint added.
+- Payment completion refreshes the current Socket.IO paid-admin state.
+- Report form waits for real server success/error before showing success.
+- Report email flow remains MongoDB + Discord + SMTP aware.
+- Gmail SMTP verify logging added.
+- Missing PWA 192x192 and 512x512 icons created.
+- Manifest/service-worker URLs changed to clean extensionless page URLs.
+- /guest safely redirects to login guest tab.
+- Broken missing /faq and /contact file routes no longer throw sendFile errors.
+- package.json includes nodemailer and Node 20-22 engine range.
+- .env.example and final deployment guides added.
+
+STATIC QA PASSED
+----------------
+- node --check server.js
+- node --check paid-admin.js
+- node --check social-features.js
+- node --check visitor-analytics.js
+- All inline JavaScript blocks in public/*.html pass node --check.
+- No duplicate HTML IDs detected.
+- manifest.json valid.
+- package.json valid.
+- package-lock.json valid JSON.
+- Required PWA icon files exist.
+- No MongoDB URI/private-key/Cashfree secret/SMTP password was found hard-coded in project files.
+
+LIVE TEST LIMITS
+----------------
+Cashfree, Firebase Admin, MongoDB and Gmail SMTP require your real Render
+environment variables and external services. Those live transactions cannot
+be executed inside this build sandbox.
+
+Render should use:
+Build Command: npm install
+Start Command: npm start
+
+After deploy:
+1. Open /health
+2. Confirm paidAdminPayments is "configured"
+3. Confirm reportEmail is "configured" if SMTP is configured
+4. Open /api/paid-admin/status without auth: it should return JSON 401,
+   not an HTML page.
+5. Test Cashfree in sandbox first.

@@ -1,21 +1,40 @@
-Quick Cashfree Branding Notes
-=============================
+StrangerToStranger — Cashfree Community Admin Pass
+==================================================
 
-You can keep your old Cashfree payment integration unchanged and use the SAME
-Payment Gateway credentials for this ₹25 Admin Pass.
+Price: ₹25
+Validity: 30 days
+Role: Community Admin (limited moderation), NOT Master Admin.
 
-Old feature:
-  Same Cashfree merchant account / same API credentials
+RENDER ENVIRONMENT VARIABLES
+----------------------------
+Reuse the SAME Cashfree Payment Gateway credentials already used by your other payment flow:
 
-New Community Admin:
-  Same Cashfree merchant account / same API credentials
-  Different unique order_id
-  order_note = Stranger to Stranger - Community Admin - 30 Days
-  order_tags.feature = community_admin
+CASHFREE_CLIENT_ID=...
+CASHFREE_CLIENT_SECRET=...
 
-Checkout merchant/brand display:
-  Keep the Cashfree checkout brand configured as:
-  Stranger to Stranger
+Aliases also supported:
+CASHFREE_APP_ID=...
+CASHFREE_SECRET_KEY=...
 
-This makes both old and new payment flows belong to the same visible merchant
-brand while your backend still knows what each order was for.
+Required:
+CASHFREE_ENV=production
+CASHFREE_API_VERSION=2026-01-01
+PUBLIC_BASE_URL=https://strangertostranger.onrender.com
+
+For Cashfree testing, temporarily use:
+CASHFREE_ENV=sandbox
+
+CASHFREE DASHBOARD
+------------------
+1. Whitelist your live website domain for Web Checkout.
+2. Keep merchant/checkout branding as “Stranger to Stranger”.
+3. Recommended: Developers -> Webhooks -> add:
+   https://strangertostranger.onrender.com/api/paid-admin/webhook
+   Subscribe to Payment Success events.
+
+SECURITY
+--------
+- Never put Cashfree client secret in HTML/JS/GitHub.
+- The backend verifies order status before giving 30-day access.
+- Webhook signatures are verified before processing.
+- Paid admins cannot access /admin, email registry, IP/session data, UID bans, full-site clear, or master controls.

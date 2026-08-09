@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Visitor Analytics — Stranger 2 Stranger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{--bg:#f7fbff;--card:#fff;--text:#0f172a;--muted:#64748b;--line:#dbeafe;--blue:#0ea5e9;--blue2:#38bdf8;--green:#10b981;--purple:#8b5cf6;--orange:#f59e0b;--red:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#fff 0,#f7fbff 220px);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+a{text-decoration:none;color:inherit}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1280px;margin:auto;padding:13px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;font-family:Syne;font-weight:800}
+.brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,var(--blue),#7dd3fc);color:white}
+.actions{display:flex;align-items:center;gap:8px}
+.btn{border:1px solid var(--line);background:#fff;color:#0369a1;border-radius:11px;padding:9px 12px;font-weight:700;cursor:pointer}
+.btn:hover{background:#f0f9ff}
+.live{display:flex;align-items:center;gap:7px;color:#047857;font-size:12px;font-weight:700}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #d1fae5}
+.wrap{max-width:1280px;margin:auto;padding:30px 22px 60px}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:20px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0284c7;margin-bottom:8px}
+h1{font-family:Syne;margin:0;font-size:clamp(30px,5vw,48px);letter-spacing:-1.4px}
+.sub{margin-top:8px;color:var(--muted);line-height:1.55}
+.cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:22px 0}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 28px rgba(14,165,233,.05)}
+.card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:800}
+.card .value{font-family:Syne;font-size:28px;font-weight:800;margin-top:7px}
+.card .note{font-size:11px;color:var(--muted);margin-top:4px}
+.c-blue .value{color:#0284c7}.c-green .value{color:#059669}.c-purple .value{color:#7c3aed}.c-orange .value{color:#d97706}
+.panel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:0 8px 28px rgba(14,165,233,.045)}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}.tab{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;font-weight:750;color:#475569;cursor:pointer}.tab.active{background:#e0f2fe;color:#0369a1;border-color:#7dd3fc}
+.filters{display:flex;gap:8px;flex-wrap:wrap}select{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:8px 11px;color:#0f172a;outline:none}
+.chart-wrap{height:360px;position:relative}.chart-empty{display:grid;place-items:center;height:100%;color:var(--muted)}
+canvas{width:100%;height:100%;display:block}
+.grid2{display:grid;grid-template-columns:1.45fr .85fr;gap:16px}
+.panel h2{font-family:Syne;font-size:17px;margin:0 0 12px}
+.table-wrap{overflow:auto;border:1px solid #eef6ff;border-radius:14px}table{width:100%;border-collapse:collapse;min-width:540px}th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #eef6ff;font-size:13px}th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;background:#f8fbff}tr:last-child td{border-bottom:0}
+.metric-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eef6ff}.metric-row:last-child{border-bottom:0}.metric-row span{color:var(--muted);font-size:13px}.metric-row strong{font-family:Syne}
+.info{font-size:12px;color:var(--muted);line-height:1.65;background:#f8fbff;border:1px solid var(--line);border-radius:14px;padding:14px}
+@media(max-width:1050px){.cards{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:650px){.topbar-in,.hero{align-items:flex-start}.hero{flex-direction:column}.wrap{padding:22px 13px 40px}.cards{grid-template-columns:repeat(2,1fr)}.card{padding:14px}.card .value{font-size:24px}.chart-wrap{height:300px}.actions .home-text{display:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/"><span class="brand-mark">S2S</span><span>Visitor Analytics</span></a>
+    <div class="actions">
+      <span class="live"><span class="dot"></span><span id="liveText">Live</span></span>
+      <button class="btn" onclick="loadEverything()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+      <button class="btn" onclick="location.href='/'"><i class="fa-solid fa-house"></i> <span class="home-text">Home</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Stranger 2 Stranger · Analytics</div>
+      <h1>Unique visitor dashboard</h1>
+      <div class="sub">Landing visitors are counted even without login. Refresh/reopen in the same browser profile does not create another unique visitor. Daily, weekly, monthly and yearly views update automatically from MongoDB.</div>
+    </div>
+    <div style="color:var(--muted);font-size:12px" id="lastUpdated">Waiting for data…</div>
+  </section>
+
+  <section class="cards">
+    <div class="card c-blue"><div class="label">All-time unique</div><div class="value" id="totalUnique">—</div><div class="note">One browser profile = one unique</div></div>
+    <div class="card c-green"><div class="label">Today</div><div class="value" id="todayUnique">—</div><div class="note">Unique visitors today</div></div>
+    <div class="card c-purple"><div class="label">Last 7 days</div><div class="value" id="weekUnique">—</div><div class="note">Deduped across 7 days</div></div>
+    <div class="card c-orange"><div class="label">This month</div><div class="value" id="monthUnique">—</div><div class="note">Unique this month</div></div>
+    <div class="card c-blue"><div class="label">This year</div><div class="value" id="yearUnique">—</div><div class="note" id="yearNote">Current year</div></div>
+    <div class="card"><div class="label">Repeat visits</div><div class="value" id="repeatVisits">—</div><div class="note">Revisits; not added to unique</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab active" data-period="day" onclick="setPeriod('day',this)">Date wise</button>
+        <button class="tab" data-period="week" onclick="setPeriod('week',this)">Week wise</button>
+        <button class="tab" data-period="month" onclick="setPeriod('month',this)">Month wise</button>
+        <button class="tab" data-period="year" onclick="setPeriod('year',this)">Year wise</button>
+      </div>
+      <div class="filters">
+        <select id="yearSelect" onchange="loadSeries()"></select>
+        <select id="monthSelect" onchange="loadSeries()"></select>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart"></canvas><div class="chart-empty" id="chartEmpty" style="display:none">No visitor data for this range.</div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>Breakdown</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Period</th><th>Unique visitors</th><th>Share</th></tr></thead>
+          <tbody id="breakdownBody"><tr><td colspan="3">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Analytics health</h2>
+      <div class="metric-row"><span>Database</span><strong id="dbStatus">—</strong></div>
+      <div class="metric-row"><span>Current year</span><strong id="currentYear">—</strong></div>
+      <div class="metric-row"><span>Available years</span><strong id="yearCount">—</strong></div>
+      <div class="metric-row"><span>Total recorded visits</span><strong id="totalVisits">—</strong></div>
+      <div class="info" style="margin-top:14px">
+        <strong>How unique counting works:</strong> login is not required. The landing page gives each browser profile a persistent visitor ID. The server stores only its SHA-256 hash. Repeated page loads update visit activity but do not increase the all-time unique visitor count. A new calendar year needs no manual setup: when visits arrive after January 1, that year appears automatically.
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+let period='day';
+let summary={};
+let years=[];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function n(v){return Number(v||0).toLocaleString()}
+async function getJSON(url){
+  const r=await fetch(url,{cache:'no-store'});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error||`Request failed (${r.status})`);
+  return d;
+}
+async function loadSummary(){
+  summary=await getJSON('/api/analytics/summary');
+  totalUnique.textContent=n(summary.totalUnique);
+  todayUnique.textContent=n(summary.todayUnique);
+  weekUnique.textContent=n(summary.last7DaysUnique);
+  monthUnique.textContent=n(summary.thisMonthUnique);
+  yearUnique.textContent=n(summary.thisYearUnique);
+  repeatVisits.textContent=n(Math.max(0,Number(summary.totalVisits||0)-Number(summary.totalUnique||0)));
+  totalVisits.textContent=n(summary.totalVisits);
+  dbStatus.textContent=summary.database||'connected';
+  currentYear.textContent=summary.currentYear||new Date().getFullYear();
+  yearNote.textContent=`Unique in ${summary.currentYear||new Date().getFullYear()}`;
+  lastUpdated.textContent='Updated ' + new Date().toLocaleTimeString();
+}
+async function loadYears(){
+  const d=await getJSON('/api/analytics/years');
+  years=(d.years||[]).map(Number).sort((a,b)=>b-a);
+  const cy=new Date().getFullYear();
+  if(!years.includes(cy)) years.unshift(cy);
+  yearCount.textContent=years.length;
+  const current=Number(yearSelect.value)||cy;
+  yearSelect.innerHTML=years.map(y=>`<option value="${y}" ${y===current?'selected':''}>${y}</option>`).join('');
+  if(!yearSelect.value) yearSelect.value=String(cy);
+  if(!monthSelect.options.length){
+    monthSelect.innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+    monthSelect.value=String(new Date().getMonth()+1);
+  }
+}
+function setPeriod(p,el){
+  period=p;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  yearSelect.style.display=p==='year'?'none':'block';
+  monthSelect.style.display=p==='day'?'block':'none';
+  loadSeries();
+}
+async function loadSeries(){
+  const y=Number(yearSelect.value)||new Date().getFullYear();
+  const m=Number(monthSelect.value)||new Date().getMonth()+1;
+  const q=new URLSearchParams({period,year:y,month:m});
+  const d=await getJSON('/api/analytics/series?'+q.toString());
+  renderChart(d.points||[]);
+  renderTable(d.points||[]);
+}
+function renderTable(points){
+  const total=points.reduce((s,p)=>s+Number(p.value||0),0);
+  breakdownBody.innerHTML=points.length?points.slice().reverse().map(p=>{
+    const pct=total?((Number(p.value||0)/total)*100).toFixed(1):'0.0';
+    return `<tr><td>${escapeHtml(p.label)}</td><td><strong>${n(p.value)}</strong></td><td>${pct}%</td></tr>`;
+  }).join(''):'<tr><td colspan="3">No visitor data.</td></tr>';
+}
+function renderChart(points){
+  const canvas=document.getElementById('chart'),empty=document.getElementById('chartEmpty');
+  if(!points.length){canvas.style.display='none';empty.style.display='grid';return}
+  canvas.style.display='block';empty.style.display='none';
+  const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,Math.floor(rect.width*dpr));canvas.height=Math.max(1,Math.floor(rect.height*dpr));
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=rect.width,H=rect.height,pad={l:48,r:18,t:24,b:54};
+  ctx.clearRect(0,0,W,H);
+  const vals=points.map(p=>Number(p.value||0)),max=Math.max(1,...vals);
+  ctx.font='11px Inter';ctx.fillStyle='#64748b';ctx.strokeStyle='#e2e8f0';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const yy=pad.t+(H-pad.t-pad.b)*i/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();const v=Math.round(max*(1-i/4));ctx.fillText(String(v),8,yy+4)}
+  const plotW=W-pad.l-pad.r,plotH=H-pad.t-pad.b;
+  const x=i=>pad.l+(points.length===1?plotW/2:plotW*i/(points.length-1));
+  const y=v=>pad.t+plotH-(Number(v||0)/max)*plotH;
+  const grad=ctx.createLinearGradient(0,pad.t,0,H-pad.b);grad.addColorStop(0,'rgba(14,165,233,.28)');grad.addColorStop(1,'rgba(14,165,233,.02)');
+  ctx.beginPath();points.forEach((p,i)=>{const xx=x(i),yy=y(p.value);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.lineTo(x(points.length-1),H-pad.b);ctx.lineTo(x(0),H-pad.b);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();points.forEach((p,i)=>{const xx=x(i),yy=y(p.value);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle='#0ea5e9';ctx.lineWidth=3;ctx.stroke();
+  points.forEach((p,i)=>{const xx=x(i),yy=y(p.value);ctx.beginPath();ctx.arc(xx,yy,3.5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#0284c7';ctx.lineWidth=2;ctx.stroke()});
+  const step=Math.max(1,Math.ceil(points.length/10));
+  ctx.textAlign='center';ctx.fillStyle='#64748b';ctx.font='10px Inter';
+  points.forEach((p,i)=>{if(i%step===0||i===points.length-1)ctx.fillText(p.shortLabel||p.label, x(i), H-24)});
+  ctx.textAlign='start';
+}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+async function loadEverything(){
+  try{await Promise.all([loadSummary(),loadYears()]);await loadSeries();liveText.textContent='Live · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+  catch(e){liveText.textContent='Analytics unavailable';console.error(e)}
+}
+window.addEventListener('resize',()=>{clearTimeout(window.__chartResize);window.__chartResize=setTimeout(loadSeries,150)});
+loadEverything();
+setInterval(async()=>{try{await loadSummary();await loadSeries();liveText.textContent='Live · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}catch(_){}},5000);
+</script>
+</body>
+</html>
