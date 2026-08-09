@@ -1,0 +1,34 @@
+{
+  "name": "stranger-2-stranger-main",
+  "version": "3.0.0",
+  "description": "Authenticated real-time social chat platform with smart matching, compact message menus, double-tap reactions, blocking/privacy settings, communities, DMs, moderation, calls and PWA support",
+  "main": "server.js",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "discord.js": "^14.26.4",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.10.0",
+    "mongoose": "^9.6.3",
+    "socket.io": "^4.8.3"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node scripts/validate.js",
+    "test": "node scripts/validate.js"
+  },
+  "keywords": [
+    "chat",
+    "firebase",
+    "jitsi",
+    "moderation",
+    "mongodb",
+    "pwa",
+    "realtime",
+    "smart-match",
+    "social",
+    "socket.io"
+  ],
+  "author": "",
+  "license": "ISC"
+}

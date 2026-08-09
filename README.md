@@ -1,6 +1,6 @@
-# Stranger 2 Stranger — Social V2
+# Stranger 2 Stranger — Social V3
 
-Stranger 2 Stranger is an authenticated real-time social discovery and community chat platform built with **Node.js, Express, Socket.IO, MongoDB/Mongoose, Firebase Authentication and Jitsi Meet**. Social V2 keeps the repaired global chat/call/admin foundation and adds smart stranger matching, connection requests, richer profiles and privacy, advanced communities, enhanced messages, safety tooling, activities, analytics and premium-ready cosmetics.
+Stranger 2 Stranger is an authenticated real-time social discovery and community chat platform built with **Node.js, Express, Socket.IO, MongoDB/Mongoose, Firebase Authentication and Jitsi Meet**. Social V3 keeps the repaired Social V2 foundation and adds a cleaner message interaction model, double-tap reactions, self-aware online users, persistent blocking/unblocking history, and a much richer in-chat settings center while retaining smart matching, connections, communities, moderation, calls, analytics and PWA support.
 
 ## Important security note
 
@@ -29,6 +29,17 @@ The Firebase web config remains a client-side Firebase configuration. Server pri
 - `/admin` — moderation panel
 - `/analytics.html` — admin analytics, report/appeal queues and audit logs
 - `/health` — safe server status
+
+## Social V3 chat UX & privacy updates
+
+- Every normal chat message has a compact always-available three-dot menu instead of the old wide hover action bar.
+- Message menu includes Reply, React, Save, Forward, Pin/Unpin, Edit (own text), Direct Message (other user), Block/Unblock, and Delete when authorized.
+- Reaction picker opens on desktop double-click and Android/touch double-tap. Applied reaction counts remain as compact chips.
+- The signed-in account is labelled **You** in Online Users and cannot open a DM with itself.
+- Online users expose Block/Unblock controls; blocked users cannot use the DM path and their messages can be hidden locally.
+- Block/unblock actions are stored in MongoDB BlockHistory and can be reviewed from Settings.
+- Settings now includes profile/presence, chat theme, privacy, chat behaviour, browser notifications, notification preferences, accessibility, blocked accounts/history, data export, draft cleanup and session revocation.
+- Chat behaviour preferences are persisted to MongoDB per Firebase account.
 
 ## Social V2 highlights
 
