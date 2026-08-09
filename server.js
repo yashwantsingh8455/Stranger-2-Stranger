@@ -4,6 +4,10 @@
 // ║   Profanity | Warnings | DM Persistence | Group Chatroom | 2026 ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
+const bcrypt  = require("bcrypt");
+const crypto  = require("crypto");
+const nodemailer = require("nodemailer");
+
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
@@ -20,8 +24,6 @@ const path    = require("path");
 const fs      = require("fs");
 const mongoose = require("mongoose");
 const admin   = require("firebase-admin");
-const bcrypt  = require("bcrypt");
-const crypto  = require("crypto");
 
 const {
   Client, GatewayIntentBits, EmbedBuilder, ActivityType,
@@ -51,6 +53,44 @@ const BANNED_LOG_CHANNEL_ID  = process.env.BANNED_LOG_CHANNEL_ID  || "1512753547
 const ADMIN_NAME     = process.env.ADMIN_NAME || "Admin"; // display label only; never used for authorization
 const PORT           = process.env.PORT || 4000;
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || "";
+// ══════════════════════════════════════════════════════════════════
+// 📧 REPORT EMAIL CONFIGURATION
+// ══════════════════════════════════════════════════════════════════
+
+const REPORT_EMAIL_TO =
+  String(process.env.REPORT_EMAIL_TO || "").trim();
+
+const SMTP_USER =
+  String(process.env.SMTP_USER || "").trim();
+
+const SMTP_APP_PASSWORD =
+  String(process.env.SMTP_APP_PASSWORD || "")
+    .replace(/\s+/g, "")
+    .trim();
+
+let reportMailTransporter = null;
+
+if (
+  REPORT_EMAIL_TO &&
+  SMTP_USER &&
+  SMTP_APP_PASSWORD
+) {
+  reportMailTransporter = nodemailer.createTransport({
+    service: "gmail",
+
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_APP_PASSWORD,
+    },
+  });
+
+  console.log("📧 Report email notifications: ENABLED");
+} else {
+  console.warn(
+    "⚠️ Report email notifications disabled — REPORT_EMAIL_TO / SMTP_USER / SMTP_APP_PASSWORD missing"
+  );
+}
+
 // Firebase account login is optional when guest mode is enabled.
 // Guests still receive a server-issued session token; arbitrary unsigned joins are not allowed.
 const ALLOW_GUEST_AUTH = process.env.ALLOW_GUEST_AUTH !== "false";
@@ -277,13 +317,32 @@ const GuestUserSchema = new mongoose.Schema({
 const GuestUser = mongoose.model("GuestUser", GuestUserSchema);
 
 const ReportSchema = new mongoose.Schema({
-  reportedUser:  String,
+  reportedUser:  { type: String, required: true },
   reporterUser:  String,
   reporterEmail: String,
+  reporterType:  String,
   category:      String,
   reason:        String,
   device:        String,
-  createdAt:     { type: Date, default: Date.now },
+
+  // Moderation context — makes it obvious where the report came from.
+  sourcePage: {
+    type: String,
+    default: "Group-Chatroom",
+  },
+  chatRoom: {
+    type: String,
+    default: "General-Chat",
+  },
+
+  // Email delivery status for admin/audit visibility.
+  mailSent: {
+    type: Boolean,
+    default: false,
+  },
+  mailSentAt: Date,
+
+  createdAt: { type: Date, default: Date.now },
 });
 const Report = mongoose.model("Report", ReportSchema);
 
@@ -946,6 +1005,129 @@ async function logToDiscordError(msg, type = "error") {
   } catch (e) {}
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+// 📧 GROUP-CHATROOM REPORT EMAIL HELPER
+// ══════════════════════════════════════════════════════════════════
+function escapeEmailHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function sendGroupChatReportEmail({
+  reportedUser,
+  reporterUser,
+  reporterEmail,
+  reporterType,
+  category,
+  details,
+  device,
+  roomName,
+  reportId,
+}) {
+  if (!reportMailTransporter) {
+    console.warn("⚠️ Report email skipped: SMTP/report email environment variables are not configured.");
+    return { sent: false, reason: "not-configured" };
+  }
+
+  try {
+    const submittedAt = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      dateStyle: "medium",
+      timeStyle: "medium",
+    });
+
+    const safeReportedUser = escapeEmailHtml(reportedUser);
+    const safeReporter = escapeEmailHtml(reporterUser);
+    const safeReporterEmail = escapeEmailHtml(reporterEmail || "Guest user — no email");
+    const safeReporterType = escapeEmailHtml(reporterType || "Unknown");
+    const safeCategory = escapeEmailHtml(category || "Other");
+    const safeDetails = escapeEmailHtml(details || "No description");
+    const safeDevice = escapeEmailHtml(device || "Unknown");
+    const safeRoom = escapeEmailHtml(roomName || "General-Chat");
+    const safeReportId = escapeEmailHtml(reportId || "N/A");
+    const safeSubmittedAt = escapeEmailHtml(submittedAt);
+
+    const info = await reportMailTransporter.sendMail({
+      from: `"StrangerToStranger Reports" <${SMTP_USER}>`,
+      to: REPORT_EMAIL_TO,
+      subject: `🚨 [StrangerToStranger] Group-Chatroom Report — ${String(reportedUser || "User").slice(0, 60)}`,
+      text: [
+        "STRANGER TO STRANGER — USER REPORT",
+        "",
+        "Source Page: Group-Chatroom",
+        `Active Room: ${roomName || "General-Chat"}`,
+        "",
+        `Reported User: ${reportedUser || "Unknown"}`,
+        `Reporter: ${reporterUser || "Unknown"}`,
+        `Reporter Type: ${reporterType || "Unknown"}`,
+        `Reporter Email: ${reporterEmail || "Guest user — no email"}`,
+        "",
+        `Reason: ${category || "Other"}`,
+        "",
+        "Description:",
+        details || "No description",
+        "",
+        `Device: ${device || "Unknown"}`,
+        `Report ID: ${reportId || "N/A"}`,
+        `Submitted: ${submittedAt}`,
+        "",
+        "This report was submitted from StrangerToStranger Group-Chatroom.",
+      ].join("\n"),
+      html: `
+<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#172033;">
+    <div style="max-width:680px;margin:0 auto;background:#fff;border:1px solid #e5e9f0;border-radius:14px;overflow:hidden;">
+      <div style="background:#111827;padding:24px;">
+        <div style="font-size:12px;font-weight:700;color:#7dd3fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+          StrangerToStranger
+        </div>
+        <div style="font-size:23px;font-weight:800;color:#fff;">🚨 New User Report</div>
+        <div style="margin-top:8px;font-size:14px;color:#cbd5e1;">Source: Group-Chatroom</div>
+      </div>
+
+      <div style="padding:24px;">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:20px;">
+          <strong>📍 Report Source</strong><br>
+          Group-Chatroom → ${safeRoom}
+        </div>
+
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;width:180px;">Reported User</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeReportedUser}</td></tr>
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;">Reporter</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeReporter}</td></tr>
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;">Reporter Type</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeReporterType}</td></tr>
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;">Reporter Email</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeReporterEmail}</td></tr>
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;">Reason</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeCategory}</td></tr>
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;">Device</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeDevice}</td></tr>
+          <tr><td style="padding:11px;border-bottom:1px solid #edf0f5;font-weight:700;">Report ID</td><td style="padding:11px;border-bottom:1px solid #edf0f5;">${safeReportId}</td></tr>
+          <tr><td style="padding:11px;font-weight:700;">Submitted</td><td style="padding:11px;">${safeSubmittedAt}</td></tr>
+        </table>
+
+        <div style="margin-top:22px;font-weight:700;font-size:14px;">Description</div>
+        <div style="margin-top:8px;padding:15px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;line-height:1.6;white-space:pre-wrap;">${safeDetails}</div>
+
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid #edf0f5;color:#64748b;font-size:12px;line-height:1.6;">
+          This notification was generated automatically from <strong>StrangerToStranger Group-Chatroom</strong>.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`,
+    });
+
+    console.log("📧 Group-Chatroom report email sent:", info.messageId);
+    return { sent: true, messageId: info.messageId };
+  } catch (err) {
+    console.error("❌ Group-Chatroom report email error:", err.message);
+    return { sent: false, reason: err.message };
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════
 // 🔌 SOCKET.IO
 // ══════════════════════════════════════════════════════════════════
@@ -955,6 +1137,7 @@ io.on("connection", socket => {
   const userAgent = socket.handshake.headers["user-agent"] || "";
   const { browser, os, isMobile } = parseUserAgent(userAgent);
   let currentUser = null;
+  let lastReportAt = 0; // lightweight per-socket email/report spam protection
 
   // ── JOIN (Global Room) ───────────────────────────────────────────
   socket.on("join", async data => {
@@ -1447,28 +1630,109 @@ io.on("connection", socket => {
 
   // ── REPORT USER ──────────────────────────────────────────────────
   socket.on("report user", async data => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      return socket.emit("report_error", "Please sign in before submitting a report.");
+    }
+
     try {
+      // Prevent accidental double-submit / mail flooding while keeping reporting available.
+      const nowMs = Date.now();
+      if (nowMs - lastReportAt < 10_000) {
+        return socket.emit("report_error", "Please wait a few seconds before sending another report.");
+      }
+      lastReportAt = nowMs;
+
       data = data && typeof data === "object" ? data : {};
-      const reportedUser = String(data.reportedUser || "").trim().slice(0,30);
-      const category = String(data.reason || "Other").trim().slice(0,80);
-      const details = String(data.description || "").trim().slice(0,1000);
-      if (!reportedUser || reportedUser.toLowerCase() === currentUser.name.toLowerCase()) return socket.emit("report_error", "Invalid report target.");
-      await safeDB(() => new Report({
-        reportedUser, reporterUser: currentUser.name, reporterEmail: currentUser.firebaseEmail || "",
-        category, reason: details || category, device: isMobile ? "📱 Mobile" : "🖥️ Desktop",
-      }).save());
+      const reportedUser = String(data.reportedUser || "").trim().slice(0, 30);
+      const category = String(data.reason || "Other").trim().slice(0, 80);
+      const details = String(data.description || "").trim().slice(0, 1000);
+
+      if (!reportedUser) return socket.emit("report_error", "Reported username is required.");
+      if (reportedUser.toLowerCase() === currentUser.name.toLowerCase()) {
+        return socket.emit("report_error", "You cannot report yourself.");
+      }
+      if (!category) return socket.emit("report_error", "Please select a report reason.");
+      if (!details) return socket.emit("report_error", "Please provide report details.");
+
+      // Resolve the user's current room so the admin email clearly identifies the source.
+      let roomName = "General-Chat";
+      if (currentUser.room && currentUser.room.startsWith("group_")) {
+        const groupId = currentUser.room.replace("group_", "");
+        if (mongoose.Types.ObjectId.isValid(groupId)) {
+          const groupDoc = await safeDB(
+            () => Group.findById(groupId).select("name").lean(),
+            null
+          );
+          roomName = groupDoc?.name ? `Group: ${groupDoc.name}` : `Group: ${groupId}`;
+        }
+      }
+
+      const device = isMobile ? "📱 Mobile" : "🖥️ Desktop";
+      const reporterType = currentUser.authType === "guest" ? "Guest" : "Firebase Account";
+      const reporterEmail = currentUser.firebaseEmail || "";
+
+      // Save first, so the email can carry a stable moderation/audit report ID.
+      let reportDoc = null;
+      if (mongoConnected) {
+        reportDoc = await new Report({
+          reportedUser,
+          reporterUser: currentUser.name,
+          reporterEmail,
+          reporterType,
+          category,
+          reason: details,
+          device,
+          sourcePage: "Group-Chatroom",
+          chatRoom: roomName,
+          mailSent: false,
+        }).save();
+      }
+
+      // Existing Discord moderation notification remains active.
       sendEmbed(REPORT_CHANNEL_ID, {
-        color: 0xff3c5f, title: "🚨 New Report",
+        color: 0xff3c5f,
+        title: "🚨 Group-Chatroom User Report",
         fields: [
-          { name: "Reported", value: `\`${reportedUser}\``, inline: true },
-          { name: "Reporter", value: `\`${currentUser.name}\``, inline: true },
-          { name: "Category", value: `\`${category}\``, inline: false },
-          { name: "Details", value: details || "—", inline: false },
+          { name: "📍 Source", value: "`Group-Chatroom`", inline: true },
+          { name: "💬 Room", value: `\`${roomName}\``, inline: true },
+          { name: "🚩 Reported", value: `\`${reportedUser}\``, inline: true },
+          { name: "👤 Reporter", value: `\`${currentUser.name}\``, inline: true },
+          { name: "🔐 Reporter Type", value: `\`${reporterType}\``, inline: true },
+          { name: "📋 Category", value: `\`${category}\``, inline: false },
+          { name: "📝 Details", value: details || "—", inline: false },
         ],
       });
-      socket.emit("report_success");
-    } catch (err) { socket.emit("report_error", "Report failed."); }
+
+      // Send the report to the configured admin email.
+      const mailResult = await sendGroupChatReportEmail({
+        reportedUser,
+        reporterUser: currentUser.name,
+        reporterEmail,
+        reporterType,
+        category,
+        details,
+        device,
+        roomName,
+        reportId: reportDoc?._id?.toString() || "Not stored",
+      });
+
+      // Persist email delivery state when MongoDB is available.
+      if (reportDoc) {
+        reportDoc.mailSent = !!mailResult.sent;
+        if (mailResult.sent) reportDoc.mailSentAt = new Date();
+        await reportDoc.save();
+      }
+
+      socket.emit("report_success", {
+        ok: true,
+        source: "Group-Chatroom",
+        room: roomName,
+        mailSent: !!mailResult.sent,
+      });
+    } catch (err) {
+      console.error("❌ Report submission error:", err);
+      socket.emit("report_error", "Report could not be submitted. Please try again.");
+    }
   });
 
   // ── PROFILE UPDATE ───────────────────────────────────────────────
@@ -1557,122 +1821,44 @@ app.use(express.json({ limit: "2mb" }));
 // Visitor analytics
 require("./visitor-analytics")(app);
 
-
-
-
-
-
-
-
-
+// ══════════════════════════════════════════════════════════════════
+// 🔗 CLEAN URLS — REMOVE .html / .htm
+// ══════════════════════════════════════════════════════════════════
 app.use((req, res, next) => {
   if (
     (req.method === "GET" || req.method === "HEAD") &&
     /\.html?$/i.test(req.path)
   ) {
     const cleanPath = req.path.replace(/\.html?$/i, "") || "/";
-
     const params = new URLSearchParams();
 
     for (const [key, value] of Object.entries(req.query || {})) {
       if (Array.isArray(value)) {
-        value.forEach(v => {
-          params.append(
-            key,
-            String(v).replace(/\.html?$/i, "")
-          );
-        });
+        value.forEach(v => params.append(key, String(v).replace(/\.html?$/i, "")));
       } else {
-        params.append(
-          key,
-          String(value).replace(/\.html?$/i, "")
-        );
+        params.append(key, String(value).replace(/\.html?$/i, ""));
       }
     }
 
     const query = params.toString();
-
-    return res.redirect(
-      301,
-      cleanPath + (query ? "?" + query : "")
-    );
+    return res.redirect(301, cleanPath + (query ? "?" + query : ""));
   }
 
   next();
 });
-
-
-
-
-
-
-
-app.use(
-  express.static(
-    path.join(__dirname, "public"),
-    {
-      extensions: ["html", "htm"],
-      redirect: false
-    }
-  )
-);
-
-
-
-
-
-
-app.use((req, res, next) => {
-  if (
-    (req.method === "GET" || req.method === "HEAD") &&
-    /\.html?$/i.test(req.path)
-  ) {
-    const cleanPath = req.path.replace(/\.html?$/i, "") || "/";
-
-    const params = new URLSearchParams();
-
-    for (const [key, value] of Object.entries(req.query || {})) {
-      if (Array.isArray(value)) {
-        value.forEach(v => {
-          params.append(
-            key,
-            String(v).replace(/\.html?$/i, "")
-          );
-        });
-      } else {
-        params.append(
-          key,
-          String(value).replace(/\.html?$/i, "")
-        );
-      }
-    }
-
-    const query = params.toString();
-
-    return res.redirect(
-      301,
-      cleanPath + (query ? "?" + query : "")
-    );
-  }
-
-  next();
-});
-
 
 // ══════════════════════════════════════════════════════════════════
 // 📁 STATIC PUBLIC FILES
 // ══════════════════════════════════════════════════════════════════
-
 app.use(
   express.static(
     path.join(__dirname, "public"),
     {
       extensions: ["html", "htm"],
-      redirect: false
+      redirect: false,
     }
   )
 );
-
 
 // ══════════════════════════════════════════════════════════════════
 // 🏠 CLEAN PAGE ROUTES
@@ -1761,6 +1947,7 @@ app.get("/health", (req, res) => res.json({
   firebaseAdmin: firebaseAdminReady,
   guestAuth: ALLOW_GUEST_AUTH,
   analytics: mongoConnected ? "ready" : "waiting-for-mongodb",
+  reportEmail: reportMailTransporter ? "configured" : "disabled",
 }));
 
 async function requireGuestUser(req, res, next) {
@@ -2282,6 +2469,7 @@ async function startServer() {
     console.log(`👑 Admin UID allowlist: ${ADMIN_FIREBASE_UIDS.size} configured`);
     console.log(`🔥 Firebase Admin: ${firebaseAdminReady ? "ACTIVE" : "DISABLED"}`);
     console.log(`🚨 Profanity detection: ACTIVE`);
+    console.log(`📧 Report email: ${reportMailTransporter ? "CONFIGURED" : "DISABLED"}`);
     console.log(`🎛️  /panel command: ACTIVE`);
     console.log(`🗄️  MongoDB: ${mongoConnected ? "✅ Connected" : "❌ Disconnected (server still works)"}`);
   });
