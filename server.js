@@ -1542,7 +1542,141 @@ io.on("connection", socket => {
 // ══════════════════════════════════════════════════════════════════
 // 🌐 REST API
 // ══════════════════════════════════════════════════════════════════
-app.use(express.json({ limit: "2mb" }));
+// ══════════════════════════════════════════════════════════════════
+// 🔗 CLEAN URLS — REMOVE .html / .htm
+// ══════════════════════════════════════════════════════════════════
+
+app.use((req, res, next) => {
+  if (
+    (req.method === "GET" || req.method === "HEAD") &&
+    /\.html?$/i.test(req.path)
+  ) {
+    const cleanPath = req.path.replace(/\.html?$/i, "") || "/";
+
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(req.query || {})) {
+      if (Array.isArray(value)) {
+        value.forEach(v => {
+          params.append(
+            key,
+            String(v).replace(/\.html?$/i, "")
+          );
+        });
+      } else {
+        params.append(
+          key,
+          String(value).replace(/\.html?$/i, "")
+        );
+      }
+    }
+
+    const query = params.toString();
+
+    return res.redirect(
+      301,
+      cleanPath + (query ? "?" + query : "")
+    );
+  }
+
+  next();
+});
+
+
+// ══════════════════════════════════════════════════════════════════
+// 📁 STATIC PUBLIC FILES
+// ══════════════════════════════════════════════════════════════════
+
+app.use(
+  express.static(
+    path.join(__dirname, "public"),
+    {
+      extensions: ["html", "htm"],
+      redirect: false
+    }
+  )
+);
+
+
+// ══════════════════════════════════════════════════════════════════
+// 🏠 CLEAN PAGE ROUTES
+// ══════════════════════════════════════════════════════════════════
+
+app.get("/", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "index.html")
+  );
+});
+
+app.get("/chat", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "Group-Chatroom.html")
+  );
+});
+
+app.get("/Group-Chatroom", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "Group-Chatroom.html")
+  );
+});
+
+app.get("/discover", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "discover.html")
+  );
+});
+
+app.get("/login", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "login.html")
+  );
+});
+
+app.get("/guest", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "guest.html")
+  );
+});
+
+app.get("/analytics", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "analytics.html")
+  );
+});
+
+app.get("/admin", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "admin.html")
+  );
+});
+
+app.get("/mail", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "mail.html")
+  );
+});
+
+app.get("/faq", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "faq.html")
+  );
+});
+
+app.get("/contact", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "contact.html")
+  );
+});
+
+app.get("/iframe-groupchatroom", (req, res) => {
+  res.sendFile(
+    path.join(
+      __dirname,
+      "public",
+      "iframe-groupchatroom.html"
+    )
+  );
+});
 
 // Unique visitor analytics — MongoDB-backed and available on the public landing page.
 // Keep this file beside server.js (NOT inside public/).
